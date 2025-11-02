@@ -1,0 +1,8 @@
+streamlit
+pandas
+arabic-reshaper
+python-bidi
+reportlab
+requests
+gspread
+oauth2client

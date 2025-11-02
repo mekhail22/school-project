@@ -12,7 +12,6 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import requests
-import json
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -20,12 +19,7 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="نظام الغياب", layout="centered")
 
 # ------------------ إعدادات عامة ------------------
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-SHEET_NAME = "school_attendance"
+SHEET_NAME = "school_attendance"  # اسم Google Sheet
 PASSWORD = "1234"
 STUDENTS = [
     "ميخائيل صابر فوزي", "مينا ريمون خيري", "توني هاني نصرالله",
@@ -36,7 +30,8 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ الاتصال بـ Google Sheets ------------------
-service_account_info = json.loads(st.secrets["SERVICE_ACCOUNT_JSON"])
+service_account_info = st.secrets["SERVICE_ACCOUNT"]  # الاسم في secrets.toml
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
 creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
 gc = gspread.authorize(creds)
 worksheet = gc.open(SHEET_NAME).sheet1
@@ -54,10 +49,10 @@ if not os.path.exists(FONT_PATH):
 
 try:
     pdfmetrics.registerFont(TTFont('Arabic', FONT_PATH))
-except Exception:
+except:
     try:
         pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
-    except Exception:
+    except:
         pass
 
 # ------------------ دوال مساعدة ------------------
@@ -66,7 +61,7 @@ def reshape_arabic_text(text):
         reshaped = arabic_reshaper.reshape(str(text))
         bidi_text = get_display(reshaped)
         return bidi_text
-    except Exception:
+    except:
         return str(text)
 
 def read_sheet():
@@ -122,8 +117,12 @@ def send_telegram_message(message):
         pass
 
 def record_attendance(selected_absent, teacher_name):
+    df = read_sheet()
     date_display = datetime.now().strftime("%d / %m / %Y")
-    new_rows = [[student, teacher_name, "غائب" if student in selected_absent else "حاضر", date_display] for student in STUDENTS]
+    new_rows = []
+    for student in STUDENTS:
+        status = "غائب" if student in selected_absent else "حاضر"
+        new_rows.append([student, teacher_name, status, date_display])
     for row in new_rows:
         worksheet.append_row(row)
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
@@ -137,7 +136,12 @@ def get_student_records(student_name):
         return pd.DataFrame(columns=["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"])
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
-    df_matches = df_matches.rename(columns={"student": "الطالب", "teacher": "المدرس", "date": "التاريخ", "status": "الحالة"})
+    df_matches = df_matches.rename(columns={
+        "student": "الطالب",
+        "teacher": "المدرس",
+        "date": "التاريخ",
+        "status": "الحالة"
+    })
     df_matches = df_matches[["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"]]
     return df_matches
 
@@ -167,7 +171,13 @@ def generate_student_pdf(student_name, df_records):
         header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
-            data.append([reshape_arabic_text(row[c]) if c != "التاريخ" else reshape_arabic_text(normalize_date_for_pdf(row[c])) for c in ["المرة","الطالب","المدرس","التاريخ","الحالة"]])
+            data.append([
+                reshape_arabic_text(row["المرة"]),
+                reshape_arabic_text(row["الطالب"]),
+                reshape_arabic_text(row["المدرس"]),
+                reshape_arabic_text(normalize_date_for_pdf(row["التاريخ"])),
+                reshape_arabic_text(row["الحالة"])
+            ])
         table = Table(data, hAlign='CENTER', colWidths=[70, 110, 110, 120, 50])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
@@ -181,7 +191,8 @@ def generate_student_pdf(student_name, df_records):
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {today.day:02d} / {today.month:02d} / {today.year}"), footer_style))
+    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
+    elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
 
     doc.build(elements)
     buffer.seek(0)
@@ -220,11 +231,11 @@ if st.session_state.page == "home":
     with col1:
         if st.button("👨‍🏫 مدرس"):
             st.session_state.page = "teacher_login"
-            st.experimental_rerun()
+            st.rerun()
     with col2:
         if st.button("👦 طالب"):
             st.session_state.page = "student"
-            st.experimental_rerun()
+            st.rerun()
 
 elif st.session_state.page == "teacher_login":
     st.header("🔐 تسجيل دخول المدرس")
@@ -234,12 +245,12 @@ elif st.session_state.page == "teacher_login":
         if pwd == PASSWORD:
             st.session_state.teacher_name = teacher_choice
             st.session_state.page = "teacher_attendance"
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("❌ كلمة السر غير صحيحة")
     if st.button("🔙 رجوع"):
         st.session_state.page = "home"
-        st.experimental_rerun()
+        st.rerun()
 
 elif st.session_state.page == "teacher_attendance":
     st.header("📋 تسجيل الغياب")
@@ -260,7 +271,7 @@ elif st.session_state.page == "teacher_attendance":
 
     if st.button("🔙 رجوع"):
         st.session_state.page = "home"
-        st.experimental_rerun()
+        st.rerun()
 
 elif st.session_state.page == "student":
     st.header("📄 تقارير الغياب")
@@ -277,4 +288,4 @@ elif st.session_state.page == "student":
 
     if st.button("🔙 الرجوع"):
         st.session_state.page = "home"
-        st.experimental_rerun()
+        st.rerun()

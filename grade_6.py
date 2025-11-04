@@ -1,8 +1,3 @@
-# كامل ومعدل — نفس الشكل القديم لكن:
-# - بلا عمود زيادة
-# - كلمة "مدرس" أصبحت "معلم"
-# - صفحة المعلم: اختيار متعدد من ليست + خانتين (غياب بعذر / غياب بدون عذر)
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -102,23 +97,30 @@ def normalize_date_for_pdf(src_date_str):
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
         return ""
     s = str(src_date_str).strip().replace(" ", "")
-    parts = None
-    
-    # التعامل مع التاريخ بصيغة dd/mm/yy أو dd-mm-yy
-    if "/" in s or "-" in s:
-        sep = "/" if "/" in s else "-"
-        parts = s.split(sep)
-        if len(parts) == 3:
-            d, m, y = parts
-            # لو السنة مكتوبة برقمين، نكملها
-            if len(y) == 2:
-                y = f"20{y}"
-            try:
+    # support several formats
+    try:
+        if "-" in s:
+            parts = s.split("-")
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    y, m, d = parts
+                else:
+                    d, m, y = parts
                 return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-            except:
-                return s
+        if "/" in s:
+            parts = s.split("/")
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    y, m, d = parts
+                else:
+                    d, m, y = parts
+                return f"{int(d):02d} / {int(m):02d} / {int(y)}"
+        if len(s) == 8 and s.isdigit():
+            y = s[0:4]; m = s[4:6]; d = s[6:8]
+            return f"{int(d):02d} / {int(m):02d} / {int(y)}"
+    except:
+        pass
     return s
-
 
 def send_telegram_message(message):
     BOT_TOKEN = "7517001841:AAFZZQM1hiprXxhPhK4GMfFwu-eP-DkOdMU"
@@ -136,7 +138,8 @@ def record_attendance(selected_absent, teacher_name, status_label):
     """
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
-    date_display = datetime.now().strftime("%d / %m / %y")
+    # ** استخدم سنة كاملة (YYYY) هنا **
+    date_display = datetime.now().strftime("%d / %m / %Y")
     # append each selected student
     failed = []
     for student in selected_absent:
@@ -213,6 +216,7 @@ def generate_student_pdf(student_name, df_records):
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
+    # ** سنة كاملة هنا أيضاً **
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
 
@@ -283,7 +287,7 @@ elif st.session_state.page == "teacher_attendance":
     st.subheader(f"👨‍🏫 المعلم: {teacher_name}")
 
     # MULTISELECT لاختيار الطلاب الغائبين
-    selected = st.multiselect(":اختر الغائيبين", STUDENTS)
+    selected = st.multiselect("اختر الغائبين", STUDENTS)
 
     st.markdown("**اختر نوع الغياب:**")
     col_a, col_b = st.columns(2)

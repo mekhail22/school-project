@@ -102,30 +102,23 @@ def normalize_date_for_pdf(src_date_str):
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
         return ""
     s = str(src_date_str).strip().replace(" ", "")
-    # support several formats
-    try:
-        if "-" in s:
-            parts = s.split("-")
-            if len(parts) == 3:
-                if len(parts[0]) == 4:
-                    y, m, d = parts
-                else:
-                    d, m, y = parts
+    parts = None
+    
+    # التعامل مع التاريخ بصيغة dd/mm/yy أو dd-mm-yy
+    if "/" in s or "-" in s:
+        sep = "/" if "/" in s else "-"
+        parts = s.split(sep)
+        if len(parts) == 3:
+            d, m, y = parts
+            # لو السنة مكتوبة برقمين، نكملها
+            if len(y) == 2:
+                y = f"20{y}"
+            try:
                 return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        if "/" in s:
-            parts = s.split("/")
-            if len(parts) == 3:
-                if len(parts[0]) == 4:
-                    y, m, d = parts
-                else:
-                    d, m, y = parts
-                return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        if len(s) == 8 and s.isdigit():
-            y = s[0:4]; m = s[4:6]; d = s[6:8]
-            return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-    except:
-        pass
+            except:
+                return s
     return s
+
 
 def send_telegram_message(message):
     BOT_TOKEN = "7517001841:AAFZZQM1hiprXxhPhK4GMfFwu-eP-DkOdMU"

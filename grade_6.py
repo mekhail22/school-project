@@ -315,7 +315,7 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             failed = record_attendance(selected, teacher_name, status_label)
             if not failed:
-                st.success("✅ تم تسجيل الحضور/الغياب لجميع الطلبة في Google Sheets.")
+                st.success("✅نم تسجيل الغياب ")
             else:
                 st.error(f"حدثت أخطاء أثناء التسجيل لبعض الطلاب: {failed}")
 

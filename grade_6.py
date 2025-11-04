@@ -131,25 +131,30 @@ def send_telegram_message(message):
     except:
         pass
 
-def record_attendance(selected_absent, teacher_name, status_label):
+def record_attendance(selected_absent, teacher_name, absent_label):
     """
     يسجل لكل طالب سطر في Google Sheet: [student, teacher, status, date]
-    status_label يكون 'غياب بعذر' أو 'غياب بدون عذر'
+    - selected_absent: list of absent students (from STUDENTS)
+    - absent_label: "غياب بعذر" أو "غياب بدون عذر"
+    سيتم تسجيل الحضور لباقي الطلبة كـ "حاضر"
     """
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
-    # ** استخدم سنة كاملة (YYYY) هنا **
-    date_display = datetime.now().strftime("%d / %m / %Y")
-    # append each selected student
+
+    date_display = datetime.now().strftime("%d / %m / %Y")  # سنة كاملة
     failed = []
-    for student in selected_absent:
+
+    # نسجل لكل الطلاب: إما غائب (مع نوع العذر) أو حاضر
+    for student in STUDENTS:
+        status = absent_label if student in selected_absent else "حاضر"
         try:
-            worksheet.append_row([student, teacher_name, status_label, date_display])
+            worksheet.append_row([student, teacher_name, status, date_display])
         except Exception as e:
             failed.append((student, str(e)))
-    # send telegram message summary
+
+    # رسالة تلغرام مختصرة للمعلم
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المعلم: {teacher_name}\nحالة: {status_label}\nغائبون: {absent_students}"
+    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
     send_telegram_message(message)
     return failed
 
@@ -187,8 +192,8 @@ def generate_student_pdf(student_name, df_records):
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
-        absent_count = (df_records["الحالة"] == "غائب").sum() if "الحالة" in df_records.columns else 0
-        present_count = (df_records["الحالة"] == "حاضر").sum() if "الحالة" in df_records.columns else 0
+        absent_count = (df_records["الحالة"] == "غياب بعذر").sum() + (df_records["الحالة"] == "غياب بدون عذر").sum()
+        present_count = (df_records["الحالة"] == "حاضر").sum()
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
@@ -216,7 +221,6 @@ def generate_student_pdf(student_name, df_records):
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
-    # ** سنة كاملة هنا أيضاً **
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
 
@@ -311,7 +315,7 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             failed = record_attendance(selected, teacher_name, status_label)
             if not failed:
-                st.success("✅ تم تسجيل الغياب بنجاح في Google Sheets.")
+                st.success("✅ تم تسجيل الحضور/الغياب لجميع الطلبة في Google Sheets.")
             else:
                 st.error(f"حدثت أخطاء أثناء التسجيل لبعض الطلاب: {failed}")
 

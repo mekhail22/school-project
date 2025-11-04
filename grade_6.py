@@ -290,7 +290,7 @@ elif st.session_state.page == "teacher_attendance":
     st.subheader(f"👨‍🏫 المعلم: {teacher_name}")
 
     # MULTISELECT لاختيار الطلاب الغائبين
-    selected = st.multiselect("اختر/ي الطلاب الغائبين (اختار أكثر من طالب لو احتجت):", STUDENTS)
+    selected = st.multiselect("اختر الغائيبين:", STUDENTS)
 
     st.markdown("**اختر نوع الغياب:**")
     col_a, col_b = st.columns(2)

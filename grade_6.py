@@ -307,7 +307,10 @@ elif st.session_state.page == "student":
         else:
             # عرض الجدول بدون عمود الـ index الزائد، مع إظهار "المرة" كعمود عادي أولى
             try:
-                st.dataframe(df_student.style.hide_index(), use_container_width=True)
+                # إزالة الفهرس تمامًا قبل العرض
+                df_display = df_student.reset_index(drop=True)
+                st.dataframe(df_display, use_container_width=True)
+
             except:
                 # fallback لو الـ styler مش مدعوم في البيئة
                 st.dataframe(df_student, use_container_width=True)

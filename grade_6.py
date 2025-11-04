@@ -1,4 +1,8 @@
-# كامل ومعدل — نفس الشكل القديم لكن من غير عمود الزيادة، وكلمة "مدرس" اتحولت لـ "معلم"
+# كامل ومعدل — نفس الشكل القديم لكن:
+# - بلا عمود زيادة
+# - كلمة "مدرس" أصبحت "معلم"
+# - صفحة المعلم: اختيار متعدد من ليست + خانتين (غياب بعذر / غياب بدون عذر)
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -28,24 +32,33 @@ STUDENTS = [
     "بيشوي عاطف فايز", "جورج مينا نجيب", "كيرلس فادي صادق",
     "يوستينا مجدي فادي"
 ]
-TEACHERS = ["مينا سمير", "فادي حبيب"]  # أسماء المعلمين (المتغير اسمه TEACHERS لكن العرض بالعربي "المعلم")
+TEACHERS = ["مينا سمير", "فادي حبيب"]  # أسماء المعلمين
 
 # ------------------ الاتصال بـ Google Sheets ------------------
-# تأكد إنك خزنت JSON خدمة السرفيس في secrets كـ SERVICE_ACCOUNT (json object)
-service_account_info = st.secrets["SERVICE_ACCOUNT"]
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
-gc = gspread.authorize(creds)
+# متوقع أنك خزنت JSON خدمة السرفيس في secrets كـ "SERVICE_ACCOUNT"
+try:
+    service_account_info = st.secrets["SERVICE_ACCOUNT"]
+except Exception as e:
+    st.error("خطأ: لم أعثر على SERVICE_ACCOUNT في secrets. ضَع JSON ملف خدمة السرفيس داخل secrets باسم SERVICE_ACCOUNT.")
+    st.stop()
 
-# نفتح المصنف
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+try:
+    creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    gc = gspread.authorize(creds)
+except Exception as e:
+    st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
+    st.stop()
+
+# افتح المصنف والورقة الأولى
 try:
     sh = gc.open(SHEET_NAME)
     worksheet = sh.sheet1
 except Exception as e:
-    st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة الـ service account كـ Editor.")
+    st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة حساب الخدمة (service account) كمحرر Editor. \n\nتفاصيل: " + str(e))
     st.stop()
 
-# ------------------ تحميل خط عربي للـ PDF ------------------
+# ------------------ تحميل خط عربي للـ PDF (اختياري) ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 if not os.path.exists(FONT_PATH):
     url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
@@ -74,10 +87,11 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
-    """
-    يقرأ كل السجلات من الورقة ويتأكد من وجود الأعمدة: student, teacher, status, date
-    """
-    data = worksheet.get_all_records()
+    """ اقرأ كل السجلات من الشيت وتأكد من وجود الأعمدة المطلوبة """
+    try:
+        data = worksheet.get_all_records()
+    except Exception:
+        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
     df = pd.DataFrame(data)
     for c in ["student", "teacher", "status", "date"]:
         if c not in df.columns:
@@ -88,35 +102,29 @@ def normalize_date_for_pdf(src_date_str):
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
         return ""
     s = str(src_date_str).strip().replace(" ", "")
-    parts = None
-    if "-" in s:
-        parts = s.split("-")
-        if len(parts) == 3:
-            if len(parts[0]) == 4:
-                y, m, d = parts
-            else:
-                d, m, y = parts
-            try:
+    # support several formats
+    try:
+        if "-" in s:
+            parts = s.split("-")
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    y, m, d = parts
+                else:
+                    d, m, y = parts
                 return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-            except:
-                return s
-    if "/" in s:
-        parts = s.split("/")
-        if len(parts) == 3:
-            if len(parts[0]) == 4:
-                y, m, d = parts
-            else:
-                d, m, y = parts
-            try:
+        if "/" in s:
+            parts = s.split("/")
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    y, m, d = parts
+                else:
+                    d, m, y = parts
                 return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-            except:
-                return s
-    if len(s) == 8 and s.isdigit():
-        y = s[0:4]; m = s[4:6]; d = s[6:8]
-        try:
+        if len(s) == 8 and s.isdigit():
+            y = s[0:4]; m = s[4:6]; d = s[6:8]
             return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        except:
-            return s
+    except:
+        pass
     return s
 
 def send_telegram_message(message):
@@ -128,36 +136,35 @@ def send_telegram_message(message):
     except:
         pass
 
-def record_attendance(selected_absent, teacher_name):
+def record_attendance(selected_absent, teacher_name, status_label):
     """
-    يسجل لكل طالب (student, teacher, status, date) في Google Sheet
+    يسجل لكل طالب سطر في Google Sheet: [student, teacher, status, date]
+    status_label يكون 'غياب بعذر' أو 'غياب بدون عذر'
     """
-    date_display = datetime.now().strftime("%Y-%m-%d")  # التاريخ مخزن بصيغة yyyy-mm-dd
-    new_rows = []
-    for student in STUDENTS:
-        status = "غائب" if student in selected_absent else "حاضر"
-        new_rows.append([student, teacher_name, status, date_display])
-    for row in new_rows:
-        worksheet.append_row(row)
+    if not isinstance(selected_absent, (list, tuple)):
+        selected_absent = [selected_absent] if selected_absent else []
+    date_display = datetime.now().strftime("%Y-%m-%d")
+    # append each selected student
+    failed = []
+    for student in selected_absent:
+        try:
+            worksheet.append_row([student, teacher_name, status_label, date_display])
+        except Exception as e:
+            failed.append((student, str(e)))
+    # send telegram message summary
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المعلم: {teacher_name}\nغائبون: {absent_students}"
+    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المعلم: {teacher_name}\nحالة: {status_label}\nغائبون: {absent_students}"
     send_telegram_message(message)
+    return failed
 
 def get_student_records(student_name):
-    """
-    يعيد DataFrame منسق بأعمدة: المرة, الطالب, المعلم, التاريخ, الحالة
-    ويجعل 'المرة' أول عمود (قابل للعرض كعمود عادي)
-    """
     df = read_sheet()
-    # تطبيع أسماء الأعمدة لو مكتوبة بالعربية أو إنجليزية في الشيت
-    # لكن نعمل فلتر بسيط على عمود 'student'
     if "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     df_matches = df[df["student"].str.contains(student_name, case=False, na=False)].copy()
     if df_matches.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     df_matches = df_matches.reset_index(drop=True)
-    # نحول الأعمدة لأسماء عربية مرتبة
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     df_matches = df_matches.rename(columns={
         "student": "الطالب",
@@ -172,7 +179,6 @@ def generate_student_pdf(student_name, df_records):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
-
     title_style = ParagraphStyle(name='Title', fontName='Arabic', fontSize=18, alignment=1, textColor=colors.darkblue)
     normal_style = ParagraphStyle(name='Normal', fontName='Arabic', fontSize=12, alignment=2)
     footer_style = ParagraphStyle(name='Footer', fontName='Arabic', fontSize=10, alignment=2, textColor=colors.darkblue)
@@ -185,8 +191,8 @@ def generate_student_pdf(student_name, df_records):
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
-        absent_count = (df_records["الحالة"] == "غائب").sum()
-        present_count = (df_records["الحالة"] == "حاضر").sum()
+        absent_count = (df_records["الحالة"] == "غائب").sum() if "الحالة" in df_records.columns else 0
+        present_count = (df_records["الحالة"] == "حاضر").sum() if "الحالة" in df_records.columns else 0
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
@@ -195,11 +201,11 @@ def generate_student_pdf(student_name, df_records):
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
-                reshape_arabic_text(row["المرة"]),
-                reshape_arabic_text(row["الطالب"]),
-                reshape_arabic_text(row["المعلم"]),
-                reshape_arabic_text(normalize_date_for_pdf(row["التاريخ"])),
-                reshape_arabic_text(row["الحالة"])
+                reshape_arabic_text(row.get("المرة", "")),
+                reshape_arabic_text(row.get("الطالب", "")),
+                reshape_arabic_text(row.get("المعلم", "")),
+                reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
+                reshape_arabic_text(row.get("الحالة", ""))
             ])
         table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
@@ -248,6 +254,7 @@ h1,h2,h3,h4 { text-align: center; color: #1e293b; font-family: 'Cairo', sans-ser
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# home page
 if st.session_state.page == "home":
     st.title("نظام الغياب")
     col1, col2 = st.columns(2)
@@ -260,6 +267,7 @@ if st.session_state.page == "home":
             st.session_state.page = "student"
             st.rerun()
 
+# teacher login
 elif st.session_state.page == "teacher_login":
     st.header("🔐 تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -275,27 +283,46 @@ elif st.session_state.page == "teacher_login":
         st.session_state.page = "home"
         st.rerun()
 
+# teacher attendance page
 elif st.session_state.page == "teacher_attendance":
     st.header("📋 تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
     st.subheader(f"👨‍🏫 المعلم: {teacher_name}")
 
-    selected = []
-    cols = st.columns(5)
-    for i, student in enumerate(STUDENTS):
-        col = cols[i % 5]
-        with col:
-            if st.checkbox(student, key=f"chk_{i}"):
-                selected.append(student)
+    # MULTISELECT لاختيار الطلاب الغائبين
+    selected = st.multiselect("اختر/ي الطلاب الغائبين (اختار أكثر من طالب لو احتجت):", STUDENTS)
+
+    st.markdown("**اختر نوع الغياب:**")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        excuse = st.checkbox("غياب بعذر", key="excuse")
+    with col_b:
+        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+
+    # validation: لا تسمح باختيار الاتنين مع بعض
+    if excuse and no_excuse:
+        st.warning("⚠️ اختر نوع واحد فقط: 'بعذر' أو 'بدون عذر'.")
 
     if st.button("✅ تسجيل"):
-        record_attendance(selected, teacher_name)
-        st.success("✅ تم تسجيل الغياب بنجاح!")
+        if not selected:
+            st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
+        elif excuse and no_excuse:
+            st.warning("⚠️ اختر نوع واحد فقط من الغياب (بعذر أو بدون عذر).")
+        elif not (excuse or no_excuse):
+            st.warning("⚠️ من فضلك اختر نوع الغياب ('بعذر' أو 'بدون عذر').")
+        else:
+            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+            failed = record_attendance(selected, teacher_name, status_label)
+            if not failed:
+                st.success("✅ تم تسجيل الغياب بنجاح في Google Sheets.")
+            else:
+                st.error(f"حدثت أخطاء أثناء التسجيل لبعض الطلاب: {failed}")
 
     if st.button("🔙 رجوع"):
         st.session_state.page = "home"
         st.rerun()
 
+# student page
 elif st.session_state.page == "student":
     st.header("📄 تقارير الغياب")
     name_input = st.text_input("✏️ اكتب اسمك الثلاثي:")
@@ -305,16 +332,9 @@ elif st.session_state.page == "student":
         if df_student.empty:
             st.info("✅ لا يوجد غياب مسجل لهذا الاسم.")
         else:
-            # عرض الجدول بدون عمود الـ index الزائد، مع إظهار "المرة" كعمود عادي أولى
-            try:
-                # إزالة الفهرس تمامًا قبل العرض
-                df_display = df_student.reset_index(drop=True)
-                st.dataframe(df_display, use_container_width=True)
-
-            except:
-                # fallback لو الـ styler مش مدعوم في البيئة
-                st.dataframe(df_student, use_container_width=True)
-
+            # عرض الجدول بدون عمود الـ index الزائد
+            df_display = df_student.reset_index(drop=True)
+            st.dataframe(df_display, use_container_width=True)
             pdf_buf = generate_student_pdf(name_input.strip(), df_student)
             st.download_button("📄 تحميل PDF", data=pdf_buf, file_name=f"{name_input.strip()}_report.pdf", mime="application/pdf")
 

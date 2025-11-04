@@ -1,4 +1,4 @@
-# كامل ومعدل — نفس الشكل القديم لكن من غير عمود الزيادة
+# كامل ومعدل — نفس الشكل القديم لكن من غير عمود الزيادة، وكلمة "مدرس" اتحولت لـ "معلم"
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -28,7 +28,7 @@ STUDENTS = [
     "بيشوي عاطف فايز", "جورج مينا نجيب", "كيرلس فادي صادق",
     "يوستينا مجدي فادي"
 ]
-TEACHERS = ["مينا سمير", "فادي حبيب"]
+TEACHERS = ["مينا سمير", "فادي حبيب"]  # أسماء المعلمين (المتغير اسمه TEACHERS لكن العرض بالعربي "المعلم")
 
 # ------------------ الاتصال بـ Google Sheets ------------------
 # تأكد إنك خزنت JSON خدمة السرفيس في secrets كـ SERVICE_ACCOUNT (json object)
@@ -140,32 +140,32 @@ def record_attendance(selected_absent, teacher_name):
     for row in new_rows:
         worksheet.append_row(row)
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المدرس: {teacher_name}\nغائبون: {absent_students}"
+    message = f"📌 تم تسجيل الغياب بتاريخ {date_display}\n👨‍🏫 المعلم: {teacher_name}\nغائبون: {absent_students}"
     send_telegram_message(message)
 
 def get_student_records(student_name):
     """
-    يعيد DataFrame منسق بأعمدة: المرة, الطالب, المدرس, التاريخ, الحالة
+    يعيد DataFrame منسق بأعمدة: المرة, الطالب, المعلم, التاريخ, الحالة
     ويجعل 'المرة' أول عمود (قابل للعرض كعمود عادي)
     """
     df = read_sheet()
     # تطبيع أسماء الأعمدة لو مكتوبة بالعربية أو إنجليزية في الشيت
     # لكن نعمل فلتر بسيط على عمود 'student'
     if "student" not in df.columns:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     df_matches = df[df["student"].str.contains(student_name, case=False, na=False)].copy()
     if df_matches.empty:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     df_matches = df_matches.reset_index(drop=True)
     # نحول الأعمدة لأسماء عربية مرتبة
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     df_matches = df_matches.rename(columns={
         "student": "الطالب",
-        "teacher": "المدرس",
+        "teacher": "المعلم",
         "date": "التاريخ",
         "status": "الحالة"
     })
-    df_matches = df_matches[["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"]]
+    df_matches = df_matches[["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
     return df_matches
 
 def generate_student_pdf(student_name, df_records):
@@ -191,13 +191,13 @@ def generate_student_pdf(student_name, df_records):
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
 
-        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"]]
+        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
                 reshape_arabic_text(row["المرة"]),
                 reshape_arabic_text(row["الطالب"]),
-                reshape_arabic_text(row["المدرس"]),
+                reshape_arabic_text(row["المعلم"]),
                 reshape_arabic_text(normalize_date_for_pdf(row["التاريخ"])),
                 reshape_arabic_text(row["الحالة"])
             ])
@@ -252,7 +252,7 @@ if st.session_state.page == "home":
     st.title("نظام الغياب")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("👨‍🏫 مدرس"):
+        if st.button("👨‍🏫 معلم"):
             st.session_state.page = "teacher_login"
             st.rerun()
     with col2:
@@ -261,7 +261,7 @@ if st.session_state.page == "home":
             st.rerun()
 
 elif st.session_state.page == "teacher_login":
-    st.header("🔐 تسجيل دخول المدرس")
+    st.header("🔐 تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
     pwd = st.text_input("كلمة السر:", type="password")
     if st.button("تسجيل الدخول"):
@@ -278,7 +278,7 @@ elif st.session_state.page == "teacher_login":
 elif st.session_state.page == "teacher_attendance":
     st.header("📋 تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"👨‍🏫 المدرس: {teacher_name}")
+    st.subheader(f"👨‍🏫 المعلم: {teacher_name}")
 
     selected = []
     cols = st.columns(5)

@@ -143,7 +143,7 @@ def record_attendance(selected_absent, teacher_name, status_label):
     """
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
-    date_display = datetime.now().strftime("%d/%m/%y")
+    date_display = datetime.now().strftime("%d / %m / %y")
     # append each selected student
     failed = []
     for student in selected_absent:

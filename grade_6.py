@@ -1,3 +1,4 @@
+# كامل ومعدل — نفس الشكل القديم لكن من غير عمود الزيادة
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -19,7 +20,7 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="نظام الغياب", layout="centered")
 
 # ------------------ إعدادات عامة ------------------
-SHEET_NAME = "school_attendance"  # اسم Google Sheet
+SHEET_NAME = "school_attendance"  # اسم Google Sheet (المصنف)
 PASSWORD = "1234"
 STUDENTS = [
     "ميخائيل صابر فوزي", "مينا ريمون خيري", "توني هاني نصرالله",
@@ -30,11 +31,19 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ الاتصال بـ Google Sheets ------------------
-service_account_info = st.secrets["SERVICE_ACCOUNT"]  # الاسم في secrets.toml
+# تأكد إنك خزنت JSON خدمة السرفيس في secrets كـ SERVICE_ACCOUNT (json object)
+service_account_info = st.secrets["SERVICE_ACCOUNT"]
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
 creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
 gc = gspread.authorize(creds)
-worksheet = gc.open(SHEET_NAME).sheet1
+
+# نفتح المصنف
+try:
+    sh = gc.open(SHEET_NAME)
+    worksheet = sh.sheet1
+except Exception as e:
+    st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة الـ service account كـ Editor.")
+    st.stop()
 
 # ------------------ تحميل خط عربي للـ PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -65,6 +74,9 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
+    """
+    يقرأ كل السجلات من الورقة ويتأكد من وجود الأعمدة: student, teacher, status, date
+    """
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
     for c in ["student", "teacher", "status", "date"]:
@@ -117,8 +129,10 @@ def send_telegram_message(message):
         pass
 
 def record_attendance(selected_absent, teacher_name):
-    df = read_sheet()
-    date_display = datetime.now().strftime("%d / %m / %Y")
+    """
+    يسجل لكل طالب (student, teacher, status, date) في Google Sheet
+    """
+    date_display = datetime.now().strftime("%Y-%m-%d")  # التاريخ مخزن بصيغة yyyy-mm-dd
     new_rows = []
     for student in STUDENTS:
         status = "غائب" if student in selected_absent else "حاضر"
@@ -130,11 +144,20 @@ def record_attendance(selected_absent, teacher_name):
     send_telegram_message(message)
 
 def get_student_records(student_name):
+    """
+    يعيد DataFrame منسق بأعمدة: المرة, الطالب, المدرس, التاريخ, الحالة
+    ويجعل 'المرة' أول عمود (قابل للعرض كعمود عادي)
+    """
     df = read_sheet()
+    # تطبيع أسماء الأعمدة لو مكتوبة بالعربية أو إنجليزية في الشيت
+    # لكن نعمل فلتر بسيط على عمود 'student'
+    if "student" not in df.columns:
+        return pd.DataFrame(columns=["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"])
     df_matches = df[df["student"].str.contains(student_name, case=False, na=False)].copy()
     if df_matches.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المدرس", "التاريخ", "الحالة"])
     df_matches = df_matches.reset_index(drop=True)
+    # نحول الأعمدة لأسماء عربية مرتبة
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     df_matches = df_matches.rename(columns={
         "student": "الطالب",
@@ -178,7 +201,7 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(normalize_date_for_pdf(row["التاريخ"])),
                 reshape_arabic_text(row["الحالة"])
             ])
-        table = Table(data, hAlign='CENTER', colWidths=[70, 110, 110, 120, 50])
+        table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -282,7 +305,13 @@ elif st.session_state.page == "student":
         if df_student.empty:
             st.info("✅ لا يوجد غياب مسجل لهذا الاسم.")
         else:
-            st.dataframe(df_student, use_container_width=True)
+            # عرض الجدول بدون عمود الـ index الزائد، مع إظهار "المرة" كعمود عادي أولى
+            try:
+                st.dataframe(df_student.style.hide_index(), use_container_width=True)
+            except:
+                # fallback لو الـ styler مش مدعوم في البيئة
+                st.dataframe(df_student, use_container_width=True)
+
             pdf_buf = generate_student_pdf(name_input.strip(), df_student)
             st.download_button("📄 تحميل PDF", data=pdf_buf, file_name=f"{name_input.strip()}_report.pdf", mime="application/pdf")
 

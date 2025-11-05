@@ -123,8 +123,8 @@ def normalize_date_for_pdf(src_date_str):
     return s
 
 def send_telegram_message(message):
-    BOT_TOKEN = "7517001841:AAFZZQM1hiprXxhPhK4GMfFwu-eP-DkOdMU"
-    CHAT_ID = "-1003269283812"
+    BOT_TOKEN = "7517001841:AAHezP3dOU-L9xAgHsxQrTXZsbgHpRrHFXM"
+    CHAT_ID = "8108209758"
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
         requests.get(url, params={"chat_id": CHAT_ID, "text": message}, timeout=5)

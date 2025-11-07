@@ -164,10 +164,12 @@ def generate_student_pdf(student_name, df_records):
     title_style = ParagraphStyle('Title', fontName='Arabic', fontSize=18, alignment=1, textColor=colors.darkblue)
     normal_style = ParagraphStyle('Normal', fontName='Arabic', fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName='Arabic', fontSize=10, alignment=2, textColor=colors.darkblue)
+
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب"), title_style))
     elements.append(Spacer(1, 8))
     elements.append(Paragraph(reshape_arabic_text(f"الاسم: {student_name}"), normal_style))
     elements.append(Spacer(1, 8))
+
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
@@ -176,6 +178,7 @@ def generate_student_pdf(student_name, df_records):
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
+
         header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
@@ -186,16 +189,18 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
                 reshape_arabic_text(row.get("الحالة", ""))
             ])
+
         table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1),  UHD.5, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # تم تصحيح UHD.5 إلى 0.5
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
         elements.append(table)
+
     elements.append(Spacer(1, 14))
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
@@ -341,7 +346,6 @@ if st.session_state.page == "home":
     </script>
     """, unsafe_allow_html=True)
 
-    # أزرار مخفية للتنقل
     if st.button("", key="hidden_teacher_btn"):
         st.session_state.page = "teacher_login"
         st.rerun()
@@ -350,7 +354,7 @@ if st.session_state.page == "home":
         st.session_state.page = "student"
         st.rerun()
 
-# ------------------ باقي الصفحات (بدون تغيير) ------------------
+# ------------------ صفحة تسجيل المعلم ------------------
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -366,6 +370,7 @@ elif st.session_state.page == "teacher_login":
         st.session_state.page = "home"
         st.rerun()
 
+# ------------------ صفحة تسجيل الغياب ------------------
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
@@ -397,6 +402,7 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
+# ------------------ صفحة الطالب ------------------
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     st.markdown("""
@@ -412,16 +418,19 @@ elif st.session_state.page == "student":
     </div>
     <input type="text" id="hiddenInput" style="display:none;">
     """, unsafe_allow_html=True)
+
     hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
     if st.button("", key="triggerSearch"):
         if hidden_input.strip():
             st.session_state.student_search = hidden_input.strip()
             st.rerun()
+
     if st.experimental_get_query_params().get("clear") == ["1"]:
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.experimental_set_query_params()
         st.rerun()
+
     search_query = st.session_state.get("student_search", "")
     if search_query:
         df_student = get_student_records(search_query)
@@ -431,6 +440,7 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
+
     if st.button("الرجوع"):
         if "student_search" in st.session_state:
             del st.session_state.student_search

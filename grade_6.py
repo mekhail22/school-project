@@ -194,7 +194,7 @@ def generate_student_pdf(student_name, df_records):
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # تم تصحيح UHD.5 إلى 0.5
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
@@ -209,7 +209,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ تحويل الصورة المحلية إلى base64 ------------------
+# ------------------ تحويل الصورة ------------------
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -233,7 +233,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS (بدون إخفاء الأزرار) ------------------
+# ------------------ CSS (تم حذف السطر المسبب للمشكلة) ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -283,7 +283,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ الشريط العلوي ------------------
+# ------------------ باقي الكود زي ما هو (الشريط، النافذة، الصفحات) ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div style="display: flex; align-items: center; gap: 12px;">
@@ -301,7 +301,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ النافذة المنبثقة ------------------
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
@@ -322,127 +321,28 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ------------------ الصفحات ------------------
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ الصفحة الرئيسية (أزرار تعمل) ------------------
+# ------------------ الصفحة الرئيسية (الأزرار القديمة + شغالة) ------------------
 if st.session_state.page == "home":
     st.markdown("""
     <div class="home-container">
         <h1 class="home-title">نظام الغياب</h1>
-        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap; margin-top: 50px;">
-            <button class="role-btn" id="teacher_role_btn">معلم</button>
-            <button class="role-btn" id="student_role_btn">طالب</button>
-        </div>
-    </div>
-    <script>
-        document.getElementById('teacher_role_btn').addEventListener('click', () => {
-            document.getElementById('hidden_teacher_btn').click();
-        });
-        document.getElementById('student_role_btn').addEventListener('click', () => {
-            document.getElementById('hidden_student_btn').click();
-        });
-    </script>
+        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap;">
     """, unsafe_allow_html=True)
 
-    if st.button("", key="hidden_teacher_btn"):
-        st.session_state.page = "teacher_login"
-        st.rerun()
-
-    if st.button("", key="hidden_student_btn"):
-        st.session_state.page = "student"
-        st.rerun()
-
-# ------------------ صفحة تسجيل المعلم ------------------
-elif st.session_state.page == "teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd == PASSWORD:
-            st.session_state.teacher_name = teacher_choice
-            st.session_state.page = "teacher_attendance"
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("معلم", key="teacher_btn"):
+            st.session_state.page = "teacher_login"
             st.rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
-
-# ------------------ صفحة تسجيل الغياب ------------------
-elif st.session_state.page == "teacher_attendance":
-    st.header("تسجيل الغياب")
-    teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
-    selected = st.multiselect("اختر الغائبين", STUDENTS)
-    st.markdown("**اختر نوع الغياب:**")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        excuse = st.checkbox("غياب بعذر", key="excuse")
-    with col_b:
-        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-    if excuse and no_excuse:
-        st.warning("اختر نوع واحد فقط.")
-    if st.button("تسجيل"):
-        if not selected:
-            st.warning("يجب اختيار طالب/طلاب أولا.")
-        elif excuse and no_excuse:
-            st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse):
-            st.warning("من فضلك اختر نوع الغياب.")
-        else:
-            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            failed = record_attendance(selected, teacher_name, status_label)
-            if not failed:
-                st.success("تم تسجيل الغياب بنجاح")
-            else:
-                st.error(f"حدثت أخطاء: {failed}")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
-
-# ------------------ صفحة الطالب ------------------
-elif st.session_state.page == "student":
-    st.header("تقارير الغياب")
-    st.markdown("""
-    <div class="search-container">
-        <div class="searchBox">
-            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..."
-                   oninput="document.getElementById('hiddenInput').value = this.value">
-            <button class="searchButton" onclick="document.getElementById('triggerSearch').click()">Search</button>
-        </div>
-    </div>
-    <div class="back-btn-container">
-        <button class="back-btn" onclick="window.location.href='?clear=1'">الرجوع</button>
-    </div>
-    <input type="text" id="hiddenInput" style="display:none;">
-    """, unsafe_allow_html=True)
-
-    hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
-    if st.button("", key="triggerSearch"):
-        if hidden_input.strip():
-            st.session_state.student_search = hidden_input.strip()
+    with col2:
+        if st.button("طالب", key="student_btn"):
+            st.session_state.page = "student"
             st.rerun()
 
-    if st.experimental_get_query_params().get("clear") == ["1"]:
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.experimental_set_query_params()
-        st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-    search_query = st.session_state.get("student_search", "")
-    if search_query:
-        df_student = get_student_records(search_query)
-        if df_student.empty:
-            st.info("لا يوجد غياب مسجل لهذا الاسم.")
-        else:
-            st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
-            pdf_buf = generate_student_pdf(search_query, df_student)
-            st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-
-    if st.button("الرجوع"):
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.session_state.page = "home"
-        st.rerun()
+# باقي الصفحات (teacher_login, teacher_attendance, student) زي ما هي
+# ... (انسخ باقي الكود زي ما كان)

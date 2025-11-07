@@ -232,40 +232,81 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + حقل بحث أكبر في الشمال ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الشمال بمسافة بسيطة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
+    /* إخفاء الهيدر والفوتر */
     #MainMenu, header, footer {visibility: hidden !important;}
-    .stApp { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); font-family: 'Cairo', sans-serif; }
 
-    .top-toolbar {
-        position: fixed; top: 0; left: 0; right: 0; height: 70px;
-        background: linear-gradient(135deg, #1e40af, #2563eb);
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 0 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 999999; color: white; font-family: 'Cairo', sans-serif;
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
     }
-    .logo-img { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); background: white; padding: 4px; }
+
+    /* الشريط العلوي */
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-    .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    }
 
     .content-padding { height: 90px; }
 
-    /* حقل البحث أكبر في الشمال */
+    /* النافذة المنبثقة */
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    /* حقل البحث في الشمال بمسافة بسيطة (30px من اليسار) */
     .search-container {
         display: flex;
         justify-content: flex-start;
         margin: 15px 20px 10px 20px;
-        padding-left: 30px; /* مسافة بسيطة من اليسار */
+        padding-left: 30px; /* المسافة البسيطة من اليسار */
+        width: 450
     }
     .searchBox {
         display: flex;
-        max-width: 450px; /* أكبر */
-        width: 100%;
+        max-width: 320px;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
@@ -274,21 +315,47 @@ st.markdown("""
         position: relative;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    .searchButton {
+        color: white;
+        position: absolute;
+        right: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .searchButton:hover {
+        color: #fff;
+        background-color: #1A1A1A;
+        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+        transform: translateY(-3px);
+    }
+    .searchButton:active {
+        box-shadow: none;
+        transform: translateY(0);
+    }
     .searchInput {
         border: none;
         background: none;
         outline: none;
         color: white;
-        font-size: 18px; /* نص أكبر */
-        padding: 18px 60px 18px 30px;
+        font-size: 16px;
+        padding: 15px 50px 15px 25px;
         width: 100%;
         font-family: 'Cairo', sans-serif;
     }
     .searchInput::placeholder {
         color: #bdc3c7;
-        font-size: 16px;
     }
 
+    /* تحسينات عامة */
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -305,14 +372,14 @@ st.markdown("""
 # ------------------ الشريط العلوي ------------------
 st.markdown(f"""
 <div class="top-toolbar">
-    <div style="display: flex; align-items: center; gap: 12px;">
+    <div class="logo-container">
         <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div>
+        <div class="school-info">
             <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
             <p class="school-date">{formatted_date}</p>
         </div>
     </div>
-    <div style="display: flex; gap: 12px;">
+    <div class="nav-buttons">
         <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
         <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
     </div>
@@ -323,21 +390,22 @@ st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # ------------------ النافذة المنبثقة ------------------
 st.markdown("""
-<div id="about-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
-    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
-        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
-        <h3 style="text-align:center; color:#1e40af;">عن المدرسة</h3>
-        <p style="text-align:center; color:#475569;">مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p style="text-align:center; color:#475569;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-<div id="contact-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
-    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
-        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
-        <h3 style="text-align:center; color:#1e40af;">اتصل بنا</h3>
-        <p style="text-align:center; color:#475569;">الهاتف: 02-12345678</p>
-        <p style="text-align:center; color:#475569;">البريد: alsalam.school@example.com</p>
-        <p style="text-align:center; color:#475569;">العنوان: حي السلام - القاهرة</p>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -407,11 +475,12 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل بحث أكبر + عرض فوري ------------------
+    # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
             <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
+            <button class="searchButton">بحث</button>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -426,7 +495,7 @@ elif st.session_state.page == "student":
     # جلب القيمة
     search_query = st.session_state.get("student_search", "")
 
-    # عرض النتائج فورًا
+    # عرض النتائج
     if search_query:
         df_student = get_student_records(search_query)
         if df_student.empty:
@@ -435,8 +504,6 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-    else:
-        st.info("اكتب اسم الطالب لعرض تقريره...")
 
     # زر الرجوع
     if st.button("الرجوع"):

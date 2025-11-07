@@ -17,6 +17,50 @@ from google.oauth2.service_account import Credentials
 
 # ------------------ إعداد الصفحة ------------------
 st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
+    }
+    .stApp::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: url('https://i.imgur.com/9kM2L5P.png');
+        background-size: cover;
+        background-position: center;
+        opacity: 0.05;
+        z-index: -1;
+        pointer-events: none;
+    }
+    h1,h2,h3,h4,h5,h6 { 
+        color: #1e293b !important; 
+        text-align: center; 
+        font-family: 'Cairo', sans-serif !important;
+    }
+    .stButton>button {
+        width: 250px; height: 60px;
+        background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold;
+        border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+        transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+    .stTextInput > div > div > input, .stSelectbox > div > div > select {
+        border-radius: 12px; border: 1px solid #cbd5e1; padding: 12px; font-size: 16px;
+    }
+    .stMultiSelect > div { border-radius: 12px; }
+    .stDataFrame { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    div[data-testid="stCheckbox"] > label { font-size: 16px; font-weight: 500; }
+</style>
+""", unsafe_allow_html=True)
 
 # ------------------ إعدادات عامة ------------------
 SHEET_NAME = "school_attendance"  # اسم Google Sheet (المصنف)

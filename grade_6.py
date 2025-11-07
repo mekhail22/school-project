@@ -187,7 +187,7 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(row.get("الطالب", "")),
                 reshape_arabic_text(row.get("المعلم", "")),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
-                reshape_arabic_text(row.get("الحالة", ""))
+                reshape_arabic_text(row.get("الإحالة", ""))
             ])
         table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + أيقونة بحث + عرض فوري عند الضغط ------------------
+# ------------------ CSS + Uiverse.io Search Box (بدون تغيير) ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -255,55 +255,90 @@ st.markdown("""
 
     .content-padding { height: 90px; }
 
-    /* حقل البحث مع أيقونة بحث */
+    /* Uiverse.io Search Box - بدون تغيير */
     .search-container {
         display: flex;
         justify-content: flex-start;
-        margin: 15px 20px 10px 20px;
-        padding-left: 30px; /* مسافة بسيطة من الشمال */
+        margin: 20px 30px 15px 30px;
+        padding-left: 0;
     }
     .searchBox {
         display: flex;
-        max-width: 450px;
+        max-width: 450px; /* أكبر من الأصل */
         align-items: center;
+        justify-content: space-between;
+        gap: 8px;
         background: #2f3640;
         border-radius: 50px;
         position: relative;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        width: 100%;
+    }
+    .searchButton {
+        color: white;
+        position: absolute;
+        right: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+        border: 0;
+        display: inline-block;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .searchButton:hover {
+        color: #fff;
+        background-color: #1A1A1A;
+        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+        transform: translateY(-3px);
+    }
+    .searchButton:active {
+        box-shadow: none;
+        transform: translateY(0);
     }
     .searchInput {
         border: none;
         background: none;
         outline: none;
         color: white;
-        font-size: 16px;
-        padding: 15px 50px 15px 25px;
+        font-size: 18px;
+        padding: 24px 70px 24px 26px;
         width: 100%;
         font-family: 'Cairo', sans-serif;
     }
     .searchInput::placeholder {
         color: #bdc3c7;
+        font-size: 16px;
     }
-    .searchIcon {
-        position: absolute;
-        right: 15px;
-        width: 25px;
-        height: 25px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: #2AF598;
-        font-size: 20px;
-        transition: all 0.3s ease;
+
+    /* زر الرجوع */
+    .back-btn-container {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
+        justify-content: flex-end;
+        padding: 0 30px;
+        margin-top: 10px;
     }
-    .searchIcon:hover {
-        color: #009EFD;
-        transform: scale(1.1);
+    .back-btn {
+        background: linear-gradient(to right, #dc2626, #b91c1c);
+        color: white;
+        border: none;
+        padding: 14px 32px;
+        border-radius: 50px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+        min-width: 130px;
+        text-align: center;
+    }
+    .back-btn:hover {
+        background: linear-gradient(to right, #b91c1c, #991b1b);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(220,38,38,0.4);
     }
 
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
@@ -332,7 +367,7 @@ st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # ------------------ النافذة المنبثقة ------------------
 st.markdown("""
-<div id="about-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
+<div id="about-modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); display:flex; justify-content:center; align-items:center;">
     <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
         <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
         <h3 style="text-align:center; color:#1e40af;">عن المدرسة</h3>
@@ -340,7 +375,7 @@ st.markdown("""
         <p style="text-align:center; color:#475569;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-<div id="contact-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
+<div id="contact-modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); display:flex; justify-content:center; align-items:center;">
     <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
         <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
         <h3 style="text-align:center; color:#1e40af;">اتصل بنا</h3>
@@ -416,29 +451,39 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث مع أيقونة بحث (عرض فوري عند الضغط) ------------------
+    # ------------------ Uiverse.io Search Box + زر الرجوع ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
-            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value">
-            <button class="searchIcon" onclick="document.getElementById('searchBtn').click(); __streamlit_rerun()">🔍</button>
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." 
+                   oninput="document.getElementById('hiddenInput').value = this.value">
+            <button class="searchButton" id="searchBtn" onclick="document.getElementById('triggerSearch').click()">Search</button>
         </div>
     </div>
+    <div class="back-btn-container">
+        <button class="back-btn" onclick="window.location.href='?clear=1'">الرجوع</button>
+    </div>
+    <input type="text" id="hiddenInput" style="display:none;">
     """, unsafe_allow_html=True)
 
-    # حقل Streamlit مخفي للقيمة
-    name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
+    # حقل مخفي للقيمة
+    hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
 
-    # زر خفي للعرض عند الضغط على الأيقونة
-    if st.button("", key="searchBtn"):
-        if name_input.strip():
-            st.session_state.student_search = name_input.strip()
+    # زر مخفي للضغط
+    if st.button("", key="triggerSearch"):
+        if hidden_input.strip():
+            st.session_state.student_search = hidden_input.strip()
             st.rerun()
 
-    # جلب القيمة
-    search_query = st.session_state.get("student_search", "")
+    # تنظيف البحث عند الرجوع
+    if st.experimental_get_query_params().get("clear") == ["1"]:
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
+        st.experimental_set_query_params()
+        st.rerun()
 
     # عرض النتايج
+    search_query = st.session_state.get("student_search", "")
     if search_query:
         df_student = get_student_records(search_query)
         if df_student.empty:
@@ -447,10 +492,8 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-    else:
-        st.info("اكتب اسم الطالب واضغط على الأيقونة للعرض...")
 
-    # زر الرجوع
+    # زر الرجوع (إضافي)
     if st.button("الرجوع"):
         if "student_search" in st.session_state:
             del st.session_state.student_search

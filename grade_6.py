@@ -300,7 +300,7 @@ st.markdown("""
     .search-container {
         display: flex;
         justify-content: flex-start;
-        margin: 20px 10px 10px 20px;
+        margin: 20px 20px 10px 20px;
         padding-left: 0px; /* المسافة البسيطة من اليسار */
     }
     .searchBox {
@@ -510,6 +510,7 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         st.rerun()
+
 
 
 

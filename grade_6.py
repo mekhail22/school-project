@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + شريط علوي + حقل بحث في الشمال ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الشمال بمسافة بسيطة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -296,12 +296,12 @@ st.markdown("""
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
-    /* حقل البحث في الشمال (يسار) فوق الجدول */
+    /* حقل البحث في الشمال بمسافة بسيطة (30px من اليسار) */
     .search-container {
         display: flex;
         justify-content: flex-start;
         margin: 15px 20px 10px 20px;
-        padding-left: 10px;
+        padding-left: 30px; /* المسافة البسيطة من اليسار */
     }
     .searchBox {
         display: flex;
@@ -474,7 +474,7 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث في الشمال (يسار) ------------------
+    # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
@@ -484,14 +484,14 @@ elif st.session_state.page == "student":
     </div>
     """, unsafe_allow_html=True)
 
-    # حقل Streamlit مخفي للتحكم
+    # حقل Streamlit مخفي
     name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
 
-    # حفظ البحث في session_state
+    # حفظ البحث
     if name_input.strip():
         st.session_state.student_search = name_input.strip()
 
-    # جلب القيمة من session_state
+    # جلب القيمة
     search_query = st.session_state.get("student_search", "")
 
     # عرض النتائج

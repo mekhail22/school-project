@@ -14,6 +14,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
+import base64  # لتحويل الصورة المحلية
 
 # ------------------ إعداد الصفحة ------------------
 st.set_page_config(page_title="نظام الغياب", layout="centered")
@@ -207,7 +208,32 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS + إخفاء الهيدر الافتراضي + الشريط العلوي ------------------
+# ------------------ تحويل الصورة المحلية إلى base64 ------------------
+def get_image_base64(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except Exception as e:
+        st.error(f"خطأ في تحميل الصورة: {e}")
+        return None
+
+# تحميل الصورة المحلية
+logo_base64 = get_image_base64("images.jpeg")
+if logo_base64:
+    logo_src = f"data:image/jpeg;base64,{logo_base64}"
+else:
+    logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
+    st.warning("تحذير: لم يتم العثور على ملف images.jpeg، تم استخدام علم مصر كبديل.")
+
+# ------------------ تاريخ اليوم ------------------
+today = datetime.now()
+arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+weekday = arabic_weekdays[today.weekday()]
+month = arabic_months[today.month - 1]
+formatted_date = f"{weekday}، {today.day} {month} {today.year}"
+
+# ------------------ CSS + الشريط العلوي ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -220,24 +246,11 @@ st.markdown("""
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
     }
-    .stApp::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-image: url('https://i.imgur.com/9kM2L5P.png');
-        background-size: cover;
-        background-position: center;
-        opacity: 0.05;
-        z-index: -1;
-        pointer-events: none;
-    }
 
     /* الشريط العلوي */
     .top-toolbar {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 0; left: 0; right: 0;
         height: 70px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         display: flex;
@@ -250,7 +263,11 @@ st.markdown("""
         color: white;
     }
     .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-img { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
@@ -269,7 +286,6 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
 
-    /* مسافة أسفل الشريط */
     .content-padding { height: 90px; }
 
     /* النافذة المنبثقة */
@@ -301,30 +317,16 @@ st.markdown("""
         background: linear-gradient(to right, #1d4ed8, #1e40af);
         transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
     }
-    .stTextInput > div > div > input, .stSelectbox > div > div > select {
-        border-radius: 12px; border: 1px solid #cbd5e1; padding: 12px; font-size: 16px;
-    }
-    .stMultiSelect > div { border-radius: 12px; }
-    .stDataFrame { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    div[data-testid="stCheckbox"] > label { font-size: 16px; font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ تاريخ اليوم ------------------
-today = datetime.now()
-arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
-arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
-weekday = arabic_weekdays[today.weekday()]
-month = arabic_months[today.month - 1]
-formatted_date = f"{weekday}، {today.day} {month} {today.year}"
-
-# ------------------ الشريط العلوي (يظهر دايمًا) ------------------
+# ------------------ الشريط العلوي (مع الصورة المحلية) ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
-        <img src="images.jpeg" class="logo-img" alt="شعار">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
         <div class="school-info">
-            <p class="school-name">مدرسة الأنبا بيشوي</p>
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
             <p class="school-date">{formatted_date}</p>
         </div>
     </div>
@@ -335,7 +337,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# مسافة أسفل الشريط
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # ------------------ النافذة المنبثقة ------------------
@@ -344,8 +345,8 @@ st.markdown("""
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
         <h3>عن المدرسة</h3>
-        <p>مدرسة الأنبا بيشوي الابتدائية تهدف إلى بناء جيل متميز أخلاقيًا وعلميًا.</p>
-        <p>تأسست عام 1995، وتضم نخبة من المعلمين المتميزين.</p>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
 
@@ -353,9 +354,9 @@ st.markdown("""
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
         <h3>اتصل بنا</h3>
-        <p>الهاتف: 0123456789</p>
-        <p>البريد: school@example.com</p>
-        <p>العنوان: القاهرة - مدينة نصر</p>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
 """, unsafe_allow_html=True)

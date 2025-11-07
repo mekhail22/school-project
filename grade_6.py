@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + شريط علوي + حقل بحث أنيق ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الأعلى يمينًا ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -288,34 +288,30 @@ st.markdown("""
     .content-padding { height: 90px; }
 
     /* النافذة المنبثقة */
-    .modal {
-        display: none; position: fixed; z-index: 1000000;
-        left: 0; top: 0; width: 100%; height: 100%;
-        background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
-        justify-content: center; align-items: center;
-    }
-    .modal-content {
-        background: white; padding: 25px; border-radius: 16px;
-        width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        position: relative; animation: modalPop 0.3s ease;
-    }
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
-    /* حقل البحث الأنيق (Uiverse.io) */
+    /* حقل البحث في الأعلى يمينًا */
+    .search-container {
+        display: flex;
+        justify-content: flex-end;
+        margin: 15px 20px 10px 20px;
+        padding-right: 10px;
+    }
     .searchBox {
         display: flex;
-        max-width: 300px;
+        max-width: 320px;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
         background: #2f3640;
         border-radius: 50px;
         position: relative;
-        margin: 20px auto;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .searchButton {
@@ -478,21 +474,23 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث الأنيق ------------------
+    # ------------------ حقل البحث في الأعلى يمينًا ------------------
     st.markdown("""
-    <div class="searchBox">
-        <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي...">
-        <button class="searchButton" onclick="document.getElementById('searchBtn').click()">بحث</button>
+    <div class="search-container">
+        <div class="searchBox">
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي...">
+            <button class="searchButton" onclick="document.getElementById('searchBtn').click()">بحث</button>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ربط الحقل بـ Streamlit
-    search_key = st.session_state.get("search_key", "")
-    name_input = st.text_input("", value=search_key, key="search_input_hidden", label_visibility="collapsed")
-    
+    # ربط الحقل مع Streamlit
+    search_key = st.session_state.get("student_search", "")
+    name_input = st.text_input("", value=search_key, key="hidden_search", label_visibility="collapsed")
+
     # زر خفي للبحث
-    if st.button("", key="searchBtn", help="ابحث"):
-        st.session_state.search_key = name_input
+    if st.button("", key="searchBtn"):
+        st.session_state.student_search = name_input
         st.rerun()
 
     # عرض النتائج
@@ -505,6 +503,9 @@ elif st.session_state.page == "student":
             pdf_buf = generate_student_pdf(name_input.strip(), df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{name_input.strip()}_report.pdf", mime="application/pdf")
 
+    # زر الرجوع
     if st.button("الرجوع"):
         st.session_state.page = "home"
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
         st.rerun()

@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + شريط علوي + حقل بحث في الأعلى يمينًا ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الشمال ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -296,12 +296,12 @@ st.markdown("""
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
-    /* حقل البحث في الأعلى يمينًا */
+    /* حقل البحث في الشمال (يسار) فوق الجدول */
     .search-container {
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
         margin: 15px 20px 10px 20px;
-        padding-right: 10px;
+        padding-left: 10px;
     }
     .searchBox {
         display: flex;
@@ -474,38 +474,39 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث في الأعلى يمينًا ------------------
+    # ------------------ حقل البحث في الشمال (يسار) ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
-            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي...">
-            <button class="searchButton" onclick="document.getElementById('searchBtn').click()">بحث</button>
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
+            <button class="searchButton">بحث</button>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ربط الحقل مع Streamlit
-    search_key = st.session_state.get("student_search", "")
-    name_input = st.text_input("", value=search_key, key="hidden_search", label_visibility="collapsed")
+    # حقل Streamlit مخفي للتحكم
+    name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
 
-    # زر خفي للبحث
-    if st.button("", key="searchBtn"):
-        st.session_state.student_search = name_input
-        st.rerun()
+    # حفظ البحث في session_state
+    if name_input.strip():
+        st.session_state.student_search = name_input.strip()
+
+    # جلب القيمة من session_state
+    search_query = st.session_state.get("student_search", "")
 
     # عرض النتائج
-    if name_input.strip():
-        df_student = get_student_records(name_input.strip())
+    if search_query:
+        df_student = get_student_records(search_query)
         if df_student.empty:
             st.info("لا يوجد غياب مسجل لهذا الاسم.")
         else:
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
-            pdf_buf = generate_student_pdf(name_input.strip(), df_student)
-            st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{name_input.strip()}_report.pdf", mime="application/pdf")
+            pdf_buf = generate_student_pdf(search_query, df_student)
+            st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
 
     # زر الرجوع
     if st.button("الرجوع"):
-        st.session_state.page = "home"
         if "student_search" in st.session_state:
             del st.session_state.student_search
+        st.session_state.page = "home"
         st.rerun()

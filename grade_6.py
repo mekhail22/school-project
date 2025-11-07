@@ -164,12 +164,10 @@ def generate_student_pdf(student_name, df_records):
     title_style = ParagraphStyle('Title', fontName='Arabic', fontSize=18, alignment=1, textColor=colors.darkblue)
     normal_style = ParagraphStyle('Normal', fontName='Arabic', fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName='Arabic', fontSize=10, alignment=2, textColor=colors.darkblue)
-
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب"), title_style))
     elements.append(Spacer(1, 8))
     elements.append(Paragraph(reshape_arabic_text(f"الاسم: {student_name}"), normal_style))
     elements.append(Spacer(1, 8))
-
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
@@ -178,7 +176,6 @@ def generate_student_pdf(student_name, df_records):
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
-
         header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
@@ -193,13 +190,12 @@ def generate_student_pdf(student_name, df_records):
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('GRID', (0, 0), (-1, -1),  UHD.5, colors.black),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
         elements.append(table)
-
     elements.append(Spacer(1, 14))
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
@@ -232,14 +228,12 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + أزرار شغالة + مسافة كبيرة ------------------
+# ------------------ CSS (بدون إخفاء الأزرار) ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
     #MainMenu, header, footer {visibility: hidden !important;}
     .stApp { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); font-family: 'Cairo', sans-serif; }
-
     .top-toolbar {
         position: fixed; top: 0; left: 0; right: 0; height: 70px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
@@ -252,174 +246,35 @@ st.markdown("""
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
     .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
     .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
-
     .content-padding { height: 100px; }
-
-    /* أزرار معلم وطالب - شكل أنيق + مسافة كبيرة */
-    .home-container {
-        text-align: center;
-        margin-top: 60px;
-    }
-    .home-title {
-        color: #1e40af;
-        font-size: 28px;
-        font-weight: bold;
-        margin-bottom: 40px;
-    }
+    .home-container { text-align: center; margin-top: 60px; }
+    .home-title { color: #1e40af; font-size: 28px; font-weight: bold; margin-bottom: 40px; }
     .role-btn {
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        color: white;
-        border: none;
-        padding: 22px 50px;
-        border-radius: 16px;
-        font-size: 20px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
-        min-width: 200px;
-        text-align: center;
-        margin: 0 30px;
+        color: white; border: none; padding: 22px 50px; border-radius: 16px;
+        font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); min-width: 200px; text-align: center; margin: 0 30px;
     }
     .role-btn:hover {
         background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
-        transform: translateY(-5px);
-        box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
+        transform: translateY(-5px); box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
     }
-
-    /* Uiverse.io Search Box */
-    .search-container {
-        display: flex;
-        justify-content: flex-start;
-        margin: 20px 30px 15px 30px;
-    }
-    .searchBox {
-        display: flex;
-        max-width: 450px;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: #2f3640;
-        border-radius: 50px;
-        position: relative;
-    }
-    .searchButton {
-        color: white;
-        position: absolute;
-        right: 8px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-        border: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-        cursor: pointer;
-        font-size: 20px;
-    }
-    .searchButton:hover {
-        color: #fff;
-        background-color: #1A1A1A;
-        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-        transform: translateY(-3px);
-    }
-    .searchButton:active {
-        box-shadow: none;
-        transform: translateY(0);
-    }
-    .searchInput {
-        border: none;
-        background: none;
-        outline: none;
-        color: white;
-        font-size: 18px;
-        padding: 24px 70px 24px 26px;
-        width: 100%;
-        font-family: 'Cairo', sans-serif;
-    }
-    .searchInput::placeholder {
-        color: #bdc3c7;
-        font-size: 16px;
-    }
-
-    /* زر الرجوع */
-    .back-btn-container {
-        display: flex;
-        justify-content: flex-end;
-        padding: 0 30px;
-        margin-top: 10px;
-    }
-    .back-btn {
-        background: linear-gradient(to right, #dc2626, #b91c1c);
-        color: white;
-        border: none;
-        padding: 14px 32px;
-        border-radius: 50px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(220,38,38,0.3);
-        min-width: 130px;
-        text-align: center;
-    }
-    .back-btn:hover {
-        background: linear-gradient(to right, #b91c1c, #991b1b);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(220,38,38,0.4);
-    }
-
-    /* أنيميشن النافذة */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000000;
-        left: 0; top: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(5px);
-        justify-content: center;
-        align-items: center;
-        opacity: 0;
-        transition: opacity 0.4s ease;
-    }
-    .modal.show {
-        display: flex !important;
-        opacity: 1;
-    }
-    .modal-content {
-        background: white;
-        padding: 30px;
-        border-radius: 16px;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        transform: translateY(50px);
-        opacity: 0;
-        transition: all 0.4s ease;
-    }
-    .modal.show .modal-content {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    .modal-close {
-        position: absolute;
-        top: 15px;
-        left: 15px;
-        font-size: 28px;
-        font-weight: bold;
-        color: #aaa;
-        cursor: pointer;
-        transition: color 0.3s;
-    }
-    .modal-close:hover {
-        color: #dc2626;
-    }
-
+    .search-container { display: flex; justify-content: flex-start; margin: 20px 30px 15px 30px; }
+    .searchBox { display: flex; max-width: 450px; align-items: center; justify-content: space-between; gap: 8px; background: #2f3640; border-radius: 50px; position: relative; }
+    .searchButton { color: white; position: absolute; right: 8px; width: 50px; height: 50px; border-radius: 50%; background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%)); border: 0; display: flex; align-items: center; justify-content: center; transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); cursor: pointer; font-size: 20px; }
+    .searchButton:hover { color: #fff; background-color: #1A1A1A; box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px; transform: translateY(-3px); }
+    .searchInput { border: none; background: none; outline: none; color: white; font-size: 18px; padding: 24px 70px 24px 26px; width: 100%; font-family: 'Cairo', sans-serif; }
+    .searchInput::placeholder { color: #bdc3c7; font-size: 16px; }
+    .back-btn-container { display: flex; justify-content: flex-end; padding: 0 30px; margin-top: 10px; }
+    .back-btn { background: linear-gradient(to right, #dc2626, #b91c1c); color: white; border: none; padding: 14px 32px; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(220,38,38,0.3); min-width: 130px; text-align: center; }
+    .back-btn:hover { background: linear-gradient(to right, #b91c1c, #991b1b); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(220,38,38,0.4); }
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s ease; }
+    .modal.show { display: flex !important; opacity: 1; }
+    .modal-content { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: translateY(50px); opacity: 0; transition: all 0.4s ease; }
+    .modal.show .modal-content { transform: translateY(0); opacity: 1; }
+    .modal-close { position: absolute; top: 15px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; transition: color 0.3s; }
+    .modal-close:hover { color: #dc2626; }
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -439,7 +294,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # ------------------ النافذة المنبثقة ------------------
@@ -452,7 +306,6 @@ st.markdown("""
         <p style="text-align:center; color:#475569; line-height:1.6;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-
 <div id="contact-modal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('show')">×</span>
@@ -468,27 +321,36 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ الصفحة الرئيسية (زرار شغالة + مسافة كبيرة) ------------------
+# ------------------ الصفحة الرئيسية (أزرار تعمل) ------------------
 if st.session_state.page == "home":
     st.markdown("""
     <div class="home-container">
         <h1 class="home-title">نظام الغياب</h1>
-        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap; margin-top: 50px;">
+            <button class="role-btn" id="teacher_role_btn">معلم</button>
+            <button class="role-btn" id="student_role_btn">طالب</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById('teacher_role_btn').addEventListener('click', () => {
+            document.getElementById('hidden_teacher_btn').click();
+        });
+        document.getElementById('student_role_btn').addEventListener('click', () => {
+            document.getElementById('hidden_student_btn').click();
+        });
+    </script>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("معلم", key="teacher_btn"):
-            st.session_state.page = "teacher_login"
-            st.rerun()
-    with col2:
-        if st.button("طالب", key="student_btn"):
-            st.session_state.page = "student"
-            st.rerun()
+    # أزرار مخفية للتنقل
+    if st.button("", key="hidden_teacher_btn"):
+        st.session_state.page = "teacher_login"
+        st.rerun()
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    if st.button("", key="hidden_student_btn"):
+        st.session_state.page = "student"
+        st.rerun()
 
-# ------------------ صفحة تسجيل المعلم ------------------
+# ------------------ باقي الصفحات (بدون تغيير) ------------------
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -504,7 +366,6 @@ elif st.session_state.page == "teacher_login":
         st.session_state.page = "home"
         st.rerun()
 
-# ------------------ صفحة تسجيل الغياب ------------------
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
@@ -536,14 +397,12 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
-# ------------------ صفحة الطالب ------------------
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
-
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
-            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." 
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..."
                    oninput="document.getElementById('hiddenInput').value = this.value">
             <button class="searchButton" onclick="document.getElementById('triggerSearch').click()">Search</button>
         </div>
@@ -553,20 +412,16 @@ elif st.session_state.page == "student":
     </div>
     <input type="text" id="hiddenInput" style="display:none;">
     """, unsafe_allow_html=True)
-
     hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
-
     if st.button("", key="triggerSearch"):
         if hidden_input.strip():
             st.session_state.student_search = hidden_input.strip()
             st.rerun()
-
     if st.experimental_get_query_params().get("clear") == ["1"]:
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.experimental_set_query_params()
         st.rerun()
-
     search_query = st.session_state.get("student_search", "")
     if search_query:
         df_student = get_student_records(search_query)
@@ -576,7 +431,6 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-
     if st.button("الرجوع"):
         if "student_search" in st.session_state:
             del st.session_state.student_search

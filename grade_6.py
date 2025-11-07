@@ -14,7 +14,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
-import base64  # لتحويل الصورة المحلية
+import base64
 
 # ------------------ إعداد الصفحة ------------------
 st.set_page_config(page_title="نظام الغياب", layout="centered")
@@ -217,7 +217,6 @@ def get_image_base64(image_path):
         st.error(f"خطأ في تحميل الصورة: {e}")
         return None
 
-# تحميل الصورة المحلية
 logo_base64 = get_image_base64("images.jpeg")
 if logo_base64:
     logo_src = f"data:image/jpeg;base64,{logo_base64}"
@@ -233,12 +232,12 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + الشريط العلوي ------------------
+# ------------------ CSS + شريط علوي + حقل بحث أنيق ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* إخفاء الهيدر والفوتر الافتراضي */
+    /* إخفاء الهيدر والفوتر */
     #MainMenu, header, footer {visibility: hidden !important;}
 
     .stApp {
@@ -306,6 +305,59 @@ st.markdown("""
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
+    /* حقل البحث الأنيق (Uiverse.io) */
+    .searchBox {
+        display: flex;
+        max-width: 300px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #2f3640;
+        border-radius: 50px;
+        position: relative;
+        margin: 20px auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .searchButton {
+        color: white;
+        position: absolute;
+        right: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .searchButton:hover {
+        color: #fff;
+        background-color: #1A1A1A;
+        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+        transform: translateY(-3px);
+    }
+    .searchButton:active {
+        box-shadow: none;
+        transform: translateY(0);
+    }
+    .searchInput {
+        border: none;
+        background: none;
+        outline: none;
+        color: white;
+        font-size: 16px;
+        padding: 15px 50px 15px 25px;
+        width: 100%;
+        font-family: 'Cairo', sans-serif;
+    }
+    .searchInput::placeholder {
+        color: #bdc3c7;
+    }
+
     /* تحسينات عامة */
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
@@ -320,7 +372,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ الشريط العلوي (مع الصورة المحلية) ------------------
+# ------------------ الشريط العلوي ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -425,7 +477,25 @@ elif st.session_state.page == "teacher_attendance":
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
-    name_input = st.text_input("اكتب اسمك الثلاثي:")
+
+    # ------------------ حقل البحث الأنيق ------------------
+    st.markdown("""
+    <div class="searchBox">
+        <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي...">
+        <button class="searchButton" onclick="document.getElementById('searchBtn').click()">بحث</button>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ربط الحقل بـ Streamlit
+    search_key = st.session_state.get("search_key", "")
+    name_input = st.text_input("", value=search_key, key="search_input_hidden", label_visibility="collapsed")
+    
+    # زر خفي للبحث
+    if st.button("", key="searchBtn", help="ابحث"):
+        st.session_state.search_key = name_input
+        st.rerun()
+
+    # عرض النتائج
     if name_input.strip():
         df_student = get_student_records(name_input.strip())
         if df_student.empty:
@@ -434,6 +504,7 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(name_input.strip(), df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{name_input.strip()}_report.pdf", mime="application/pdf")
+
     if st.button("الرجوع"):
         st.session_state.page = "home"
         st.rerun()

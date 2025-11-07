@@ -222,7 +222,7 @@ if logo_base64:
     logo_src = f"data:image/jpeg;base64,{logo_base64}"
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
-    st.warning("تحذير: لم يتم العثور على ملف images.jpeg، تم استخدام علم مصر كبديل.")
+    st.warning("تحذير: لم ي trouvé ملف images.jpeg، تم استخدام علم مصر كبديل.")
 
 # ------------------ تاريخ اليوم ------------------
 today = datetime.now()
@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + Uiverse.io + أنيميشن النافذة ------------------
+# ------------------ CSS + أزرار واضحة + أنيميشن ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -253,7 +253,39 @@ st.markdown("""
     .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
     .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
 
-    .content-padding { height: 90px; }
+    /* مساحة كافية تحت الشريط */
+    .content-padding { height: 100px; }
+
+    /* أزرار معلم وطالب */
+    .home-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-top: 40px;
+        flex-wrap: wrap;
+    }
+    .role-btn {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border: none;
+        padding: 20px 40px;
+        border-radius: 16px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+        min-width: 180px;
+        text-align: center;
+    }
+    .role-btn:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
+    }
+    .role-btn:active {
+        transform: translateY(-2px);
+    }
 
     /* Uiverse.io Search Box */
     .search-container {
@@ -339,7 +371,7 @@ st.markdown("""
         box-shadow: 0 6px 16px rgba(220,38,38,0.4);
     }
 
-    /* أنيميشن النافذة المنبثقة */
+    /* أنيميشن النافذة */
     .modal {
         display: none;
         position: fixed;
@@ -410,7 +442,7 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ النافذة المنبثقة مع أنيميشن ------------------
+# ------------------ النافذة المنبثقة ------------------
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
@@ -436,18 +468,26 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# ------------------ الصفحة الرئيسية (مع أزرار واضحة) ------------------
 if st.session_state.page == "home":
-    st.title("نظام الغياب")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("معلم"):
-            st.session_state.page = "teacher_login"
-            st.rerun()
-    with col2:
-        if st.button("طالب"):
-            st.session_state.page = "student"
-            st.rerun()
+    st.markdown("<h1 style='text-align:center; color:#1e40af; margin-top:20px;'>نظام الغياب</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="home-buttons">
+        <button class="role-btn" onclick="window.location.href='?role=teacher'">معلم</button>
+        <button class="role-btn" onclick="window.location.href='?role=student'">طالب</button>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # معالجة الضغط
+    query_params = st.experimental_get_query_params()
+    if query_params.get("role") == ["teacher"]:
+        st.session_state.page = "teacher_login"
+        st.rerun()
+    elif query_params.get("role") == ["student"]:
+        st.session_state.page = "student"
+        st.rerun()
+
+# ------------------ صفحة تسجيل المعلم ------------------
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -463,6 +503,7 @@ elif st.session_state.page == "teacher_login":
         st.session_state.page = "home"
         st.rerun()
 
+# ------------------ صفحة تسجيل الغياب ------------------
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
@@ -494,10 +535,10 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
+# ------------------ صفحة الطالب ------------------
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ محرك البحث + زر الرجوع ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
@@ -512,23 +553,19 @@ elif st.session_state.page == "student":
     <input type="text" id="hiddenInput" style="display:none;">
     """, unsafe_allow_html=True)
 
-    # حقل مخفي
     hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
 
-    # زر البحث
     if st.button("", key="triggerSearch"):
         if hidden_input.strip():
             st.session_state.student_search = hidden_input.strip()
             st.rerun()
 
-    # تنظيف عند الرجوع
     if st.experimental_get_query_params().get("clear") == ["1"]:
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.experimental_set_query_params()
         st.rerun()
 
-    # عرض النتايج
     search_query = st.session_state.get("student_search", "")
     if search_query:
         df_student = get_student_records(search_query)
@@ -539,7 +576,6 @@ elif st.session_state.page == "student":
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
 
-    # زر الرجوع (إضافي)
     if st.button("الرجوع"):
         if "student_search" in st.session_state:
             del st.session_state.student_search

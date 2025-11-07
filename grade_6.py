@@ -187,7 +187,7 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(row.get("الطالب", "")),
                 reshape_arabic_text(row.get("المعلم", "")),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
-                reshape_arabic_text(row.get("الإحالة", ""))
+                reshape_arabic_text(row.get("الحالة", ""))
             ])
         table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + Uiverse.io Search Box (بدون تغيير) ------------------
+# ------------------ CSS + Uiverse.io + أنيميشن النافذة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -255,16 +255,15 @@ st.markdown("""
 
     .content-padding { height: 90px; }
 
-    /* Uiverse.io Search Box - بدون تغيير */
+    /* Uiverse.io Search Box */
     .search-container {
         display: flex;
         justify-content: flex-start;
         margin: 20px 30px 15px 30px;
-        padding-left: 0;
     }
     .searchBox {
         display: flex;
-        max-width: 450px; /* أكبر من الأصل */
+        max-width: 450px;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
@@ -281,13 +280,12 @@ st.markdown("""
         border-radius: 50%;
         background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
         border: 0;
-        display: inline-block;
-        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-        cursor: pointer;
-        font-size: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
     }
     .searchButton:hover {
         color: #fff;
@@ -341,6 +339,53 @@ st.markdown("""
         box-shadow: 0 6px 16px rgba(220,38,38,0.4);
     }
 
+    /* أنيميشن النافذة المنبثقة */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000000;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(5px);
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+    .modal.show {
+        display: flex !important;
+        opacity: 1;
+    }
+    .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        transform: translateY(50px);
+        opacity: 0;
+        transition: all 0.4s ease;
+    }
+    .modal.show .modal-content {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    .modal-close {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+    .modal-close:hover {
+        color: #dc2626;
+    }
+
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button { display: none !important; }
 </style>
@@ -357,31 +402,32 @@ st.markdown(f"""
         </div>
     </div>
     <div style="display: flex; gap: 12px;">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
+        <button class="nav-btn" onclick="document.getElementById('about-modal').classList.add('show')">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').classList.add('show')">اتصل بنا</button>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ النافذة المنبثقة ------------------
+# ------------------ النافذة المنبثقة مع أنيميشن ------------------
 st.markdown("""
-<div id="about-modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); display:flex; justify-content:center; align-items:center;">
-    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
-        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
-        <h3 style="text-align:center; color:#1e40af;">عن المدرسة</h3>
-        <p style="text-align:center; color:#475569;">مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p style="text-align:center; color:#475569;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="document.getElementById('about-modal').classList.remove('show')">×</span>
+        <h3 style="text-align:center; color:#1e40af; margin-top:0;">عن المدرسة</h3>
+        <p style="text-align:center; color:#475569; line-height:1.6;">مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p style="text-align:center; color:#475569; line-height:1.6;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-<div id="contact-modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); display:flex; justify-content:center; align-items:center;">
-    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
-        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
-        <h3 style="text-align:center; color:#1e40af;">اتصل بنا</h3>
-        <p style="text-align:center; color:#475569;">الهاتف: 02-12345678</p>
-        <p style="text-align:center; color:#475569;">البريد: alsalam.school@example.com</p>
-        <p style="text-align:center; color:#475569;">العنوان: حي السلام - القاهرة</p>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('show')">×</span>
+        <h3 style="text-align:center; color:#1e40af; margin-top:0;">اتصل بنا</h3>
+        <p style="text-align:center; color:#475569; line-height:1.6;">الهاتف: 02-12345678</p>
+        <p style="text-align:center; color:#475569; line-height:1.6;">البريد: alsalam.school@example.com</p>
+        <p style="text-align:center; color:#475569; line-height:1.6;">العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -451,13 +497,13 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ Uiverse.io Search Box + زر الرجوع ------------------
+    # ------------------ محرك البحث + زر الرجوع ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
             <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." 
                    oninput="document.getElementById('hiddenInput').value = this.value">
-            <button class="searchButton" id="searchBtn" onclick="document.getElementById('triggerSearch').click()">Search</button>
+            <button class="searchButton" onclick="document.getElementById('triggerSearch').click()">Search</button>
         </div>
     </div>
     <div class="back-btn-container">
@@ -466,16 +512,16 @@ elif st.session_state.page == "student":
     <input type="text" id="hiddenInput" style="display:none;">
     """, unsafe_allow_html=True)
 
-    # حقل مخفي للقيمة
+    # حقل مخفي
     hidden_input = st.text_input("", value="", key="hiddenInput", label_visibility="collapsed")
 
-    # زر مخفي للضغط
+    # زر البحث
     if st.button("", key="triggerSearch"):
         if hidden_input.strip():
             st.session_state.student_search = hidden_input.strip()
             st.rerun()
 
-    # تنظيف البحث عند الرجوع
+    # تنظيف عند الرجوع
     if st.experimental_get_query_params().get("clear") == ["1"]:
         if "student_search" in st.session_state:
             del st.session_state.student_search

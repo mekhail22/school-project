@@ -61,7 +61,7 @@ st.markdown("""
     div[data-testid="stCheckbox"] > label { font-size: 16px; font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
-st.image("images.jpeg", width=150)  # ضع الملف في نفس المجلد أو ارفعه عبر secrets
+st.image("images.jpeg", width=250)  # ضع الملف في نفس المجلد أو ارفعه عبر secrets
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------ إعدادات عامة ------------------
@@ -388,3 +388,4 @@ elif st.session_state.page == "student":
     if st.button("🔙 الرجوع"):
         st.session_state.page = "home"
         st.rerun()
+

@@ -189,7 +189,6 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
                 reshape_arabic_text(row.get("الحالة", ""))
             ])
-
         table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Arabic'),
@@ -209,7 +208,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ تحويل الصورة ------------------
+# ------------------ تحويل الصورة المحلية إلى base64 ------------------
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -233,116 +232,281 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS (تم حذف السطر المسبب للمشكلة) ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الشمال بمسافة بسيطة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+    /* إخفاء الهيدر والفوتر */
     #MainMenu, header, footer {visibility: hidden !important;}
-    .stApp { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); font-family: 'Cairo', sans-serif; }
-    .top-toolbar {
-        position: fixed; top: 0; left: 0; right: 0; height: 70px;
-        background: linear-gradient(135deg, #1e40af, #2563eb);
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 0 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 999999; color: white; font-family: 'Cairo', sans-serif;
+
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
     }
-    .logo-img { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); background: white; padding: 4px; }
+
+    /* الشريط العلوي */
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-    .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
-    .content-padding { height: 100px; }
-    .home-container { text-align: center; margin-top: 60px; }
-    .home-title { color: #1e40af; font-size: 28px; font-weight: bold; margin-bottom: 40px; }
-    .role-btn {
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        color: white; border: none; padding: 22px 50px; border-radius: 16px;
-        font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); min-width: 200px; text-align: center; margin: 0 30px;
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
     }
-    .role-btn:hover {
-        background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
-        transform: translateY(-5px); box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
-    .search-container { display: flex; justify-content: flex-start; margin: 20px 30px 15px 30px; }
-    .searchBox { display: flex; max-width: 450px; align-items: center; justify-content: space-between; gap: 8px; background: #2f3640; border-radius: 50px; position: relative; }
-    .searchButton { color: white; position: absolute; right: 8px; width: 50px; height: 50px; border-radius: 50%; background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%)); border: 0; display: flex; align-items: center; justify-content: center; transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); cursor: pointer; font-size: 20px; }
-    .searchButton:hover { color: #fff; background-color: #1A1A1A; box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px; transform: translateY(-3px); }
-    .searchInput { border: none; background: none; outline: none; color: white; font-size: 18px; padding: 24px 70px 24px 26px; width: 100%; font-family: 'Cairo', sans-serif; }
-    .searchInput::placeholder { color: #bdc3c7; font-size: 16px; }
-    .back-btn-container { display: flex; justify-content: flex-end; padding: 0 30px; margin-top: 10px; }
-    .back-btn { background: linear-gradient(to right, #dc2626, #b91c1c); color: white; border: none; padding: 14px 32px; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(220,38,38,0.3); min-width: 130px; text-align: center; }
-    .back-btn:hover { background: linear-gradient(to right, #b91c1c, #991b1b); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(220,38,38,0.4); }
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s ease; }
-    .modal.show { display: flex !important; opacity: 1; }
-    .modal-content { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: translateY(50px); opacity: 0; transition: all 0.4s ease; }
-    .modal.show .modal-content { transform: translateY(0); opacity: 1; }
-    .modal-close { position: absolute; top: 15px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; transition: color 0.3s; }
-    .modal-close:hover { color: #dc2626; }
+
+    .content-padding { height: 90px; }
+
+    /* النافذة المنبثقة */
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    /* حقل البحث في الشمال بمسافة بسيطة (30px من اليسار) */
+    .search-container {
+        display: flex;
+        justify-content: flex-start;
+        margin: 15px 20px 10px 20px;
+        padding-left: 30px; /* المسافة البسيطة من اليسار */
+    }
+    .searchBox {
+        display: flex;
+        max-width: 320px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #2f3640;
+        border-radius: 50px;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .searchButton {
+        color: white;
+        position: absolute;
+        right: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .searchButton:hover {
+        color: #fff;
+        background-color: #1A1A1A;
+        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+        transform: translateY(-3px);
+    }
+    .searchButton:active {
+        box-shadow: none;
+        transform: translateY(0);
+    }
+    .searchInput {
+        border: none;
+        background: none;
+        outline: none;
+        color: white;
+        font-size: 16px;
+        padding: 15px 50px 15px 25px;
+        width: 100%;
+        font-family: 'Cairo', sans-serif;
+    }
+    .searchInput::placeholder {
+        color: #bdc3c7;
+    }
+
+    /* تحسينات عامة */
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ باقي الكود زي ما هو (الشريط، النافذة، الصفحات) ------------------
+# ------------------ الشريط العلوي ------------------
 st.markdown(f"""
 <div class="top-toolbar">
-    <div style="display: flex; align-items: center; gap: 12px;">
+    <div class="logo-container">
         <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div>
+        <div class="school-info">
             <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
             <p class="school-date">{formatted_date}</p>
         </div>
     </div>
-    <div style="display: flex; gap: 12px;">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').classList.add('show')">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').classList.add('show')">اتصل بنا</button>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
     </div>
 </div>
 """, unsafe_allow_html=True)
+
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
+# ------------------ النافذة المنبثقة ------------------
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
-        <span class="modal-close" onclick="document.getElementById('about-modal').classList.remove('show')">×</span>
-        <h3 style="text-align:center; color:#1e40af; margin-top:0;">عن المدرسة</h3>
-        <p style="text-align:center; color:#475569; line-height:1.6;">مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p style="text-align:center; color:#475569; line-height:1.6;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
+
 <div id="contact-modal" class="modal">
     <div class="modal-content">
-        <span class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('show')">×</span>
-        <h3 style="text-align:center; color:#1e40af; margin-top:0;">اتصل بنا</h3>
-        <p style="text-align:center; color:#475569; line-height:1.6;">الهاتف: 02-12345678</p>
-        <p style="text-align:center; color:#475569; line-height:1.6;">البريد: alsalam.school@example.com</p>
-        <p style="text-align:center; color:#475569; line-height:1.6;">العنوان: حي السلام - القاهرة</p>
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
+# ------------------ الصفحات ------------------
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ الصفحة الرئيسية (الأزرار القديمة + شغالة) ------------------
 if st.session_state.page == "home":
-    st.markdown("""
-    <div class="home-container">
-        <h1 class="home-title">نظام الغياب</h1>
-        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap;">
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns([1, 1])
+    st.title("نظام الغياب")
+    col1, col2 = st.columns(2)
     with col1:
-        if st.button("معلم", key="teacher_btn"):
+        if st.button("معلم"):
             st.session_state.page = "teacher_login"
             st.rerun()
     with col2:
-        if st.button("طالب", key="student_btn"):
+        if st.button("طالب"):
             st.session_state.page = "student"
             st.rerun()
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
+elif st.session_state.page == "teacher_login":
+    st.header("تسجيل دخول المعلم")
+    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+    pwd = st.text_input("كلمة السر:", type="password")
+    if st.button("تسجيل الدخول"):
+        if pwd == PASSWORD:
+            st.session_state.teacher_name = teacher_choice
+            st.session_state.page = "teacher_attendance"
+            st.rerun()
+        else:
+            st.error("كلمة السر غير صحيحة")
+    if st.button("رجوع"):
+        st.session_state.page = "home"
+        st.rerun()
 
-# باقي الصفحات (teacher_login, teacher_attendance, student) زي ما هي
-# ... (انسخ باقي الكود زي ما كان)
+elif st.session_state.page == "teacher_attendance":
+    st.header("تسجيل الغياب")
+    teacher_name = st.session_state.get("teacher_name", "غير معروف")
+    st.subheader(f"المعلم: {teacher_name}")
+    selected = st.multiselect("اختر الغائبين", STUDENTS)
+    st.markdown("**اختر نوع الغياب:**")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        excuse = st.checkbox("غياب بعذر", key="excuse")
+    with col_b:
+        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+    if excuse and no_excuse:
+        st.warning("اختر نوع واحد فقط.")
+    if st.button("تسجيل"):
+        if not selected:
+            st.warning("يجب اختيار طالب/طلاب أولا.")
+        elif excuse and no_excuse:
+            st.warning("اختر نوع واحد فقط.")
+        elif not (excuse or no_excuse):
+            st.warning("من فضلك اختر نوع الغياب.")
+        else:
+            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+            failed = record_attendance(selected, teacher_name, status_label)
+            if not failed:
+                st.success("تم تسجيل الغياب بنجاح")
+            else:
+                st.error(f"حدثت أخطاء: {failed}")
+    if st.button("رجوع"):
+        st.session_state.page = "home"
+        st.rerun()
+
+elif st.session_state.page == "student":
+    st.header("تقارير الغياب")
+
+    # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
+    st.markdown("""
+    <div class="search-container">
+        <div class="searchBox">
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
+            <button class="searchButton">بحث</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # حقل Streamlit مخفي
+    name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
+
+    # حفظ البحث
+    if name_input.strip():
+        st.session_state.student_search = name_input.strip()
+
+    # جلب القيمة
+    search_query = st.session_state.get("student_search", "")
+
+    # عرض النتائج
+    if search_query:
+        df_student = get_student_records(search_query)
+        if df_student.empty:
+            st.info("لا يوجد غياب مسجل لهذا الاسم.")
+        else:
+            st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
+            pdf_buf = generate_student_pdf(search_query, df_student)
+            st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
+
+    # زر الرجوع
+    if st.button("الرجوع"):
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
+        st.session_state.page = "home"
+        st.rerun()

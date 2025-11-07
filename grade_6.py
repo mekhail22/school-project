@@ -222,7 +222,7 @@ if logo_base64:
     logo_src = f"data:image/jpeg;base64,{logo_base64}"
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
-    st.warning("تحذير: لم ي trouvé ملف images.jpeg، تم استخدام علم مصر كبديل.")
+    st.warning("تحذير: لم يتم العثور على ملف images.jpeg، تم استخدام علم مصر كبديل.")
 
 # ------------------ تاريخ اليوم ------------------
 today = datetime.now()
@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + أزرار واضحة + أنيميشن ------------------
+# ------------------ CSS + أزرار شغالة + مسافة كبيرة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -253,38 +253,38 @@ st.markdown("""
     .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
     .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
 
-    /* مساحة كافية تحت الشريط */
     .content-padding { height: 100px; }
 
-    /* أزرار معلم وطالب */
-    .home-buttons {
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-        margin-top: 40px;
-        flex-wrap: wrap;
+    /* أزرار معلم وطالب - شكل أنيق + مسافة كبيرة */
+    .home-container {
+        text-align: center;
+        margin-top: 60px;
+    }
+    .home-title {
+        color: #1e40af;
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 40px;
     }
     .role-btn {
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         color: white;
         border: none;
-        padding: 20px 40px;
+        padding: 22px 50px;
         border-radius: 16px;
-        font-size: 18px;
+        font-size: 20px;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
         box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
-        min-width: 180px;
+        min-width: 200px;
         text-align: center;
+        margin: 0 30px;
     }
     .role-btn:hover {
         background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
         transform: translateY(-5px);
         box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
-    }
-    .role-btn:active {
-        transform: translateY(-2px);
     }
 
     /* Uiverse.io Search Box */
@@ -468,24 +468,25 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ الصفحة الرئيسية (مع أزرار واضحة) ------------------
+# ------------------ الصفحة الرئيسية (زرار شغالة + مسافة كبيرة) ------------------
 if st.session_state.page == "home":
-    st.markdown("<h1 style='text-align:center; color:#1e40af; margin-top:20px;'>نظام الغياب</h1>", unsafe_allow_html=True)
     st.markdown("""
-    <div class="home-buttons">
-        <button class="role-btn" onclick="window.location.href='?role=teacher'">معلم</button>
-        <button class="role-btn" onclick="window.location.href='?role=student'">طالب</button>
-    </div>
+    <div class="home-container">
+        <h1 class="home-title">نظام الغياب</h1>
+        <div style="display: flex; justify-content: center; gap: 60px; flex-wrap: wrap;">
     """, unsafe_allow_html=True)
 
-    # معالجة الضغط
-    query_params = st.experimental_get_query_params()
-    if query_params.get("role") == ["teacher"]:
-        st.session_state.page = "teacher_login"
-        st.rerun()
-    elif query_params.get("role") == ["student"]:
-        st.session_state.page = "student"
-        st.rerun()
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("معلم", key="teacher_btn"):
+            st.session_state.page = "teacher_login"
+            st.rerun()
+    with col2:
+        if st.button("طالب", key="student_btn"):
+            st.session_state.page = "student"
+            st.rerun()
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 # ------------------ صفحة تسجيل المعلم ------------------
 elif st.session_state.page == "teacher_login":

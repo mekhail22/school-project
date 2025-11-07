@@ -207,11 +207,14 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS + Toolbar + Modals ------------------
+# ------------------ CSS + إخفاء الهيدر الافتراضي + الشريط العلوي ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    
+
+    /* إخفاء الهيدر والفوتر الافتراضي */
+    #MainMenu, header, footer {visibility: hidden !important;}
+
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
@@ -232,42 +235,46 @@ st.markdown("""
     /* الشريط العلوي */
     .top-toolbar {
         position: fixed;
-        top: 0; left: 0; right: 0;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 70px;
-        background: linear-gradient(to right, #1e40af, #2563eb);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 0 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 9999;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
         font-family: 'Cairo', sans-serif;
+        color: white;
     }
     .logo-container { display: flex; align-items: center; gap: 12px; }
     .logo-img { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); }
-    .school-info { color: white; line-height: 1.3; }
+    .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
 
     .nav-buttons { display: flex; gap: 12px; }
     .nav-btn {
-        background: rgba(255, 255, 255, 0.15);
-        color: white; border: none; padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
         border-radius: 12px; font-size: 15px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
     }
     .nav-btn:hover {
         background: white; color: #1e40af;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(255,255,255,0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
 
+    /* مسافة أسفل الشريط */
     .content-padding { height: 90px; }
 
     /* النافذة المنبثقة */
     .modal {
-        display: none; position: fixed; z-index: 10000;
+        display: none; position: fixed; z-index: 1000000;
         left: 0; top: 0; width: 100%; height: 100%;
         background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
         justify-content: center; align-items: center;
@@ -275,7 +282,7 @@ st.markdown("""
     .modal-content {
         background: white; padding: 25px; border-radius: 16px;
         width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        position: relative; animation: modalPop 00.3s ease;
+        position: relative; animation: modalPop 0.3s ease;
     }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
@@ -303,7 +310,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ تاريخ اليوم بالعربية ------------------
+# ------------------ تاريخ اليوم ------------------
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -311,11 +318,11 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ الشريط العلوي (Toolbar) ------------------
+# ------------------ الشريط العلوي (يظهر دايمًا) ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
-        <img src="images.jpeg" class="logo-img" alt="شعار المدرسة">
+        <img src="images.jpeg" class="logo-img" alt="شعار">
         <div class="school-info">
             <p class="school-name">مدرسة الأنبا بيشوي</p>
             <p class="school-date">{formatted_date}</p>
@@ -328,21 +335,20 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# مسافة أسفل الشريط
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ النافذة المنبثقة (Modals) ------------------
+# ------------------ النافذة المنبثقة ------------------
 st.markdown("""
-<!-- نافذة "عنا" -->
 <div id="about-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
         <h3>عن المدرسة</h3>
-        <p>مدرسة الأنبا بيشوي الابتدائية تهدف إلى بناء جيل متميز أخلاقيًا وعلميًا، مع التركيز على الانضباط والتفوق.</p>
+        <p>مدرسة الأنبا بيشوي الابتدائية تهدف إلى بناء جيل متميز أخلاقيًا وعلميًا.</p>
         <p>تأسست عام 1995، وتضم نخبة من المعلمين المتميزين.</p>
     </div>
 </div>
 
-<!-- نافذة "اتصل بنا" -->
 <div id="contact-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
@@ -409,7 +415,7 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             failed = record_attendance(selected, teacher_name, status_label)
             if not failed:
-                st.success("تم تسجيل الغياب ")
+                st.success("تم تسجيل الغياب بنجاح")
             else:
                 st.error(f"حدثت أخطاء: {failed}")
     if st.button("رجوع"):

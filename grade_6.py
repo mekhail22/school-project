@@ -14,12 +14,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
-import base64
 
 # ------------------ إعداد الصفحة ------------------
-st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.set_page_config(page_title="نظام الغياب", layout="wide")
 
-# ------------------ إعدادات عامة ------------------
+# ------------------ بيانات ------------------
 SHEET_NAME = "school_attendance"
 PASSWORD = "1234"
 STUDENTS = [
@@ -30,11 +29,11 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
-# ------------------ الاتصال بـ Google Sheets ------------------
+# ------------------ اتصال Google Sheets ------------------
 try:
     service_account_info = st.secrets["SERVICE_ACCOUNT"]
-except Exception:
-    st.error("خطأ: لم أعثر على SERVICE_ACCOUNT في secrets.")
+except:
+    st.error("SERVICE_ACCOUNT غير موجود في secrets")
     st.stop()
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -42,17 +41,17 @@ try:
     creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
     gc = gspread.authorize(creds)
 except Exception as e:
-    st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
+    st.error("خطأ في Google API: " + str(e))
     st.stop()
 
 try:
     sh = gc.open(SHEET_NAME)
     worksheet = sh.sheet1
 except Exception as e:
-    st.error("خطأ في فتح Google Sheet. " + str(e))
+    st.error("خطأ في فتح Google Sheet: " + str(e))
     st.stop()
 
-# ------------------ تحميل خط عربي للـ PDF ------------------
+# ------------------ تحميل خط عربي ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 if not os.path.exists(FONT_PATH):
     url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
@@ -66,10 +65,7 @@ if not os.path.exists(FONT_PATH):
 try:
     pdfmetrics.registerFont(TTFont('Arabic', FONT_PATH))
 except:
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
-    except:
-        pass
+    pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
 
 # ------------------ دوال مساعدة ------------------
 def reshape_arabic_text(text):
@@ -118,15 +114,6 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
-def send_telegram_message(message):
-    BOT_TOKEN = "YOUR_BOT_TOKEN"
-    CHAT_ID = "YOUR_CHAT_ID"
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    try:
-        requests.get(url, params={"chat_id": CHAT_ID, "text": message}, timeout=5)
-    except:
-        pass
-
 def record_attendance(selected_absent, teacher_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
@@ -138,9 +125,6 @@ def record_attendance(selected_absent, teacher_name, absent_label):
             worksheet.append_row([student, teacher_name, status, date_display])
         except Exception as e:
             failed.append((student, str(e)))
-    absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
-    send_telegram_message(message)
     return failed
 
 def get_student_records(student_name):
@@ -208,7 +192,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS + شريط علوي + البحث ------------------
+# ------------------ CSS ------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -251,29 +235,26 @@ st.markdown(f"""
 </div>
 <div class="nav-buttons">
 <button class="nav-btn" onclick="alert('عن المدرسة: مدرسة السلام تقدم تعليم متميز.')">عنا</button>
-<button class="nav-btn" onclick="alert('الهاتف: 02-12345678\nالبريد: alsalam.school@example.com')">اتصل بنا</button>
+<button class="nav-btn" onclick="alert('الهاتف: 02-12345678\\nالبريد: alsalam.school@example.com')">اتصل بنا</button>
 </div>
 </div>
 <div class="content-padding"></div>
 """, unsafe_allow_html=True)
 
-# ------------------ الصفحات ------------------
-if "page" not in st.session_state:
-    st.session_state.page = "home"
+# ------------------ صفحات ------------------
+if "page" not in st.session_state: st.session_state.page="home"
 
-if st.session_state.page == "home":
+if st.session_state.page=="home":
     st.title("نظام الغياب")
     col1,col2 = st.columns(2)
     with col1:
         if st.button("معلم"):
-            st.session_state.page="teacher_login"
-            st.rerun()
+            st.session_state.page="teacher_login"; st.experimental_rerun()
     with col2:
         if st.button("طالب"):
-            st.session_state.page="student"
-            st.rerun()
+            st.session_state.page="student"; st.experimental_rerun()
 
-elif st.session_state.page == "teacher_login":
+elif st.session_state.page=="teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
     pwd = st.text_input("كلمة السر:", type="password")
@@ -281,12 +262,10 @@ elif st.session_state.page == "teacher_login":
         if pwd==PASSWORD:
             st.session_state.teacher_name=teacher_choice
             st.session_state.page="teacher_attendance"
-            st.rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
+            st.experimental_rerun()
+        else: st.error("كلمة السر غير صحيحة")
     if st.button("رجوع"):
-        st.session_state.page="home"
-        st.rerun()
+        st.session_state.page="home"; st.experimental_rerun()
 
 elif st.session_state.page=="teacher_attendance":
     st.header("تسجيل الغياب")
@@ -299,17 +278,16 @@ elif st.session_state.page=="teacher_attendance":
     with col_b: no_excuse = st.checkbox("غياب بدون عذر",key="no_excuse")
     if excuse and no_excuse: st.warning("اختر نوع واحد فقط.")
     if st.button("تسجيل"):
-        if not selected: st.warning("يجب اختيار طالب/طلاب أولا.")
+        if not selected: st.warning("اختر طالب/طلاب")
         elif excuse and no_excuse: st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse): st.warning("من فضلك اختر نوع الغياب.")
+        elif not (excuse or no_excuse): st.warning("اختر نوع الغياب")
         else:
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             failed = record_attendance(selected,teacher_name,status_label)
             if not failed: st.success("تم تسجيل الغياب بنجاح")
-            else: st.error(f"حدثت أخطاء: {failed}")
+            else: st.error(f"خطأ: {failed}")
     if st.button("رجوع"):
-        st.session_state.page="home"
-        st.rerun()
+        st.session_state.page="home"; st.experimental_rerun()
 
 elif st.session_state.page=="student":
     st.header("تقارير الغياب")
@@ -323,7 +301,6 @@ elif st.session_state.page=="student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-    if st.button("الرجوع"):
+    if st.button("رجوع"):
         if "student_search" in st.session_state: del st.session_state.student_search
-        st.session_state.page="home"
-        st.rerun()
+        st.session_state.page="home"; st.experimental_rerun()

@@ -477,7 +477,14 @@ elif st.session_state.page == "student":
     # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
 
     # حقل Streamlit مخفي
-    name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
+    name_input = st.text_input(st.markdown("""
+    <div class="search-container">
+        <div class="searchBox">
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
+            <button class="searchButton">بحث</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True))
 
     # حفظ البحث
     if name_input.strip():

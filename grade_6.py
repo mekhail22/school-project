@@ -123,7 +123,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS + الهيدر ------------------
+# ------------------ CSS + الهيدر + محرك البحث الجديد ------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -144,22 +144,63 @@ color:white; font-family:'Cairo',sans-serif;
 .nav-btn{background:rgba(255,255,255,0.2);color:white;border:none;padding:10px 22px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.3s ease;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.3);}
 .nav-btn:hover{background:white;color:#1e40af;transform:translateY(-3px);box-shadow:0 8px 20px rgba(255,255,255,0.4);}
 .content-padding{height:90px;}
-.searchBox{display:flex;max-width:320px;align-items:center;justify-content:space-between;gap:8px;background:#2f3640;border-radius:50px;position:relative;padding:5px 15px;}
-.searchInput{border:none;background:none;outline:none;color:white;font-size:16px;width:100%;padding:10px;font-family:'Cairo',sans-serif;}
-.searchButton{background:linear-gradient(90deg,#2AF598 0%,#009EFD 100%);border:none;color:white;padding:10px 18px;border-radius:50px;cursor:pointer;}
-button:hover{color:#fff;background-color:#1A1A1A;box-shadow:rgba(0,0,0,0.5) 0 10px 20px;transform:translateY(-3px);}
-button:active{box-shadow:none;transform:translateY(0);}
+
+.searchBox {
+  display: flex;
+  max-width:320px;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  background:#2f3640;
+  border-radius:50px;
+  position:relative;
+  padding:5px 15px;
+}
+.searchInput {
+  border:none;
+  background:none;
+  outline:none;
+  color:white;
+  font-size:16px;
+  width:100%;
+  padding:10px;
+  font-family:'Cairo',sans-serif;
+}
+.searchButton {
+  color:white;
+  position:absolute;
+  right:8px;
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  background:linear-gradient(90deg,#2AF598 0%,#009EFD 100%);
+  border:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition: all 300ms cubic-bezier(.23,1,0.32,1);
+  cursor:pointer;
+}
+.searchButton:hover {
+  color:#fff;
+  background-color:#1A1A1A;
+  box-shadow:rgba(0,0,0,0.5) 0 10px 20px;
+  transform:translateY(-3px);
+}
+.searchButton:active {
+  box-shadow:none;
+  transform:translateY(0);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------ الهيدر ------------------
-today = datetime.now()
+today=datetime.now()
 arabic_weekdays=["الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"]
 arabic_months=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-weekday = arabic_weekdays[today.weekday()]
-month = arabic_months[today.month-1]
-formatted_date = f"{weekday}، {today.day} {month} {today.year}"
-
+weekday=arabic_weekdays[today.weekday()]
+month=arabic_months[today.month-1]
+formatted_date=f"{weekday}، {today.day} {month} {today.year}"
 logo_url="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
 st.markdown(f"""
@@ -199,8 +240,8 @@ if st.session_state.page=="home":
 # ------------------ صفحة تسجيل دخول المعلم ------------------
 elif st.session_state.page=="teacher_login":
     st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
+    teacher_choice=st.selectbox("اختر اسمك:",TEACHERS)
+    pwd=st.text_input("كلمة السر:",type="password")
     if st.button("تسجيل الدخول"):
         if pwd==PASSWORD:
             st.session_state.teacher_name=teacher_choice
@@ -246,7 +287,17 @@ elif st.session_state.page=="student":
     st.header("تقارير الغياب")
     if "student_search" not in st.session_state:
         st.session_state.student_search=""
-    search_query=st.text_input("اكتب اسمك الثلاثي...", key="student_search", placeholder="اكتب اسمك الثلاثي...")
+    
+    st.markdown("""
+    <div class="searchBox">
+        <input class="searchInput" id="student_search_input" placeholder="اكتب اسمك الثلاثي..."/>
+        <button class="searchButton" onclick="document.getElementById('search_btn').click()">🔍</button>
+    </div>
+    <input type="hidden" id="search_btn"/>
+    """, unsafe_allow_html=True)
+
+    search_query=st.text_input("اكتب اسمك الثلاثي...",key="student_search",placeholder="اكتب اسمك الثلاثي...")
+    
     if st.button("بحث"):
         if search_query.strip()=="":
             st.warning("من فضلك اكتب اسمك الثلاثي للبحث.")
@@ -258,6 +309,7 @@ elif st.session_state.page=="student":
                 st.dataframe(df_student.reset_index(drop=True),use_container_width=True)
                 pdf_buf=generate_student_pdf(search_query,df_student)
                 st.download_button("تحميل PDF",data=pdf_buf,file_name=f"{search_query}_report.pdf",mime="application/pdf")
+
     if st.button("الرجوع"):
         st.session_state.page="home"
         st.rerun()

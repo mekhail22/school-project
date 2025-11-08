@@ -2,6 +2,192 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
+import arabic_reshaper
+from bidi.algorithm import get_display
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+
+# ---------------------------------------------
+# دالة إنشاء PDF لتقرير الطالب
+# ---------------------------------------------
+def generate_student_pdf(student_name, df_student):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+
+    style = ParagraphStyle(name="Arabic", fontName="Helvetica", fontSize=12, alignment=2)
+    reshaped_name = get_display(arabic_reshaper.reshape(student_name))
+    title = Paragraph(f"<b>تقرير الغياب للطالب:</b> {reshaped_name}", style)
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+
+    data = [["التاريخ", "الحالة", "المعلم"]]
+    for _, row in df_student.iterrows():
+        reshaped_teacher = get_display(arabic_reshaper.reshape(str(row["teacher"])))
+        reshaped_status = get_display(arabic_reshaper.reshape(str(row["status"])))
+        reshaped_date = get_display(arabic_reshaper.reshape(str(row["date"])))
+        data.append([reshaped_date, reshaped_status, reshaped_teacher])
+
+    table = Table(data, colWidths=[120, 120, 120])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#009EFD")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+        ("GRID", (0, 0), (-1, -1), 1, colors.gray),
+    ]))
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+# ---------------------------------------------
+# دالة جلب بيانات الطالب
+# ---------------------------------------------
+def get_student_records(student_name):
+    df = pd.read_csv("attendance.csv")
+    return df[df["student"].str.contains(student_name, case=False, na=False)]
+
+# ---------------------------------------------
+# واجهة التطبيق
+# ---------------------------------------------
+st.set_page_config(page_title="نظام الغياب", page_icon="📘", layout="centered")
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+# الصفحة الرئيسية
+if st.session_state.page == "home":
+    st.title("📘 نظام الغياب")
+    st.write("مرحبًا! اختر نوع الدخول:")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("👨‍🏫 دخول المعلم"):
+            st.session_state.page = "teacher"
+    with col2:
+        if st.button("👨‍🎓 دخول الطالب"):
+            st.session_state.page = "student"
+
+# صفحة المعلم (اختصار)
+elif st.session_state.page == "teacher":
+    st.header("📘 واجهة المعلم")
+    st.info("هنا تضاف بيانات الغياب (الجزء ده اختصرناه).")
+    if st.button("🔙 الرجوع"):
+        st.session_state.page = "home"
+        st.rerun()
+
+# ---------------------------------------------
+# صفحة الطالب بمحرك البحث الجديد
+# ---------------------------------------------
+elif st.session_state.page == "student":
+    st.header("📄 تقارير الغياب")
+
+    # CSS الجديد
+    st.markdown("""
+    <style>
+    /* From Uiverse.io by OnlyCodeChannel */
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 0 auto 25px auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      font-weight: bold;
+      font-size: 14px;
+      font-family: 'Cairo', sans-serif;
+    }
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+      font-family: 'Cairo', sans-serif;
+    }
+    .searchInput::placeholder {
+      color: #bdc3c7;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # واجهة البحث
+    st.markdown("""
+    <div class="searchBox">
+        <input class="searchInput" type="text" id="studentInput" placeholder="اكتب اسم الطالب الثلاثي...">
+        <button class="searchButton" onclick="window.parent.postMessage({type: 'searchStudent', value: document.getElementById('studentInput').value}, '*')">بحث</button>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # حقل البحث المخفي للربط بين JS و Streamlit
+    student_name = st.text_input("", key="student_name_hidden", label_visibility="collapsed")
+
+    # JavaScript لربط الزر مع Streamlit
+    st.markdown("""
+    <script>
+    window.addEventListener('message', (event) => {
+        if (event.data.type === 'searchStudent') {
+            const input = event.data.value.trim();
+            const streamlitInput = window.parent.document.querySelector('input[id^="student_name_hidden"]');
+            if (streamlitInput) {
+                streamlitInput.value = input;
+                streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    });
+    </script>
+    """, unsafe_allow_html=True)
+
+    # عرض نتائج البحث
+    if student_name:
+        df_student = get_student_records(student_name)
+        if df_student.empty:
+            st.info("❌ لا يوجد غياب مسجل لهذا الاسم.")
+        else:
+            st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
+            pdf_buf = generate_student_pdf(student_name, df_student)
+            st.download_button(
+                "📄 تحميل PDF",
+                data=pdf_buf,
+                file_name=f"{student_name}_report.pdf",
+                mime="application/pdf"
+            )
+    else:
+        st.info("✏️ اكتب اسمك الثلاثي ثم اضغط (بحث) لعرض تقرير الغياب.")
+
+    # زر الرجوع
+    if st.button("🔙 الرجوع"):
+        st.session_state.student_name_hidden = ""
+        st.session_state.page = "home"
+        st.rerun()
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import io
 import os
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -232,113 +418,45 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + شريط علوي + حقل بحث في الشمال بمسافة بسيطة ------------------
+# ------------------ CSS + أيقونة بحث + عرض فوري عند الضغط ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* إخفاء الهيدر والفوتر */
     #MainMenu, header, footer {visibility: hidden !important;}
+    .stApp { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); font-family: 'Cairo', sans-serif; }
 
-    .stApp {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        background-attachment: fixed;
-        font-family: 'Cairo', sans-serif;
-    }
-
-    /* الشريط العلوي */
     .top-toolbar {
-        position: fixed;
-        top: 0; left: 0; right: 0;
-        height: 70px;
+        position: fixed; top: 0; left: 0; right: 0; height: 70px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 999999 !important;
-        font-family: 'Cairo', sans-serif;
-        color: white;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999; color: white; font-family: 'Cairo', sans-serif;
     }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-img { 
-        width: 48px; height: 48px; border-radius: 12px; 
-        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 4px;
-    }
-    .school-info { line-height: 1.3; }
+    .logo-img { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); background: white; padding: 4px; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-
-    .nav-buttons { display: flex; gap: 12px; }
-    .nav-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: white; border: none; padding: 10px 22px;
-        border-radius: 12px; font-size: 15px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-    }
-    .nav-btn:hover {
-        background: white; color: #1e40af;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
-    }
+    .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 22px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+    .nav-btn:hover { background: white; color: #1e40af; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,255,255,0.4); }
 
     .content-padding { height: 90px; }
 
-    /* النافذة المنبثقة */
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
-
-    /* حقل البحث في الشمال بمسافة بسيطة (30px من اليسار) */
+    /* حقل البحث مع أيقونة بحث */
     .search-container {
         display: flex;
         justify-content: flex-start;
         margin: 15px 20px 10px 20px;
-        padding-left: 30px; /* المسافة البسيطة من اليسار */
+        padding-left: 30px; /* مسافة بسيطة من الشمال */
     }
     .searchBox {
         display: flex;
-        max-width: 320px;
+        max-width: 450px;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
         background: #2f3640;
         border-radius: 50px;
         position: relative;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .searchButton {
-        color: white;
-        position: absolute;
-        right: 8px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
-        border: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-        cursor: pointer;
-        font-size: 20px;
-    }
-    .searchButton:hover {
-        color: #fff;
-        background-color: #1A1A1A;
-        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-        transform: translateY(-3px);
-    }
-    .searchButton:active {
-        box-shadow: none;
-        transform: translateY(0);
+        width: 100%;
     }
     .searchInput {
         border: none;
@@ -353,32 +471,43 @@ st.markdown("""
     .searchInput::placeholder {
         color: #bdc3c7;
     }
+    .searchIcon {
+        position: absolute;
+        right: 15px;
+        width: 25px;
+        height: 25px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #2AF598;
+        font-size: 20px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    .searchIcon:hover {
+        color: #009EFD;
+        transform: scale(1.1);
+    }
 
-    /* تحسينات عامة */
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
-    }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
+    .stButton>button { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------ الشريط العلوي ------------------
 st.markdown(f"""
 <div class="top-toolbar">
-    <div class="logo-container">
+    <div style="display: flex; align-items: center; gap: 12px;">
         <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
+        <div>
             <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
             <p class="school-date">{formatted_date}</p>
         </div>
     </div>
-    <div class="nav-buttons">
+    <div style="display: flex; gap: 12px;">
         <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
         <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
     </div>
@@ -389,22 +518,21 @@ st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # ------------------ النافذة المنبثقة ------------------
 st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+<div id="about-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
+        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
+        <h3 style="text-align:center; color:#1e40af;">عن المدرسة</h3>
+        <p style="text-align:center; color:#475569;">مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p style="text-align:center; color:#475569;">تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
+<div id="contact-modal" class="modal" style="display:none; position:fixed; z-index:1000000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative;">
+        <span style="position:absolute; top:10px; left:15px; font-size:28px; font-weight:bold; color:#aaa; cursor:pointer;" onclick="this.parentElement.parentElement.style.display='none'">×</span>
+        <h3 style="text-align:center; color:#1e40af;">اتصل بنا</h3>
+        <p style="text-align:center; color:#475569;">الهاتف: 02-12345678</p>
+        <p style="text-align:center; color:#475569;">البريد: alsalam.school@example.com</p>
+        <p style="text-align:center; color:#475569;">العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -474,27 +602,29 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
+    # ------------------ حقل البحث مع أيقونة بحث (عرض فوري عند الضغط) ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
-            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
-            <button class="searchButton">بحث</button>
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value">
+            <button class="searchIcon" onclick="document.getElementById('searchBtn').click(); __streamlit_rerun()">🔍</button>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # حقل Streamlit مخفي
+    # حقل Streamlit مخفي للقيمة
     name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
 
-    # حفظ البحث
-    if name_input.strip():
-        st.session_state.student_search = name_input.strip()
+    # زر خفي للعرض عند الضغط على الأيقونة
+    if st.button("", key="searchBtn"):
+        if name_input.strip():
+            st.session_state.student_search = name_input.strip()
+            st.rerun()
 
     # جلب القيمة
     search_query = st.session_state.get("student_search", "")
 
-    # عرض النتائج
+    # عرض النتايج
     if search_query:
         df_student = get_student_records(search_query)
         if df_student.empty:
@@ -503,6 +633,8 @@ elif st.session_state.page == "student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
+    else:
+        st.info("اكتب اسم الطالب واضغط على الأيقونة للعرض...")
 
     # زر الرجوع
     if st.button("الرجوع"):
@@ -510,4 +642,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         st.rerun()
-

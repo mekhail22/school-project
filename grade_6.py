@@ -14,11 +14,12 @@ from reportlab.pdfbase.ttfonts import TTFont
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
+import base64
 
 # ------------------ إعداد الصفحة ------------------
-st.set_page_config(page_title="نظام الغياب", layout="wide")
+st.set_page_config(page_title="نظام الغياب", layout="centered")
 
-# ------------------ بيانات ------------------
+# ------------------ إعدادات عامة ------------------
 SHEET_NAME = "school_attendance"
 PASSWORD = "1234"
 STUDENTS = [
@@ -29,11 +30,11 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
-# ------------------ اتصال Google Sheets ------------------
+# ------------------ الاتصال بـ Google Sheets ------------------
 try:
     service_account_info = st.secrets["SERVICE_ACCOUNT"]
-except:
-    st.error("SERVICE_ACCOUNT غير موجود في secrets")
+except Exception as e:
+    st.error("خطأ: لم أعثر على SERVICE_ACCOUNT في secrets. ضع JSON ملف خدمة السرفيس داخل secrets باسم SERVICE_ACCOUNT.")
     st.stop()
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -41,17 +42,17 @@ try:
     creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
     gc = gspread.authorize(creds)
 except Exception as e:
-    st.error("خطأ في Google API: " + str(e))
+    st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
     st.stop()
 
 try:
     sh = gc.open(SHEET_NAME)
     worksheet = sh.sheet1
 except Exception as e:
-    st.error("خطأ في فتح Google Sheet: " + str(e))
+    st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة حساب الخدمة (service account) كمحرر Editor. \n\nتفاصيل: " + str(e))
     st.stop()
 
-# ------------------ تحميل خط عربي ------------------
+# ------------------ تحميل خط عربي للـ PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 if not os.path.exists(FONT_PATH):
     url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
@@ -59,13 +60,16 @@ if not os.path.exists(FONT_PATH):
         r = requests.get(url, timeout=10)
         with open(FONT_PATH, "wb") as f:
             f.write(r.content)
-    except:
+    except Exception:
         pass
 
 try:
     pdfmetrics.registerFont(TTFont('Arabic', FONT_PATH))
 except:
-    pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
+    try:
+        pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
+    except:
+        pass
 
 # ------------------ دوال مساعدة ------------------
 def reshape_arabic_text(text):
@@ -78,7 +82,7 @@ def reshape_arabic_text(text):
 def read_sheet():
     try:
         data = worksheet.get_all_records()
-    except:
+    except Exception:
         return pd.DataFrame(columns=["student", "teacher", "status", "date"])
     df = pd.DataFrame(data)
     for c in ["student", "teacher", "status", "date"]:
@@ -157,7 +161,7 @@ def generate_student_pdf(student_name, df_records):
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
-        absent_count = (df_records["الحالة"] == "غياب بعذر").sum() + (df_records["الحالة"] == "غياب بدون عذر").sum()
+        absent_count = (df_records["الحالة"] != "حاضر").sum()
         present_count = (df_records["الحالة"] == "حاضر").sum()
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
@@ -192,108 +196,18 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS ------------------
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-#MainMenu, header, footer {visibility: hidden !important;}
-.stApp { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); font-family: 'Cairo', sans-serif;}
-.top-toolbar { position: fixed; top: 0; left: 0; right: 0; height: 70px; background: linear-gradient(135deg,#1e40af,#2563eb); display:flex;justify-content:space-between;align-items:center;padding:0 20px;box-shadow:0 4px 20px rgba(0,0,0,0.2);z-index:999999;color:white; }
-.logo-container { display:flex;align-items:center;gap:12px;}
-.logo-img { width:48px;height:48px;border-radius:12px;object-fit:contain;border:2px solid rgba(255,255,255,0.3); background:white;padding:4px;}
-.school-info { line-height:1.3;}
-.school-name { font-size:17px;font-weight:bold;margin:0; }
-.school-date { font-size:12px;opacity:0.9;margin:0; }
-.nav-buttons { display:flex;gap:12px;}
-.nav-btn { background: rgba(255,255,255,0.2); color:white; border:none; padding:10px 22px; border-radius:12px; font-size:15px;font-weight:600; cursor:pointer; transition: all 0.3s ease; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);}
-.nav-btn:hover { background:white;color:#1e40af; transform:translateY(-3px); box-shadow:0 8px 20px rgba(255,255,255,0.4);}
-.content-padding { height:90px; }
-.searchBox { display:flex; max-width:400px; align-items:center; justify-content:space-between; gap:8px; background:#2f3640; border-radius:50px; padding:5px 15px; margin:15px 0; }
-.searchInput { border:none; outline:none; background:none; color:white; font-size:16px; width:100%; padding:10px; font-family:'Cairo',sans-serif;}
-.searchButton { background:linear-gradient(90deg,#2AF598 0%,#009EFD 100%); border:none; color:white; padding:10px 18px; border-radius:50px; cursor:pointer;}
-</style>
-""", unsafe_allow_html=True)
+# ------------------ الصفحة الرئيسية للطالب مع محرك البحث الجديد ------------------
+st.title("تقارير الغياب")
+if "student_search" not in st.session_state:
+    st.session_state.student_search = ""
 
-# ------------------ شريط علوي ------------------
-today = datetime.now()
-arabic_weekdays = ["الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"]
-arabic_months = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-weekday = arabic_weekdays[today.weekday()]
-month = arabic_months[today.month-1]
-formatted_date = f"{weekday}، {today.day} {month} {today.year}"
+search_query = st.text_input("اكتب اسمك الثلاثي...", key="student_search", placeholder="اكتب اسمك الثلاثي...")
 
-logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
-
-st.markdown(f"""
-<div class="top-toolbar">
-<div class="logo-container">
-<img src="{logo_src}" class="logo-img">
-<div class="school-info">
-<p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
-<p class="school-date">{formatted_date}</p>
-</div>
-</div>
-<div class="nav-buttons">
-<button class="nav-btn" onclick="alert('عن المدرسة: مدرسة السلام تقدم تعليم متميز.')">عنا</button>
-<button class="nav-btn" onclick="alert('الهاتف: 02-12345678\\nالبريد: alsalam.school@example.com')">اتصل بنا</button>
-</div>
-</div>
-<div class="content-padding"></div>
-""", unsafe_allow_html=True)
-
-# ------------------ صفحات ------------------
-if "page" not in st.session_state: st.session_state.page="home"
-
-if st.session_state.page=="home":
-    st.title("نظام الغياب")
-    col1,col2 = st.columns(2)
-    with col1:
-        if st.button("معلم"):
-            st.session_state.page="teacher_login"; st.experimental_rerun()
-    with col2:
-        if st.button("طالب"):
-            st.session_state.page="student"; st.experimental_rerun()
-
-elif st.session_state.page=="teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd==PASSWORD:
-            st.session_state.teacher_name=teacher_choice
-            st.session_state.page="teacher_attendance"
-            st.experimental_rerun()
-        else: st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page="home"; st.experimental_rerun()
-
-elif st.session_state.page=="teacher_attendance":
-    st.header("تسجيل الغياب")
-    teacher_name = st.session_state.get("teacher_name","غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
-    selected = st.multiselect("اختر الغائبين", STUDENTS)
-    st.markdown("**اختر نوع الغياب:**")
-    col_a,col_b = st.columns(2)
-    with col_a: excuse = st.checkbox("غياب بعذر",key="excuse")
-    with col_b: no_excuse = st.checkbox("غياب بدون عذر",key="no_excuse")
-    if excuse and no_excuse: st.warning("اختر نوع واحد فقط.")
-    if st.button("تسجيل"):
-        if not selected: st.warning("اختر طالب/طلاب")
-        elif excuse and no_excuse: st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse): st.warning("اختر نوع الغياب")
-        else:
-            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            failed = record_attendance(selected,teacher_name,status_label)
-            if not failed: st.success("تم تسجيل الغياب بنجاح")
-            else: st.error(f"خطأ: {failed}")
-    if st.button("رجوع"):
-        st.session_state.page="home"; st.experimental_rerun()
-
-elif st.session_state.page=="student":
-    st.header("تقارير الغياب")
-    if "student_search" not in st.session_state: st.session_state.student_search=""
-    search_query = st.text_input("اكتب اسمك الثلاثي...", key="student_search")
-    if search_query:
+# الزرار والبحث
+if st.button("بحث"):
+    if search_query.strip() == "":
+        st.warning("من فضلك اكتب اسمك الثلاثي للبحث.")
+    else:
         df_student = get_student_records(search_query)
         if df_student.empty:
             st.info("لا يوجد غياب مسجل لهذا الاسم.")
@@ -301,6 +215,8 @@ elif st.session_state.page=="student":
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
             st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
-    if st.button("رجوع"):
-        if "student_search" in st.session_state: del st.session_state.student_search
-        st.session_state.page="home"; st.experimental_rerun()
+
+# زر الرجوع
+if st.button("الرجوع"):
+    st.session_state.page = "home"
+    st.rerun()

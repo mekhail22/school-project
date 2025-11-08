@@ -202,7 +202,7 @@ def generate_student_pdf(student_name, df_records):
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today_date.year}"
+    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
     doc.build(elements)
     buffer.seek(0)
@@ -232,7 +232,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + شريط علوي + حقل بحث Uiverse.io ------------------
+# ------------------ CSS + شريط علوي + حقل بحث في الشمال بمسافة بسيطة ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -296,56 +296,62 @@ st.markdown("""
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
-    /* حقل البحث من Uiverse.io */
+    /* حقل البحث في الشمال بمسافة بسيطة (30px من اليسار) */
     .search-container {
         display: flex;
         justify-content: flex-start;
         margin: 15px 20px 10px 20px;
-        padding-left: 30px;
+        padding-left: 30px; /* المسافة البسيطة من اليسار */
     }
-
-    /* From Uiverse.io by OnlyCodeChannel */
     .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        display: flex;
+        max-width: 320px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #2f3640;
+        border-radius: 50px;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      pointer-events: none;
-      font-weight: bold;
-      font-size: 14px;
-      font-family: 'Cairo', sans-serif;
+        color: white;
+        position: absolute;
+        right: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .searchButton:hover {
+        color: #fff;
+        background-color: #1A1A1A;
+        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+        transform: translateY(-3px);
+    }
+    .searchButton:active {
+        box-shadow: none;
+        transform: translateY(0);
     }
     .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-      font-family: 'Cairo', sans-serif;
+        border: none;
+        background: none;
+        outline: none;
+        color: white;
+        font-size: 16px;
+        padding: 15px 50px 15px 25px;
+        width: 100%;
+        font-family: 'Cairo', sans-serif;
     }
     .searchInput::placeholder {
-      color: #bdc3c7;
+        color: #bdc3c7;
     }
 
     /* تحسينات عامة */
@@ -468,48 +474,27 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # ------------------ حقل البحث من Uiverse.io ------------------
+    # ------------------ حقل البحث في الشمال بمسافة بسيطة ------------------
     st.markdown("""
     <div class="search-container">
         <div class="searchBox">
-            <style>
-                /* تطبيق الـ CSS على st.text_input */
-                [data-testid="stTextInput"] > div > div > input {
-                    background: transparent !important;
-                    color: white !important;
-                    border: none !important;
-                    outline: none !important;
-                    font-size: 15px !important;
-                    padding: 24px 46px 24px 26px !important;
-                    width: 100% !important;
-                    font-family: 'Cairo', sans-serif;
-                }
-                [data-testid="stTextInput"] > div > div > input::placeholder {
-                    color: #bdc3c7 !important;
-                }
-                /* إخفاء الـ label */
-                [data-testid="stTextInput"] > div > label {
-                    display: none !important;
-                }
-            </style>
-    """, unsafe_allow_html=True)
-
-    # حقل البحث الأصلي من Streamlit
-    search_query = st.text_input(
-        "",
-        placeholder="اكتب اسمك الثلاثي...",
-        key="student_search_input",
-        label_visibility="collapsed"
-    ).strip()
-
-    # إضافة زر "بحث" داخل الحقل
-    st.markdown(f"""
-    <div class="searchBox" style="position: relative;">
-        <div class="searchButton">بحث</div>
+            <input type="text" class="searchInput" id="searchInput" placeholder="اكتب اسمك الثلاثي..." oninput="document.getElementById('streamlitInput').value = this.value; __streamlit_rerun()">
+            <button class="searchButton">بحث</button>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # معالجة البحث فور الكتابة
+    # حقل Streamlit مخفي
+    name_input = st.text_input("", value="", key="streamlitInput", label_visibility="collapsed")
+
+    # حفظ البحث
+    if name_input.strip():
+        st.session_state.student_search = name_input.strip()
+
+    # جلب القيمة
+    search_query = st.session_state.get("student_search", "")
+
+    # عرض النتائج
     if search_query:
         df_student = get_student_records(search_query)
         if df_student.empty:
@@ -517,17 +502,12 @@ elif st.session_state.page == "student":
         else:
             st.dataframe(df_student.reset_index(drop=True), use_container_width=True)
             pdf_buf = generate_student_pdf(search_query, df_student)
-            st.download_button(
-                "تحميل PDF",
-                data=pdf_buf,
-                file_name=f"{search_query}_report.pdf",
-                mime="application/pdf"
-            )
-    else:
-        st.info("اكتب اسمك الثلاثي في الأعلى للبحث عن سجل الغياب.")
+            st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query}_report.pdf", mime="application/pdf")
 
     # زر الرجوع
     if st.button("الرجوع"):
-        st.session_state.student_search_input = ""
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
         st.session_state.page = "home"
         st.rerun()
+

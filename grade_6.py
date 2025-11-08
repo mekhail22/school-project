@@ -202,64 +202,211 @@ def generate_student_pdf(student_name, df_records):
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
+    current_date = f"{today.day:02d} / {today.month:02d} / {today_date.year}"
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
-# ------------------ CSS + شريط علوي ------------------
+# ------------------ تحويل الصورة المحلية إلى base64 ------------------
+def get_image_base64(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except Exception as e:
+        st.error(f"خطأ في تحميل الصورة: {e}")
+        return None
+
+logo_base64 = get_image_base64("images.jpeg")
+if logo_base64:
+    logo_src = f"data:image/jpeg;base64,{logo_base64}"
+else:
+    logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
+    st.warning("تحذير: لم يتم العثور على ملف images.jpeg، تم استخدام علم مصر كبديل.")
+
+# ------------------ تاريخ اليوم ------------------
+today = datetime.now()
+arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+weekday = arabic_weekdays[today.weekday()]
+month = arabic_months[today.month - 1]
+formatted_date = f"{weekday}، {today.day} {month} {today.year}"
+
+# ------------------ CSS + شريط علوي + حقل بحث Uiverse.io ------------------
 st.markdown("""
 <style>
-/* Uiverse.io SearchBox */
-.searchBox {
-  display: flex;
-  max-width: 230px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  background: #2f3640;
-  border-radius: 50px;
-  position: relative;
-}
-.searchButton {
-  color: white;
-  position: absolute;
-  right: 8px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
-  border: 0;
-  display: inline-block;
-  transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-}
-.searchInput {
-  border: none;
-  background: none;
-  outline: none;
-  color: white;
-  font-size: 15px;
-  padding: 24px 46px 24px 26px;
-}
-button:hover {
-  color: #fff;
-  background-color: #1A1A1A;
-  box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-  transform: translateY(-3px);
-}
-button:active {
-  box-shadow: none;
-  transform: translateY(0);
-}
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+    /* إخفاء الهيدر والفوتر */
+    #MainMenu, header, footer {visibility: hidden !important;}
+
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
+    }
+
+    /* الشريط العلوي */
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
+    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    }
+
+    .content-padding { height: 90px; }
+
+    /* النافذة المنبثقة */
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    /* حقل البحث من Uiverse.io */
+    .search-container {
+        display: flex;
+        justify-content: flex-start;
+        margin: 15px 20px 10px 20px;
+        padding-left: 30px;
+    }
+
+    /* From Uiverse.io by OnlyCodeChannel */
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      pointer-events: none;
+      font-weight: bold;
+      font-size: 14px;
+      font-family: 'Cairo', sans-serif;
+    }
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+      font-family: 'Cairo', sans-serif;
+    }
+    .searchInput::placeholder {
+      color: #bdc3c7;
+    }
+
+    /* تحسينات عامة */
+    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
 </style>
+""", unsafe_allow_html=True)
+
+# ------------------ الشريط العلوي ------------------
+st.markdown(f"""
+<div class="top-toolbar">
+    <div class="logo-container">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+        <div class="school-info">
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+            <p class="school-date">{formatted_date}</p>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# ------------------ النافذة المنبثقة ------------------
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
 """, unsafe_allow_html=True)
 
 # ------------------ الصفحات ------------------
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ---------- الصفحة الرئيسية ----------
 if st.session_state.page == "home":
     st.title("نظام الغياب")
     col1, col2 = st.columns(2)
@@ -272,7 +419,6 @@ if st.session_state.page == "home":
             st.session_state.page = "student"
             st.rerun()
 
-# ---------- صفحة تسجيل دخول المعلم ----------
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -288,7 +434,6 @@ elif st.session_state.page == "teacher_login":
         st.session_state.page = "home"
         st.rerun()
 
-# ---------- صفحة تسجيل الغياب ----------
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
@@ -320,10 +465,51 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
-# ---------- صفحة الطالب ----------
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
-    search_query = st.text_input("اكتب اسمك الثلاثي...", key="student_search_input").strip()
+
+    # ------------------ حقل البحث من Uiverse.io ------------------
+    st.markdown("""
+    <div class="search-container">
+        <div class="searchBox">
+            <style>
+                /* تطبيق الـ CSS على st.text_input */
+                [data-testid="stTextInput"] > div > div > input {
+                    background: transparent !important;
+                    color: white !important;
+                    border: none !important;
+                    outline: none !important;
+                    font-size: 15px !important;
+                    padding: 24px 46px 24px 26px !important;
+                    width: 100% !important;
+                    font-family: 'Cairo', sans-serif;
+                }
+                [data-testid="stTextInput"] > div > div > input::placeholder {
+                    color: #bdc3c7 !important;
+                }
+                /* إخفاء الـ label */
+                [data-testid="stTextInput"] > div > label {
+                    display: none !important;
+                }
+            </style>
+    """, unsafe_allow_html=True)
+
+    # حقل البحث الأصلي من Streamlit
+    search_query = st.text_input(
+        "",
+        placeholder="اكتب اسمك الثلاثي...",
+        key="student_search_input",
+        label_visibility="collapsed"
+    ).strip()
+
+    # إضافة زر "بحث" داخل الحقل
+    st.markdown(f"""
+    <div class="searchBox" style="position: relative;">
+        <div class="searchButton">بحث</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # معالجة البحث فور الكتابة
     if search_query:
         df_student = get_student_records(search_query)
         if df_student.empty:
@@ -339,6 +525,8 @@ elif st.session_state.page == "student":
             )
     else:
         st.info("اكتب اسمك الثلاثي في الأعلى للبحث عن سجل الغياب.")
+
+    # زر الرجوع
     if st.button("الرجوع"):
         st.session_state.student_search_input = ""
         st.session_state.page = "home"

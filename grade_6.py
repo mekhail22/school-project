@@ -1,4 +1,4 @@
-```python name=grade_6.py
+
 """
 Grade 6 attendance app (complete, ready-to-run).
 
@@ -583,3 +583,4 @@ elif st.session_state.page == "student":
         st.session_state.page = "home"
         safe_rerun()
 ```
+

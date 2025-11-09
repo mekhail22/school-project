@@ -656,18 +656,6 @@ window.onclick = function(event) {
 </script>
 """, unsafe_allow_html=True)
 
-# ------------------ Diagnostic expander ------------------
-with st.expander("حالة الإعداد (Diagnostic) — اضغط لعرض الحالة"):
-    sa_present = bool(SERVICE_ACCOUNT)
-    sa_type = type(SERVICE_ACCOUNT).__name__ if SERVICE_ACCOUNT else "None"
-    st.write("SERVICE_ACCOUNT موجود؟", "نعم" if sa_present else "لا")
-    st.write("نوع SERVICE_ACCOUNT:", sa_type)
-    st.write("SHEET NAME:", SHEET_NAME)
-    st.write("BOT_TOKEN configured?", "نعم" if bool(BOT_TOKEN) else "لا")
-    st.write("CHAT_ID configured?", "نعم" if bool(CHAT_ID) else "لا")
-    local_file = _find_local_service_account_file()
-    st.write("ملف حساب خدمة محلي موجود؟", local_file if local_file else "لا")
-    st.info("هذه النافذة تعرض حالات وجود الإعدادات فقط ولا تكشف أي مفاتيح.")
 
 # ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------
 def safe_rerun():

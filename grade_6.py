@@ -1,22 +1,7 @@
-
+# streamlit_app.py
 """
-Grade 6 attendance app (complete, ready-to-run).
-
-Features:
-- Robust SERVICE_ACCOUNT loading:
-  - env SERVICE_ACCOUNT_FILE or local JSON files (e.g. attendance-streamlit-app-*.json)
-  - st.secrets["SERVICE_ACCOUNT"] as dict
-  - st.secrets["SERVICE_ACCOUNT"] as JSON string (repaired if contains "\\n")
-  - individual secrets fields SERVICE_ACCOUNT_CLIENT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY (with \\n repair)
-  - env SERVICE_ACCOUNT_JSON
-- Safe Telegram sending reading credentials from st.secrets["telegram"] or env vars.
-- Diagnostic expander (shows presence/type of settings without revealing secrets).
-- Arabic PDF generation with automatic font download/register fallback.
-- Batch append to Google Sheets; falls back to per-row append on error.
-- UI with teacher login, attendance recording, student report + PDF download.
-- DOES NOT include any real private keys or bot tokens. Provide these via Streamlit Secrets or local file.
-
-Security note: Do NOT commit service account JSON or .streamlit/secrets.toml to a public repo.
+Grade 6 attendance app (complete, ready-to-run) — مدمج مع ديزاين الشريط العلوي، الخلفية، الـ modals، وشريط البحث
+Important: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة كما هو موضّح في الواجهة التشخيصية.
 """
 
 import streamlit as st
@@ -76,12 +61,10 @@ def _try_json_load(s: str):
     try:
         return json.loads(s)
     except Exception:
-        # try replacing literal "\n" with real newlines
         try:
             repaired = s.replace("\\n", "\n")
             return json.loads(repaired)
         except Exception:
-            # attempt to strip wrapping quotes
             stripped = s.strip()
             if (stripped.startswith('"') and stripped.endswith('"')) or (stripped.startswith("'") and stripped.endswith("'")):
                 inner = stripped[1:-1]
@@ -460,6 +443,219 @@ if logo_base64:
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
+# ------------------ Arabic date for header ------------------
+today = datetime.now()
+arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+weekday = arabic_weekdays[today.weekday()]  # weekday() Monday=0 -> "الإثنين"
+month = arabic_months[today.month - 1]
+formatted_date = f"{weekday}، {today.day} {month} {today.year}"
+
+# ------------------ CSS + top toolbar (exact design from original) ------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+    /* إخفاء الهيدر والفوتر */
+    #MainMenu, header, footer {visibility: hidden !important;}
+
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
+    }
+
+    /* الشريط العلوي */
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
+    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    }
+
+    .content-padding { height: 90px; }
+
+    /* النافذة المنبثقة */
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    /* From Uiverse.io by OnlyCodeChannel */ 
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
+    }
+    
+    /*hover effect*/
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
+    }
+    
+    /*button pressing effect*/
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
+    
+    /* إخفاء label الافتراضي */
+    .student-search label {
+        display: none !important;
+    }
+    
+    /* تطبيق التصميم على input الـ Streamlit */
+    .student-search .stTextInput > div > div > input {
+        border: none;
+        background: #2f3640;
+        outline: none;
+        color: white;
+        font-size: 15px;
+        padding: 24px 46px 24px 26px;
+        border-radius: 50px;
+        font-family: 'Cairo', sans-serif;
+    }
+    
+    .student-search .stTextInput > div {
+        max-width: 230px;
+    }
+
+    /* تحسينات عامة */
+    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------ Top toolbar HTML (exact) ------------------
+st.markdown(f"""
+<div class="top-toolbar">
+    <div class="logo-container">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+        <div class="school-info">
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+            <p class="school-date">{formatted_date}</p>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# ------------------ Modals HTML + script (exact) ------------------
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
+
+<script>
+// إظهار النوافذ المنبثقة
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    var contactModal = document.getElementById('contact-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+    if (event.target == contactModal) {
+        contactModal.style.display = "none";
+    }
+}
+</script>
+""", unsafe_allow_html=True)
+
 # ------------------ Diagnostic expander ------------------
 with st.expander("حالة الإعداد (Diagnostic) — اضغط لعرض الحالة"):
     sa_present = bool(SERVICE_ACCOUNT)
@@ -473,7 +669,7 @@ with st.expander("حالة الإعداد (Diagnostic) — اضغط لعرض ا�
     st.write("ملف حساب خدمة محلي موجود؟", local_file if local_file else "لا")
     st.info("هذه النافذة تعرض حالات وجود الإعدادات فقط ولا تكشف أي مفاتيح.")
 
-# ------------------ UI / Navigation ------------------
+# ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------
 def safe_rerun():
     try:
         if hasattr(st, "experimental_rerun"):
@@ -582,5 +778,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-
-

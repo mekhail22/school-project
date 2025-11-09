@@ -1,6 +1,11 @@
 """
 Streamlit attendance app (robust secrets parsing + safer Telegram + improved error hints).
-This version also supports reading SERVICE_ACCOUNT from a local JSON file if present.
+This edited version adds:
+ - automatic local JSON discovery (if you have a key file in the repo),
+ - a small safe diagnostic expander to check presence/type of SERVICE_ACCOUNT and Telegram config,
+ - clearer, non-sensitive error hints when parsing fails.
+
+Note: Do NOT paste private keys or tokens in public chat. If you keep a local key file, ensure it's in .gitignore.
 """
 import streamlit as st
 import pandas as pd
@@ -11,6 +16,7 @@ import json
 import logging
 import base64
 import requests
+import glob
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -77,10 +83,24 @@ def _load_service_account_from_file(path):
         logger.exception("Failed to load service account JSON from file %s", path)
         raise
 
+def _find_local_service_account_file():
+    """Look for common service account filenames in the repo (do not print file contents)."""
+    # 1) explicit env override
+    envp = os.environ.get("SERVICE_ACCOUNT_FILE")
+    if envp and os.path.exists(envp):
+        return envp
+    # 2) common filenames (matching pattern)
+    candidates = glob.glob("attendance-streamlit-app-c3aa8*.json") + glob.glob("key*.json") + glob.glob("*.credentials.json")
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    # 3) no local file found
+    return None
+
 def load_service_account_from_secrets(secrets_obj):
     """
     Tries multiple strategies to obtain a service account dict:
-    0) Local file: env SERVICE_ACCOUNT_FILE or default known filename
+    0) Local file: env SERVICE_ACCOUNT_FILE or common filenames
     1) SERVICE_ACCOUNT as dict (Streamlit cloud table)
     2) SERVICE_ACCOUNT as JSON string (possibly triple-quoted or escaped)
     3) SERVICE_ACCOUNT_JSON key
@@ -89,17 +109,10 @@ def load_service_account_from_secrets(secrets_obj):
     Returns dict or None.
     """
     # 0) Local file first (convenient for development)
-    # Check env override first
-    file_path = os.environ.get("SERVICE_ACCOUNT_FILE")
-    if not file_path:
-        # fallback to a sensible default if present in repo
-        default_fname = "attendance-streamlit-app-c3aa8-cacd29280b83.json"
-        if os.path.exists(default_fname):
-            file_path = default_fname
-    if file_path and os.path.exists(file_path):
+    file_path = _find_local_service_account_file()
+    if file_path:
         try:
-            sa = _load_service_account_from_file(file_path)
-            return sa
+            return _load_service_account_from_file(file_path)
         except Exception:
             # if file parse fails, continue to other strategies (but log has the exception)
             pass
@@ -453,6 +466,19 @@ def get_image_base64(image_path):
         logger.warning("Failed loading image %s: %s", image_path, e)
         return None
 
+# ------------------ Small diagnostic UI (safe, no secrets printed) ------------------
+with st.expander("حالة الإعداد (Diagnostic) — اضغط لعرض الحالة"):
+    sa_present = bool(SERVICE_ACCOUNT)
+    sa_type = type(SERVICE_ACCOUNT).__name__ if SERVICE_ACCOUNT else "None"
+    st.write("SERVICE_ACCOUNT موجود؟", "نعم" if sa_present else "لا")
+    st.write("نوع SERVICE_ACCOUNT:", sa_type)
+    st.write("SHEET NAME:", SHEET_NAME)
+    st.write("BOT_TOKEN configured?", "نعم" if bool(BOT_TOKEN) else "لا")
+    st.write("CHAT_ID configured?", "نعم" if bool(CHAT_ID) else "لا")
+    local_file = _find_local_service_account_file()
+    st.write("ملف حساب خدمة محلي موجود؟", local_file if local_file else "لا")
+    st.info("هذه النافذة تعرض حالات وجود الإعدادات فقط ولا تكشف أي مفاتيح.")
+
 # ------------------ UI / CSS (kept visually similar) ------------------
 logo_base64 = get_image_base64("images.jpeg")
 if logo_base64:
@@ -502,19 +528,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
-
-st.markdown("""
-<div id="about-modal" class="modal"><div class="modal-content"><span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span><h3>عن المدرسة</h3><p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p></div></div>
-<div id="contact-modal" class="modal"><div class="modal-content"><span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span><h3>اتصل بنا</h3><p>الهاتف: 02-12345678</p><p>البريد: alsalam.school@example.com</p></div></div>
-<script>
-window.onclick = function(event) {
-    var a = document.getElementById('about-modal');
-    var b = document.getElementById('contact-modal');
-    if (event.target == a) { a.style.display = "none"; }
-    if (event.target == b) { b.style.display = "none"; }
-}
-</script>
-""", unsafe_allow_html=True)
 
 # ------------------ Pages / Navigation ------------------
 def safe_rerun():

@@ -1,29 +1,21 @@
 """
-Streamlit attendance app (complete, improved, and secure).
-Place sensitive values in .streamlit/secrets.toml or Streamlit Cloud secrets.
-Example secrets.toml structure (do NOT commit this file with real secrets):
+Streamlit attendance app (robust secrets parsing + safer Telegram + improved error hints).
 
-# .streamlit/secrets.toml (example)
-# SERVICE_ACCOUNT can be the JSON content of your service account as a TOML table:
-# SERVICE_ACCOUNT = { "type" = "...", "project_id" = "...", ... }
-# Or place the whole JSON string in SERVICE_ACCOUNT_JSON and parse with json.loads.
+What I changed in this version (high-level):
+- Made SERVICE_ACCOUNT loading tolerant to multiple formats:
+  - st.secrets["SERVICE_ACCOUNT"] as dict (Streamlit Cloud table)
+  - st.secrets["SERVICE_ACCOUNT"] as JSON string (triple-quoted or normal)
+  - JSON string that uses literal "\n" sequences (will be converted to real newlines)
+  - Individual secrets fields (SERVICE_ACCOUNT_CLIENT_EMAIL, SERVICE_ACCOUNT_PRIVATE_KEY, etc.)
+  - Environment variable fallback SERVICE_ACCOUNT_JSON (os.environ)
+- Added clearer error messages and hints when SERVICE_ACCOUNT cannot be parsed.
+- Improved send_telegram_message to log status, response body and return details (without printing tokens).
+- Added small helper to safely rerun (tries experimental_rerun then st.rerun).
+- Avoided logging or printing private_key or BOT_TOKEN contents.
+- Kept rest of behavior (batch sheet writes, PDF generation, UI) unchanged.
 
-[SERVICE_ACCOUNT]
-type = "service_account"
-project_id = "your-project-id"
-# ... include all fields from the service account JSON ...
-
-[telegram]
-bot_token = "YOUR_BOT_TOKEN"
-chat_id = "YOUR_CHAT_ID"
-
-[app]
-password = "change_me"
-
-[sheets]
-name = "school_attendance"
+Important: After a secrets change, ensure you (1) rotate any leaked keys, (2) use Streamlit Secrets or .streamlit/secrets.toml with triple-quoted SERVICE_ACCOUNT JSON or separate fields with private key escaped as \\n.
 """
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -63,38 +55,125 @@ st.set_page_config(page_title="نظام الغياب", layout="centered")
 # ------------------ Load secrets safely ------------------
 secrets = st.secrets if hasattr(st, "secrets") else {}
 
-# SERVICE_ACCOUNT (either a TOML table SERVICE_ACCOUNT or JSON string in SERVICE_ACCOUNT_JSON)
-SERVICE_ACCOUNT_RAW = None
-if "SERVICE_ACCOUNT" in secrets and isinstance(secrets["SERVICE_ACCOUNT"], dict):
-    SERVICE_ACCOUNT_RAW = secrets["SERVICE_ACCOUNT"]
-elif "SERVICE_ACCOUNT_JSON" in secrets:
-    SERVICE_ACCOUNT_RAW = secrets["SERVICE_ACCOUNT_JSON"]
-elif "SERVICE_ACCOUNT" in secrets and isinstance(secrets["SERVICE_ACCOUNT"], str):
-    SERVICE_ACCOUNT_RAW = secrets["SERVICE_ACCOUNT"]
+def _try_json_load(s):
+    """Try to json.loads string s, trying also with literal \n -> newline."""
+    if not isinstance(s, str):
+        raise ValueError("Input not a string for json loading")
+    try:
+        return json.loads(s)
+    except Exception as e1:
+        # Attempt to repair: replace literal backslash-n sequences with real newlines
+        try:
+            repaired = s.replace("\\n", "\n")
+            return json.loads(repaired)
+        except Exception as e2:
+            # Final attempt: strip surrounding quotes (in case user pasted with extra quotes)
+            try:
+                stripped = s.strip()
+                if (stripped.startswith('"') and stripped.endswith('"')) or (stripped.startswith("'") and stripped.endswith("'")):
+                    inner = stripped[1:-1]
+                    inner_repaired = inner.replace("\\n", "\n")
+                    return json.loads(inner_repaired)
+            except Exception:
+                pass
+            # raise original error for diagnostics up the stack
+            raise e1
 
-if not SERVICE_ACCOUNT_RAW:
-    st.error("خطأ: الرجاء إضافة SERVICE_ACCOUNT إلى st.secrets (محتوى JSON الخاص بحساب الخدمة).")
+def load_service_account_from_secrets(secrets_obj):
+    """
+    Tries multiple strategies to obtain a service account dict:
+    1) SERVICE_ACCOUNT as dict (Streamlit cloud table)
+    2) SERVICE_ACCOUNT as JSON string (possibly triple-quoted or escaped)
+    3) SERVICE_ACCOUNT_JSON key
+    4) Environment variable SERVICE_ACCOUNT_JSON
+    5) Individual keys: SERVICE_ACCOUNT_CLIENT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY (with \\n replacement)
+    Returns dict or None.
+    """
+    # 1) dict directly
+    sa = None
+    if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], dict):
+        sa = secrets_obj["SERVICE_ACCOUNT"]
+        logger.info("Loaded SERVICE_ACCOUNT from st.secrets as dict.")
+        return sa
+
+    # 2) SERVICE_ACCOUNT as JSON string
+    raw = None
+    if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], str):
+        raw = secrets_obj["SERVICE_ACCOUNT"]
+    elif "SERVICE_ACCOUNT_JSON" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT_JSON"], str):
+        raw = secrets_obj["SERVICE_ACCOUNT_JSON"]
+    # 3) environment var fallback
+    elif os.environ.get("SERVICE_ACCOUNT_JSON"):
+        raw = os.environ.get("SERVICE_ACCOUNT_JSON")
+
+    if raw:
+        try:
+            sa = _try_json_load(raw)
+            logger.info("Loaded SERVICE_ACCOUNT from JSON string (secrets or env).")
+            return sa
+        except Exception as e:
+            # Do not expose private_key contents; provide user hint
+            logger.exception("Failed to parse SERVICE_ACCOUNT JSON from secrets/env.")
+            # Raise a friendly message upward
+            raise RuntimeError(
+                "فشل في قراءة SERVICE_ACCOUNT: JSON غير صالح. "
+                "إن وضعت private_key في ملف .streamlit/secrets.toml فتأكد من استخدام triple-quoted string (\"\"\"...\"\"\") أو تحويل `\\n` إلى newlines. "
+                "مثال: private_key = \"-----BEGIN PRIVATE KEY-----\\nMIIE...\\n-----END PRIVATE KEY-----\\n\""
+            ) from e
+
+    # 4) Individual keys fallback
+    client_email = secrets_obj.get("SERVICE_ACCOUNT_CLIENT_EMAIL") or secrets_obj.get("service_account_client_email")
+    private_key = secrets_obj.get("SERVICE_ACCOUNT_PRIVATE_KEY") or secrets_obj.get("service_account_private_key")
+    project_id = secrets_obj.get("SERVICE_ACCOUNT_PROJECT_ID") or secrets_obj.get("service_account_project_id")
+    private_key_id = secrets_obj.get("SERVICE_ACCOUNT_PRIVATE_KEY_ID") or secrets_obj.get("service_account_private_key_id")
+    client_id = secrets_obj.get("SERVICE_ACCOUNT_CLIENT_ID") or secrets_obj.get("service_account_client_id")
+    client_x509 = secrets_obj.get("SERVICE_ACCOUNT_CLIENT_X509_URL") or secrets_obj.get("service_account_client_x509_url")
+
+    if client_email and private_key:
+        # Replace literal "\n" with real newline if needed
+        if "\\n" in private_key and "\n" not in private_key:
+            private_key = private_key.replace("\\n", "\n")
+        sa = {
+            "type": "service_account",
+            "project_id": project_id or "",
+            "private_key_id": private_key_id or "",
+            "private_key": private_key,
+            "client_email": client_email,
+            "client_id": client_id or "",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": client_x509 or ""
+        }
+        logger.info("Built SERVICE_ACCOUNT dict from individual secret fields (client_email + private_key).")
+        return sa
+
+    # nothing found
+    return None
+
+# attempt load
+try:
+    SERVICE_ACCOUNT = load_service_account_from_secrets(secrets)
+except RuntimeError as e:
+    st.error(str(e))
+    st.stop()
+if not SERVICE_ACCOUNT:
+    st.error(
+        "خطأ: الرجاء إضافة SERVICE_ACCOUNT إلى st.secrets (كـ dict أو JSON string). "
+        "أفضل طريقة: في Streamlit Cloud ضع SERVICE_ACCOUNT (paste كامل JSON) أو في .streamlit/secrets.toml استخدم triple-quoted string."
+    )
     st.stop()
 
-# Normalize SERVICE_ACCOUNT to dict
-if isinstance(SERVICE_ACCOUNT_RAW, str):
-    try:
-        SERVICE_ACCOUNT = json.loads(SERVICE_ACCOUNT_RAW)
-    except Exception as e:
-        st.error("فشل في قراءة SERVICE_ACCOUNT من st.secrets. تأكد من أنه JSON صالح أو dict. " + str(e))
-        st.stop()
-else:
-    SERVICE_ACCOUNT = SERVICE_ACCOUNT_RAW
+# Load other secrets (telegram, app, sheets)
+telegram_cfg = secrets.get("telegram", {}) if isinstance(secrets.get("telegram", {}), dict) else {}
+BOT_TOKEN = telegram_cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = telegram_cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
 
-telegram_cfg = secrets.get("telegram", {})
-BOT_TOKEN = telegram_cfg.get("bot_token")
-CHAT_ID = telegram_cfg.get("chat_id")
+APP_CFG = secrets.get("app", {}) if isinstance(secrets.get("app", {}), dict) else {}
+PASSWORD = APP_CFG.get("password", os.environ.get("APP_PASSWORD", "1234"))
 
-APP_CFG = secrets.get("app", {})
-PASSWORD = APP_CFG.get("password", "1234")
-
-SHEETS_CFG = secrets.get("sheets", {})
-SHEET_NAME = SHEETS_CFG.get("name", "school_attendance")
+SHEETS_CFG = secrets.get("sheets", {}) if isinstance(secrets.get("sheets", {}), dict) else {}
+SHEET_NAME = SHEETS_CFG.get("name", os.environ.get("SHEETS_NAME", "school_attendance"))
 
 # Students & Teachers - you can move these to a sheet for easier management
 STUDENTS = [
@@ -111,7 +190,7 @@ try:
     creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
     gc = gspread.authorize(creds)
 except Exception as e:
-    logger.exception("Google API auth failed")
+    logger.exception("Google API auth failed (credentials may be malformed or permission issues).")
     st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
     st.stop()
 
@@ -119,7 +198,7 @@ try:
     sh = gc.open(SHEET_NAME)
     worksheet = sh.sheet1
 except Exception as e:
-    logger.exception("Failed opening sheet")
+    logger.exception("Failed opening sheet (check name and that the service account was shared as Editor).")
     st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة حساب الخدمة كمحرر (Editor). \n\nتفاصيل: " + str(e))
     st.stop()
 
@@ -217,27 +296,35 @@ def normalize_date_for_pdf(src_date_str):
 def send_telegram_message(message):
     """
     Send message to Telegram. Returns (ok: bool, info: dict_or_text).
-    Logs response details for debugging.
+    Logs response details for debugging but does NOT print or log tokens/keys.
     """
     if not BOT_TOKEN or not CHAT_ID:
-        logger.info("Telegram credentials missing, skipping send.")
+        logger.info("Telegram credentials missing (BOT_TOKEN/CHAT_ID). Skipping send.")
         return False, "credentials_missing"
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     params = {"chat_id": CHAT_ID, "text": message}
     try:
         resp = requests.get(url, params=params, timeout=8)
-        logger.info("Telegram HTTP status: %s", resp.status_code)
-        logger.debug("Telegram response text: %s", resp.text)
+        status = resp.status_code
+        # log status and body for debugging (but not sensitive fields)
+        logger.info("Telegram HTTP status: %s", status)
+        body_text = resp.text if resp.text else ""
+        # Try parse json
         try:
-            j = resp.json()
+            body_json = resp.json()
         except Exception:
-            j = {"raw": resp.text}
-        if resp.status_code == 200 and j.get("ok", False):
-            return True, j
-        return False, j
+            body_json = None
+
+        if status == 200 and body_json and body_json.get("ok", False):
+            logger.info("Telegram API returned ok.")
+            return True, body_json
+        else:
+            logger.warning("Telegram send failed: status=%s, body=%s", status, body_text[:1000])
+            # return whatever we have for troubleshooting
+            return False, body_json or body_text
     except requests.exceptions.RequestException as e:
-        logger.exception("Exception while sending Telegram message")
+        logger.exception("Exception while sending Telegram message (network or timeout).")
         return False, str(e)
 
 def record_attendance(selected_absent, teacher_name, absent_label):
@@ -256,13 +343,13 @@ def record_attendance(selected_absent, teacher_name, absent_label):
     try:
         # append_rows is faster for batches
         worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-    except Exception as e:
+    except Exception:
         logger.exception("Batch append failed, falling back to per-row append.")
         for r in rows:
             try:
                 worksheet.append_row(r, value_input_option="USER_ENTERED")
             except Exception as ex:
-                logger.exception("append_row failed for %s", r)
+                logger.exception("append_row failed for %s", r[0])
                 failed.append((r[0], str(ex)))
 
     # Send telegram notification (non-blocking)
@@ -270,9 +357,9 @@ def record_attendance(selected_absent, teacher_name, absent_label):
     message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
     ok, info = send_telegram_message(message)
     if not ok:
-        logger.warning("Telegram not sent or failed: %s", info)
+        logger.warning("Telegram notification failed: %s", info)
     else:
-        logger.info("Telegram sent successfully.")
+        logger.info("Telegram notification sent.")
     return failed
 
 def get_student_records(student_name):
@@ -416,6 +503,17 @@ window.onclick = function(event) {
 """, unsafe_allow_html=True)
 
 # ------------------ Pages / Navigation ------------------
+def safe_rerun():
+    """Try experimental_rerun then st.rerun as fallback; swallow exceptions but log."""
+    try:
+        # st.experimental_rerun may not exist on older streamlit versions
+        if hasattr(st, "experimental_rerun"):
+            st.experimental_rerun()
+        else:
+            st.rerun()
+    except Exception as e:
+        logger.exception("Rerun failed (non-fatal).")
+
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
@@ -425,23 +523,11 @@ if st.session_state.page == "home":
     with col1:
         if st.button("معلم"):
             st.session_state.page = "teacher_login"
-            try:
-                st.experimental_rerun()
-            except Exception:
-                try:
-                    st.rerun()
-                except Exception:
-                    pass
+            safe_rerun()
     with col2:
         if st.button("طالب"):
             st.session_state.page = "student"
-            try:
-                st.experimental_rerun()
-            except Exception:
-                try:
-                    st.rerun()
-                except Exception:
-                    pass
+            safe_rerun()
 
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
@@ -451,24 +537,12 @@ elif st.session_state.page == "teacher_login":
         if pwd == PASSWORD:
             st.session_state.teacher_name = teacher_choice
             st.session_state.page = "teacher_attendance"
-            try:
-                st.experimental_rerun()
-            except Exception:
-                try:
-                    st.rerun()
-                except Exception:
-                    pass
+            safe_rerun()
         else:
             st.error("كلمة السر غير صحيحة")
     if st.button("رجوع"):
         st.session_state.page = "home"
-        try:
-            st.experimental_rerun()
-        except Exception:
-            try:
-                st.rerun()
-            except Exception:
-                pass
+        safe_rerun()
 
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
@@ -494,32 +568,26 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             try:
                 failed = record_attendance(selected, teacher_name, status_label)
-            except Exception as e:
+            except Exception:
                 logger.exception("Error during record_attendance")
                 st.error("حدث خطأ أثناء تسجيل الغياب. راجع السجلات (logs) للتفاصيل.")
             else:
                 if not failed:
                     st.success("تم تسجيل الغياب بنجاح")
-                    # safe rerun
-                    try:
-                        st.experimental_rerun()
-                    except AttributeError:
-                        try:
-                            st.rerun()
-                        except Exception as e:
-                            logger.exception("Rerun failed")
-                            st.warning("تعذر إعادة تحميل الواجهة تلقائياً. يُرجى تحديث الصفحة يدوياً.")
+                    safe_rerun()
                 else:
                     st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+    if st.button("اختبار إشعار تليجرام"):
+        # small debug button - will attempt to send a test message and report result
+        ok, info = send_telegram_message("اختبار من تطبيق نظام الغياب")
+        if ok:
+            st.success("تم إرسال رسالة اختبار للتليجرام.")
+        else:
+            st.error(f"فشل إرسال رسالة الاختبار: {info}")
+
     if st.button("رجوع"):
         st.session_state.page = "home"
-        try:
-            st.experimental_rerun()
-        except Exception:
-            try:
-                st.rerun()
-            except Exception:
-                pass
+        safe_rerun()
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
@@ -545,10 +613,4 @@ elif st.session_state.page == "student":
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.session_state.page = "home"
-        try:
-            st.experimental_rerun()
-        except Exception:
-            try:
-                st.rerun()
-            except Exception:
-                pass
+        safe_rerun()

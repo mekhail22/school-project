@@ -582,5 +582,5 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-```
+
 

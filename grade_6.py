@@ -1,20 +1,6 @@
 """
 Streamlit attendance app (robust secrets parsing + safer Telegram + improved error hints).
-
-What I changed in this version (high-level):
-- Made SERVICE_ACCOUNT loading tolerant to multiple formats:
-  - st.secrets["SERVICE_ACCOUNT"] as dict (Streamlit Cloud table)
-  - st.secrets["SERVICE_ACCOUNT"] as JSON string (triple-quoted or normal)
-  - JSON string that uses literal "\n" sequences (will be converted to real newlines)
-  - Individual secrets fields (SERVICE_ACCOUNT_CLIENT_EMAIL, SERVICE_ACCOUNT_PRIVATE_KEY, etc.)
-  - Environment variable fallback SERVICE_ACCOUNT_JSON (os.environ)
-- Added clearer error messages and hints when SERVICE_ACCOUNT cannot be parsed.
-- Improved send_telegram_message to log status, response body and return details (without printing tokens).
-- Added small helper to safely rerun (tries experimental_rerun then st.rerun).
-- Avoided logging or printing private_key or BOT_TOKEN contents.
-- Kept rest of behavior (batch sheet writes, PDF generation, UI) unchanged.
-
-Important: After a secrets change, ensure you (1) rotate any leaked keys, (2) use Streamlit Secrets or .streamlit/secrets.toml with triple-quoted SERVICE_ACCOUNT JSON or separate fields with private key escaped as \\n.
+This version also supports reading SERVICE_ACCOUNT from a local JSON file if present.
 """
 import streamlit as st
 import pandas as pd
@@ -66,7 +52,7 @@ def _try_json_load(s):
         try:
             repaired = s.replace("\\n", "\n")
             return json.loads(repaired)
-        except Exception as e2:
+        except Exception:
             # Final attempt: strip surrounding quotes (in case user pasted with extra quotes)
             try:
                 stripped = s.strip()
@@ -79,9 +65,22 @@ def _try_json_load(s):
             # raise original error for diagnostics up the stack
             raise e1
 
+def _load_service_account_from_file(path):
+    """Load service account JSON from a local file path (returns dict)"""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        logger.info("Loaded SERVICE_ACCOUNT from local file: %s", path)
+        logger.warning("Ensure this file is NOT committed to git and is listed in .gitignore.")
+        return data
+    except Exception as e:
+        logger.exception("Failed to load service account JSON from file %s", path)
+        raise
+
 def load_service_account_from_secrets(secrets_obj):
     """
     Tries multiple strategies to obtain a service account dict:
+    0) Local file: env SERVICE_ACCOUNT_FILE or default known filename
     1) SERVICE_ACCOUNT as dict (Streamlit cloud table)
     2) SERVICE_ACCOUNT as JSON string (possibly triple-quoted or escaped)
     3) SERVICE_ACCOUNT_JSON key
@@ -89,8 +88,23 @@ def load_service_account_from_secrets(secrets_obj):
     5) Individual keys: SERVICE_ACCOUNT_CLIENT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY (with \\n replacement)
     Returns dict or None.
     """
-    # 1) dict directly
-    sa = None
+    # 0) Local file first (convenient for development)
+    # Check env override first
+    file_path = os.environ.get("SERVICE_ACCOUNT_FILE")
+    if not file_path:
+        # fallback to a sensible default if present in repo
+        default_fname = "attendance-streamlit-app-c3aa8-cacd29280b83.json"
+        if os.path.exists(default_fname):
+            file_path = default_fname
+    if file_path and os.path.exists(file_path):
+        try:
+            sa = _load_service_account_from_file(file_path)
+            return sa
+        except Exception:
+            # if file parse fails, continue to other strategies (but log has the exception)
+            pass
+
+    # 1) dict directly from st.secrets
     if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], dict):
         sa = secrets_obj["SERVICE_ACCOUNT"]
         logger.info("Loaded SERVICE_ACCOUNT from st.secrets as dict.")
@@ -159,7 +173,7 @@ except RuntimeError as e:
     st.stop()
 if not SERVICE_ACCOUNT:
     st.error(
-        "خطأ: الرجاء إضافة SERVICE_ACCOUNT إلى st.secrets (كـ dict أو JSON string). "
+        "خطأ: الرجاء إضافة SERVICE_ACCOUNT إلى st.secrets (كـ dict أو JSON string) أو وضع ملف JSON محلي واضبط SERVICE_ACCOUNT_FILE. "
         "أفضل طريقة: في Streamlit Cloud ضع SERVICE_ACCOUNT (paste كامل JSON) أو في .streamlit/secrets.toml استخدم triple-quoted string."
     )
     st.stop()

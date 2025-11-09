@@ -288,135 +288,100 @@ st.markdown("""
     .content-padding { height: 90px; }
 
     /* النافذة المنبثقة */
-    .modal { 
-        display: none; 
-        position: fixed; 
-        z-index: 1000000; 
-        left: 0; top: 0; 
-        width: 100%; 
-        height: 100%; 
-        background-color: rgba(0,0,0,0.5); 
-        backdrop-filter: blur(5px); 
-    }
-    .modal-content { 
-        background: white; 
-        padding: 25px; 
-        border-radius: 16px; 
-        width: 90%; 
-        max-width: 500px; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        animation: modalPop 0.3s ease; 
-    }
-    @keyframes modalPop { 
-        from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } 
-        to { transform: translate(-50%, -50%) scale(1); opacity: 1; } 
-    }
-    .close-btn { 
-        position: absolute; 
-        top: 10px; 
-        left: 15px; 
-        font-size: 28px; 
-        font-weight: bold; 
-        color: #aaa; 
-        cursor: pointer; 
-    }
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
 
-    /* From Uiverse.io by OnlyCodeChannel - محرك البحث */ 
+    /* From Uiverse.io by OnlyCodeChannel */ 
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
+    }
+    
+    /*hover effect*/
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
+    }
+    
+    /*button pressing effect*/
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
+    
+    /* إخفاء label الافتراضي */
     .student-search label {
         display: none !important;
     }
     
-    .student-search .stTextInput > div {
-        max-width: 280px;
-        margin: 20px 0;
-    }
-    
-    .student-search .stTextInput > div > div {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: #2f3640;
-        border-radius: 50px;
-        position: relative;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-    
+    /* تطبيق التصميم على input الـ Streamlit */
     .student-search .stTextInput > div > div > input {
         border: none;
-        background: none;
+        background: #2f3640;
         outline: none;
         color: white;
         font-size: 15px;
-        padding: 24px 60px 24px 26px;
+        padding: 24px 46px 24px 26px;
+        border-radius: 50px;
         font-family: 'Cairo', sans-serif;
-        width: 100%;
     }
     
     .student-search .stTextInput > div > div > input::placeholder {
-        color: #95a5a6;
+        color: #bdc3c7;
     }
     
-    .student-search .stTextInput > div > div::after {
-        content: "🔍";
-        position: absolute;
-        right: 8px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-        cursor: pointer;
-    }
-    
-    .student-search .stTextInput > div > div:hover::after {
-        background-color: #1A1A1A;
-        box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-        transform: translateY(-3px);
-    }
-    
-    .student-search .stTextInput > div > div:active::after {
-        box-shadow: none;
-        transform: translateY(0);
+    .student-search .stTextInput > div {
+        max-width: 230px;
     }
 
     /* تحسينات عامة */
-    h1,h2,h3,h4,h5,h6 { 
-        color: #1e293b !important; 
-        text-align: center; 
-        font-family: 'Cairo', sans-serif !important; 
-    }
-    
+    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
-        width: 250px; 
-        height: 60px; 
-        background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; 
-        font-size: 20px; 
-        font-weight: bold; 
-        border-radius: 16px; 
-        border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); 
-        transition: all 0.3s ease; 
-        margin: 15px auto; 
-        display: block;
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
     }
-    
     .stButton>button:hover {
         background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); 
-        box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -432,8 +397,8 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='block'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='block'">اتصل بنا</button>
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -462,6 +427,7 @@ st.markdown("""
 </div>
 
 <script>
+// إظهار النوافذ المنبثقة
 window.onclick = function(event) {
     var aboutModal = document.getElementById('about-modal');
     var contactModal = document.getElementById('contact-modal');
@@ -540,7 +506,7 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
 
-    # محرك البحث بالتصميم الجديد
+    # حقل البحث
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
     search_query = st.text_input(
         "بحث", 

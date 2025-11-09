@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
@@ -539,3 +539,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         st.rerun()
+

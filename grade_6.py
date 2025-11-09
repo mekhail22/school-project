@@ -1,4 +1,5 @@
 # app.py
+# تطبيق Streamlit: نظام الغياب (متكامل) - تصميم جميل + بحث فعلي في صفحة الطالب والمعلم
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -7,7 +8,7 @@ import os
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -34,14 +35,10 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # تهيئة توكن تيليجرام (لو مش عايز تستخدمه ممكن تخليه "")
-BOT_TOKEN = "7517001841:AAHezP3dOU-L9xAgHsxQrTXZsbgHpRrHFXM"
-CHAT_ID = "8108209758"
+BOT_TOKEN = ""  # لو عايز إشعارات تيليجرام حط التوكن هنا
+CHAT_ID = ""
 
 # ------------------ الاتصال بـ Google Sheets ------------------
-# نتوقع أن المستخدم يحطّ SERVICE_ACCOUNT في streamlit secrets، مثال:
-# [SERVICE_ACCOUNT]
-# type = "service_account"
-# ... كامل JSON هنا ...
 gc = None
 worksheet = None
 try:
@@ -52,36 +49,33 @@ try:
     sh = gc.open(SHEET_NAME)
     worksheet = sh.sheet1
 except Exception as e:
-    # مش هنوقف التطبيق هنا عشان نسمح بتجربة الواجهه بدون شيت - لكن وضعنا تحذير
-    st.warning("لم يتم الاتصال بـ Google Sheets تلقائيًا. إذا أردت حفظ السجلات فعليًا على Google Sheets تأكد من إضافة SERVICE_ACCOUNT في Streamlit Secrets ووجود ملف باسم المصنف الصحيح.")
-    # worksheet يظل None -> دوال القراءة/الكتابة تتعامل مع None
+    # نعرض تحذير لكن نسمح بتشغيل الواجهة لتجربة التصميم والبحث (بس الحفظ مش هينفذ)
+    st.warning("لم يتم الاتصال بـ Google Sheets تلقائيًا. لو عايز التسجيل يشتغل فعليًا: ضع بيانات SERVICE_ACCOUNT في Streamlit Secrets واسم المصنف صحيح.")
 
 # ------------------ تحميل خط عربي للـ PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 if not os.path.exists(FONT_PATH):
-    url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
     try:
+        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
         r = requests.get(url, timeout=10)
         if r.status_code == 200:
             with open(FONT_PATH, "wb") as f:
                 f.write(r.content)
     except Exception:
-        # تجاهل، سنستخدم fallback font
         pass
 
 try:
     if os.path.exists(FONT_PATH):
         pdfmetrics.registerFont(TTFont('Arabic', FONT_PATH))
     else:
-        # حاول استخدام أي خط عربي موجود في النظام (قد يفشل أحيانًا لكن نحاول)
         pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
 except Exception:
-    # لو فشل التسجيل، رابطح باستخدام built-in font لكن ممكن مشاكل بالعربي في PDF
+    # ممكن يفشل لو مافيش arial.ttf على النظام لكن نستمر
     pass
 
 # ------------------ دوال مساعدة ------------------
 def reshape_arabic_text(text: str) -> str:
-    """يعالج صياغة النص العربي للعرض في PDF (من arabic_reshaper + bidi)"""
+    """يعالج النص العربي للعرض في PDF (arabic_reshaper + bidi)"""
     try:
         reshaped = arabic_reshaper.reshape(str(text))
         return get_display(reshaped)
@@ -89,15 +83,13 @@ def reshape_arabic_text(text: str) -> str:
         return str(text)
 
 def read_sheet() -> pd.DataFrame:
-    """يرجع DataFrame من Google Sheets، أو فريم فارغ بصيغ الأعمدة المطلوبة"""
+    """يقرأ البيانات من Google Sheets أو يرجع فريم فارغ"""
     cols = ["student", "teacher", "status", "date"]
     if worksheet is None:
-        # لو مفيش ورقة، نرجع فريم فارغ
         return pd.DataFrame(columns=cols)
     try:
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
-        # نضمن وجود الأعمدة الأساسية
         for c in cols:
             if c not in df.columns:
                 df[c] = ""
@@ -106,14 +98,11 @@ def read_sheet() -> pd.DataFrame:
         return pd.DataFrame(columns=cols)
 
 def normalize_date_for_pdf(src_date_str):
-    """يحاول يحول أشكال التواريخ المختلفة لشكل 'DD / MM / YYYY'"""
+    """يحاول توحيد شكل التاريخ إلى DD / MM / YYYY"""
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
         return ""
-    s = str(src_date_str).strip()
-    # إزالة مسافات زائدة
-    s = s.replace(" ", "")
+    s = str(src_date_str).strip().replace(" ", "")
     try:
-        # شكل YYYY-MM-DD أو DD-MM-YYYY
         if "-" in s:
             parts = s.split("-")
             if len(parts) == 3:
@@ -130,7 +119,6 @@ def normalize_date_for_pdf(src_date_str):
                 else:
                     d, m, y = parts
                 return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        # شكل YYYYMMDD
         if len(s) == 8 and s.isdigit():
             y = s[0:4]; m = s[4:6]; d = s[6:8]
             return f"{int(d):02d} / {int(m):02d} / {int(y)}"
@@ -150,39 +138,21 @@ def send_telegram_message(message: str):
 
 def record_attendance(selected_absent: List[str], teacher_name: str, absent_label: str) -> List:
     """
-    يسجل حالة الحضور/الغياب لكل الطلاب في Google Sheet.
-    يرجع قائمة الأخطاء (لو حصلت) لكي نعرضها.
+    يسجل الحضور/الغياب في Google Sheets فقط.
+    يرجع قائمة الأخطاء لو حصلت.
     """
     failed = []
     date_display = datetime.now().strftime("%d / %m / %Y")
-    # لو مفيش worksheet، نحفظ في ملف محلي كـ fallback (CSV)
     if worksheet is None:
-        local_file = "attendance_local_backup.csv"
-        rows = []
-        for student in STUDENTS:
-            status = absent_label if student in selected_absent else "حاضر"
-            rows.append({"student": student, "teacher": teacher_name, "status": status, "date": date_display})
-        try:
-            df_local = pd.DataFrame(rows)
-            if os.path.exists(local_file):
-                df_local.to_csv(local_file, mode="a", index=False, header=False, encoding="utf-8-sig")
-            else:
-                df_local.to_csv(local_file, index=False, encoding="utf-8-sig")
-        except Exception as e:
-            failed.append(("local_save", str(e)))
-        # رسالة تلغرام
-        absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-        message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
-        send_telegram_message(message)
+        # لا نعمل أي حفظ محلي كما طلبت (محوش مش عايزه) — نبلغ المستخدم
+        failed.append(("no_sheet", "Google Sheets not connected; recording disabled."))
         return failed
 
-    # لو عندنا Google Sheet فعليًا
     for student in STUDENTS:
         status = absent_label if student in selected_absent else "حاضر"
         try:
             worksheet.append_row([student, teacher_name, status, date_display])
-            # تأخير صغير لمنع تجاوز حدود الAPI لو فيه الكثير
-            time.sleep(0.08)
+            time.sleep(0.08)  # تأخير بسيط لتفادي حدود الAPI
         except Exception as e:
             failed.append((student, str(e)))
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
@@ -191,11 +161,10 @@ def record_attendance(selected_absent: List[str], teacher_name: str, absent_labe
     return failed
 
 def get_student_records(student_name: str) -> pd.DataFrame:
-    """يعيد سجلات الطالب مع رؤوس عربية جاهزة للعرض"""
+    """يعيد سجلات الطالب برؤوس عربية جاهزة للعرض"""
     df = read_sheet()
     if df.empty or "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
-    # البحث غير حساس لحالة الحروف
     mask = df["student"].astype(str).str.contains(student_name, case=False, na=False)
     df_matches = df[mask].copy()
     if df_matches.empty:
@@ -205,7 +174,6 @@ def get_student_records(student_name: str) -> pd.DataFrame:
     df_matches = df_matches.rename(columns={
         "student": "الطالب", "teacher": "المعلم", "date": "التاريخ", "status": "الحالة"
     })
-    # ترتيب الأعمدة النهائية
     cols = ["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]
     for c in cols:
         if c not in df_matches.columns:
@@ -213,9 +181,8 @@ def get_student_records(student_name: str) -> pd.DataFrame:
     return df_matches[cols]
 
 def generate_student_pdf(student_name: str, df_records: pd.DataFrame) -> io.BytesIO:
-    """ينشئ PDF تقرير للطالب ويرجّع BytesIO"""
+    """ينشئ PDF تقرير للطالب ويرجع BytesIO"""
     buffer = io.BytesIO()
-    # هوامش مناسبة
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     elements = []
     title_style = ParagraphStyle('Title', fontName='Arabic', fontSize=18, alignment=1, textColor=colors.darkblue)
@@ -279,40 +246,35 @@ def get_image_base64(image_path: str):
     except Exception:
         return None
 
-# ------------------ صورة الشعار ------------------
+# ------------------ لوجو وصياغة التاريخ ------------------
 logo_base64 = get_image_base64("images.jpeg")
 if logo_base64:
     logo_src = f"data:image/jpeg;base64,{logo_base64}"
 else:
-    # بديل خارجي إن لم توجد الصورة المحلية
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
-# ------------------ إعداد تاريخ اليوم باللغة العربية (للعرض في الشريط العلوي) ------------------
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
-# ملاحظة: datetime.weekday() => الاثنين=0 ... الاحد=6
 weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS والـ HTML للشريط العلوي والبحث المصمم ------------------
-# هذه الـ CSS مأخوذة من التصميم الذي طلبته مع بعض التعديلات لتتماشى مع Streamlit
-st.markdown("""
+# ------------------ CSS (يشمل تعديل ستايل حقل st.text_input ليظهر كشكل الهالو) ------------------
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* إخفاء الهيدر والفوتر */
-    #MainMenu, header, footer {visibility: hidden !important;}
+    /* اخفاء الهيدر والفوتر */
+    #MainMenu, header, footer {{visibility: hidden !important;}}
 
-    .stApp {
+    .stApp {{
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
-    }
+    }}
 
     /* الشريط العلوي */
-    .top-toolbar {
+    .top-toolbar {{
         position: fixed;
         top: 0; left: 0; right: 0;
         height: 70px;
@@ -323,121 +285,83 @@ st.markdown("""
         padding: 0 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         z-index: 999999 !important;
-        font-family: 'Cairo', sans-serif;
         color: white;
-    }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-img { 
-        width: 48px; height: 48px; border-radius: 12px; 
-        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 4px;
-    }
-    .school-info { line-height: 1.3; }
-    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
-    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+    }}
+    .logo-container {{ display: flex; align-items: center; gap: 12px; }}
+    .logo-img {{ width: 48px; height: 48px; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.3); background: white; padding: 4px; }}
+    .school-name {{ font-size: 17px; font-weight: bold; margin: 0; }}
+    .school-date {{ font-size: 12px; opacity: 0.9; margin: 0; }}
 
-    .nav-buttons { display: flex; gap: 12px; }
-    .nav-btn {
+    .nav-buttons {{ display: flex; gap: 12px; }}
+    .nav-btn {{
         background: rgba(255, 255, 255, 0.2);
         color: white; border: none; padding: 10px 22px;
         border-radius: 12px; font-size: 15px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease;
+        cursor: pointer;
         backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-    }
-    .nav-btn:hover {
+    }}
+    .nav-btn:hover {{
         background: white; color: #1e40af;
         transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
-    }
+    }}
 
-    .content-padding { height: 90px; }
+    .content-padding {{ height: 90px; }}
 
-    /* النافذة المنبثقة */
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+    /* نافذة المودال */
+    .modal {{ display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }}
+    .modal-content {{ background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }}
+    .close-btn {{ position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }}
+    .close-btn:hover {{ color: #e11d48; }}
 
-    /* حقل البحث المصمم (سيتم عرضه بجانب حقل Streamlit الحقيقي) */
-    .search-container {
-        display: flex;
-        justify-content: flex-start;
-        margin: 15px 20px 10px 20px;
-        padding-left: 30px; /* المسافة البسيطة من اليسار */
-    }
-    .searchBox {
-        display: flex;
-        max-width: 520px;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
+    /* تصميم صندوق البحث "الهالو" - نطبقه على input ذو placeholder المحدد */
+    input[placeholder="اكتب اسمك الثلاثي:"], input[placeholder="اكتب اسم/بداية اسم الطالب للبحث (مظهري فقط)"], input[placeholder="اكتب اسم المعلم..."] {{
         background: #2f3640;
+        color: white !important;
         border-radius: 50px;
-        position: relative;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        padding: 6px;
-    }
-    .searchButton {
-        color: white;
-        position: relative;
-        right: 8px;
-        width: 56px;
-        height: 42px;
-        border-radius: 28px;
-        background: linear-gradient(90deg, #2AF598 0%, #009EFD 100%);
-        border: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-        cursor: pointer;
-        font-size: 16px;
-    }
-    .searchButton:hover {
-        filter: brightness(0.95);
-    }
-    .searchInput {
+        padding: 12px 18px;
         border: none;
-        outline: none;
-        background: none;
-        color: white;
+        width: 520px;
+        height: 44px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
         font-size: 16px;
-        padding: 10px 16px;
-        width: 100%;
         font-family: 'Cairo', sans-serif;
-    }
-    .searchInput::placeholder {
-        color: #bdc3c7;
-    }
+        outline: none;
+    }}
+    input[placeholder="اكتب اسمك الثلاثي:"]::placeholder {{
+        color: #cbd5e1;
+    }}
 
-    /* تحسينات عامة */
-    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
-    }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
+    /* ازالة حدود الفورم الافتراضي حول الinput */
+    .stTextInput > div > div > input {{
+        box-shadow: none;
+    }}
 
-    /* تنسيق الجدول للعرض داخل الصفحة */
-    .dataframe, .stDataFrame {
+    /* زرار البحث بجنب الinput - نخصص زرار ستريمليت الأساسي (اللي في .stButton) */
+    .stButton > button {{
+        background: linear-gradient(90deg,#2AF598 0%,#009EFD 100%);
+        color: white; border: none; padding: 10px 18px; border-radius: 28px;
+        font-size: 16px; height:44px;
+    }}
+
+    /* زر الرجوع العام */
+    .back-btn {{
+        background: linear-gradient(90deg,#f97316, #ef4444);
+        color: white; padding: 10px 18px; border-radius: 12px; border: none;
+    }}
+
+    /* اتجاه الجدول عربي (RTL) */
+    .dataframe, .stDataFrame {{
         direction: rtl;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ الشريط العلوي (HTML) ------------------
+# ------------------ الشريط العلوي ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
         <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
+        <div>
             <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
             <p class="school-date">{formatted_date}</p>
         </div>
@@ -451,29 +375,24 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ النوافذ المنبثقة ------------------
+# ------------------ مودالات بسيطة ------------------
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
         <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تهدف لتقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-
 <div id="contact-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
         <h3>اتصل بنا</h3>
         <p>الهاتف: 02-12345678</p>
         <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
-
 <script>
-/* سكربت بسيط لقفل النوافذ عند الضغط خارج المحتوى */
 window.addEventListener('click', function(e) {
     var about = document.getElementById('about-modal');
     var contact = document.getElementById('contact-modal');
@@ -487,61 +406,67 @@ window.addEventListener('click', function(e) {
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ الشاشة الرئيسية ------------------
+# ------------------ صفحات التطبيق ------------------
 def page_home():
     st.title("نظام الغياب")
-    col1, col2 = st.columns([1,1])
-    with col1:
-        if st.button("معلم"):
+    c1, c2 = st.columns([1,1])
+    with c1:
+        if st.button("👨‍🏫 معلم"):
             st.session_state.page = "teacher_login"
             st.experimental_rerun()
-    with col2:
-        if st.button("طالب"):
+    with c2:
+        if st.button("👩‍🎓 طالب"):
             st.session_state.page = "student"
             st.experimental_rerun()
     st.markdown("---")
     st.write("مرحبًا! اختر 'معلم' لتسجيل الغياب أو 'طالب' لعرض تقرير الغياب الخاص بك.")
 
-# ------------------ صفحة تسجيل دخول المعلم ------------------
 def page_teacher_login():
     st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+    teacher_choice = st.selectbox("اختر اسم المعلم:", TEACHERS)
     pwd = st.text_input("كلمة السر:", type="password")
-    col1, col2 = st.columns([1,1])
-    with col1:
-        if st.button("تسجيل الدخول"):
+    c1, c2 = st.columns([1,1])
+    with c1:
+        if st.button("دخول"):
             if pwd == PASSWORD:
                 st.session_state.teacher_name = teacher_choice
                 st.session_state.page = "teacher_attendance"
                 st.experimental_rerun()
             else:
                 st.error("كلمة السر غير صحيحة")
-    with col2:
+    with c2:
         if st.button("رجوع"):
             st.session_state.page = "home"
             st.experimental_rerun()
 
-# ------------------ صفحة تسجيل الغياب للمعلم ------------------
 def page_teacher_attendance():
-    st.header("تسجيل الغياب")
+    st.header("تسجيل الغياب - صفحة المعلم")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
     st.subheader(f"المعلم: {teacher_name}")
-    # عرض البحث المصمم (مظهري فقط) ثم حقل Streamlit الفعلي
-    st.markdown("""
-    <div class="search-container">
-        <div class="searchBox">
-            <input class="searchInput" placeholder="اكتب اسم/بداية اسم الطالب للبحث (مظهري فقط)">
-            <button class="searchButton">🔎</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
+    # --- حقل البحث المصمم (حقيقي) ---
+    st.write("البحث عن طالب (للعرض السريع قبل التسجيل):")
+    teacher_search = st.text_input("اكتب اسم الطالب للبحث:", placeholder="اكتب اسم/بداية اسم الطالب للبحث (مظهري فقط)", key="teacher_search")
+    col_a, col_b = st.columns([3,1])
+    with col_b:
+        if st.button("بحث عن الطالب"):
+            if teacher_search.strip() == "":
+                st.warning("من فضلك اكتب جزء من اسم الطالب للبحث.")
+            else:
+                df_found = get_student_records(teacher_search.strip())
+                if df_found.empty:
+                    st.info("لا توجد سجلات لهذا الاسم.")
+                else:
+                    st.dataframe(df_found, use_container_width=True)
+
+    st.markdown("---")
+    # اختيار الغائبين
     selected = st.multiselect("اختر الغائبين:", STUDENTS, key="teacher_selected")
-    st.markdown("**اختر نوع الغياب:**")
+    st.markdown("**نوع الغياب:**")
     excuse = st.radio("", ["غياب بعذر", "غياب بدون عذر"], index=0, key="teacher_excuse")
     col1, col2 = st.columns([1,1])
     with col1:
-        if st.button("تسجيل"):
+        if st.button("تسجيل الغياب"):
             if not selected:
                 st.warning("يجب اختيار طالب/طلاب أولا.")
             else:
@@ -550,28 +475,18 @@ def page_teacher_attendance():
                 if not failed:
                     st.success("تم تسجيل الغياب بنجاح")
                 else:
-                    st.error(f"حدثت أخطاء في التسجيل: {failed}")
+                    st.error(f"حدثت أخطاء: {failed}")
     with col2:
         if st.button("رجوع"):
             st.session_state.page = "home"
             st.experimental_rerun()
 
-# ------------------ صفحة الطالب (بحث + عرض + تحميل PDF) ------------------
 def page_student():
-    st.header("تقارير الغياب")
-    # نعرض نفس صندوق البحث المصمم (مظهري) لكن القيمة الفعلية تجي من st.text_input
-    st.markdown("""
-    <div class="search-container">
-        <div class="searchBox">
-            <input class="searchInput" placeholder="اكتب اسمك الثلاثي..." readonly>
-            <button class="searchButton">🔎</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # القيمة الحقيقية
-    search_query = st.text_input("اكتب اسمك الثلاثي:", key="student_search", placeholder="مثال: ميخائيل صابر فوزي")
-    col1, col2 = st.columns([1,1])
+    st.header("تقارير الغياب - صفحة الطالب")
+    # --- صندوق البحث المصمم فعليًا (ستايل مطبق على st.text_input) ---
+    st.write("اكتب اسمك ثلاثيًا لعرض تقرير الغياب:")
+    search_query = st.text_input("اكتب اسمك الثلاثي:", key="student_search", placeholder="اكتب اسمك الثلاثي:")
+    col1, col2, col3 = st.columns([1,1,1])
     with col1:
         if st.button("بحث"):
             if not search_query or search_query.strip() == "":
@@ -581,7 +496,6 @@ def page_student():
                 if df_student.empty:
                     st.info("لا يوجد غياب مسجل لهذا الاسم.")
                 else:
-                    # عرض الجدول - نجعل الاتجاه يمين لليسار
                     st.dataframe(df_student, use_container_width=True)
                     pdf_buf = generate_student_pdf(search_query.strip(), df_student)
                     st.download_button("تحميل PDF", data=pdf_buf, file_name=f"{search_query.strip()}_report.pdf", mime="application/pdf")
@@ -589,14 +503,14 @@ def page_student():
         if st.button("مسح البحث"):
             st.session_state.student_search = ""
             st.experimental_rerun()
+    with col3:
+        if st.button("رجوع للصفحة الرئيسية"):
+            if "student_search" in st.session_state:
+                del st.session_state.student_search
+            st.session_state.page = "home"
+            st.experimental_rerun()
 
-    if st.button("الرجوع"):
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.session_state.page = "home"
-        st.experimental_rerun()
-
-# ------------------ تحديد الصفحة الحالية وتشغيلها ------------------
+# ------------------ تشغيل الصفحة المناسبة ------------------
 if st.session_state.page == "home":
     page_home()
 elif st.session_state.page == "teacher_login":
@@ -606,6 +520,5 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     page_student()
 else:
-    # fallback
     st.session_state.page = "home"
     page_home()

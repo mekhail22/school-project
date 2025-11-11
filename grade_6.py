@@ -730,12 +730,6 @@ elif st.session_state.page == "teacher_attendance":
                     safe_rerun()
                 else:
                     st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
-    if st.button("اختبار إشعار تليجرام"):
-        ok, info = send_telegram_message("اختبار من تطبيق نظام الغياب")
-        if ok:
-            st.success("تم إرسال رسالة اختبار للتليجرام.")
-        else:
-            st.error(f"فشل إرسال رسالة الاختبار: {info}")
 
     if st.button("رجوع"):
         st.session_state.page = "home"
@@ -766,3 +760,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+

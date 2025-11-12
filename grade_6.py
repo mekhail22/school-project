@@ -759,4 +759,5 @@ elif st.session_state.page == "student":
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.session_state.page = "home"
-        safe_rerun() .
+        safe_rerun() 
+

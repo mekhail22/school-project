@@ -1,7 +1,7 @@
-# streamlit_app_fixed.py
+# streamlit_app.py
 """
-Grade 6 attendance app (fixed) — إصلاحات وثبات أكبر
-(مهم: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة.)
+Grade 6 attendance app (complete, ready-to-run) — مدمج مع ديزاين الشريط العلوي، الخلفية، الـ modals، وشريط البحث
+Important: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة كما هو موضّح في الواجهة التشخيصية.
 """
 
 import streamlit as st
@@ -35,16 +35,16 @@ try:
 except Exception:
     date_parse = None
 
-# Logging (don't log secrets)
+# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
 st.set_page_config(page_title="نظام الغياب", layout="centered")
 
-# ------------------ App settings (defaults; may be overridden by secrets) ------------------
-DEFAULT_SHEET_NAME = "school_attendance"
-DEFAULT_PASSWORD = "1234"
+# ------------------ App settings ------------------
+SHEET_NAME = "school_attendance"
+PASSWORD = "1234"
 STUDENTS = [
     "ميخائيل صابر فوزي", "مينا ريمون خيري", "توني هاني نصرالله",
     "يوسف شادي كمال", "ادم مايكل فوزي", "مارك نادر فؤاد",
@@ -55,6 +55,7 @@ TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ Service account utilities ------------------
 def _try_json_load(s: str):
+    """Try to json.loads string s, with repairs for literal \\n and surrounding quotes."""
     if not isinstance(s, str):
         raise ValueError("Expected string for JSON load")
     try:
@@ -74,6 +75,7 @@ def _try_json_load(s: str):
             raise
 
 def _find_local_service_account_file():
+    """Look for common filenames or use env override."""
     envp = os.environ.get("SERVICE_ACCOUNT_FILE")
     if envp and os.path.exists(envp):
         return envp
@@ -84,26 +86,37 @@ def _find_local_service_account_file():
     return None
 
 def _load_service_account_from_file(path):
+    """Load service account JSON from a local file path (returns dict)."""
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
 
 def load_service_account(secrets_obj):
-    # local file
+    """
+    Try multiple strategies to obtain a service account dict:
+      - Local file (env or common filenames)
+      - st.secrets["SERVICE_ACCOUNT"] as dict
+      - st.secrets["SERVICE_ACCOUNT"] as JSON string (repaired)
+      - individual fields SERVICE_ACCOUNT_CLIENT_EMAIL & SERVICE_ACCOUNT_PRIVATE_KEY
+      - env SERVICE_ACCOUNT_JSON
+    Returns dict or None.
+    """
+    # Local file first
     file_path = _find_local_service_account_file()
     if file_path:
         try:
             sa = _load_service_account_from_file(file_path)
-            logger.info("Loaded SERVICE_ACCOUNT from local file (not printed).")
+            logger.info("Loaded SERVICE_ACCOUNT from local file: %s", file_path)
+            logger.warning("Ensure this file is not committed to git and is in .gitignore.")
             return sa
         except Exception as e:
             logger.warning("Failed to parse local service account file %s: %s", file_path, e)
 
-    # st.secrets dict
+    # From st.secrets directly (dict)
     if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], dict):
         logger.info("Loaded SERVICE_ACCOUNT from st.secrets (dict).")
         return secrets_obj["SERVICE_ACCOUNT"]
 
-    # JSON string from secrets/env
+    # From st.secrets or env as JSON string
     raw = None
     if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], str):
         raw = secrets_obj["SERVICE_ACCOUNT"]
@@ -115,19 +128,20 @@ def load_service_account(secrets_obj):
     if raw:
         try:
             sa = _try_json_load(raw)
-            logger.info("Loaded SERVICE_ACCOUNT from JSON string (secrets/env).")
+            logger.info("Loaded SERVICE_ACCOUNT from JSON string (secrets or env).")
             return sa
         except Exception as e:
             logger.exception("Failed to parse SERVICE_ACCOUNT JSON from secrets/env.")
             raise RuntimeError(
                 "فشل في قراءة SERVICE_ACCOUNT: JSON غير صالح. "
-                "إن وضعت private_key في ملف .streamlit/secrets.toml فتأكد من استخدام triple-quoted string أو تحويل `\\n` إلى newlines."
+                "إن وضعت private_key في ملف .streamlit/secrets.toml فتأكد من استخدام triple-quoted string (\"\"\"...\"\"\") أو تحويل `\\n` إلى newlines."
             ) from e
 
-    # individual fields fallback
+    # Individual fields fallback
     client_email = secrets_obj.get("SERVICE_ACCOUNT_CLIENT_EMAIL") or secrets_obj.get("service_account_client_email")
     private_key = secrets_obj.get("SERVICE_ACCOUNT_PRIVATE_KEY") or secrets_obj.get("service_account_private_key")
     if client_email and private_key:
+        # replace literal "\n" with actual newlines if necessary
         if "\\n" in private_key and "\n" not in private_key:
             private_key = private_key.replace("\\n", "\n")
         sa = {
@@ -157,9 +171,10 @@ except RuntimeError as e:
     st.stop()
 
 if not SERVICE_ACCOUNT:
-    st.error("خطأ: لم يتم العثور على SERVICE_ACCOUNT. ضع ملف JSON في Secrets باسم SERVICE_ACCOUNT أو اضبط SERVICE_ACCOUNT_FILE أو متغيرات البيئة.")
+    st.error("خطأ: لم يتم العثور على SERVICE_ACCOUNT. ضع ملف JSON في Secrets باسم SERVICE_ACCOUNT أو ارفع ملف محلي و/أو اضبط SERVICE_ACCOUNT_FILE.")
     st.stop()
 
+# Ensure SERVICE_ACCOUNT is dict (repair if string)
 def _ensure_sa_dict(sa):
     if isinstance(sa, dict):
         return sa
@@ -173,16 +188,16 @@ except Exception as e:
     st.error(str(e))
     st.stop()
 
-# ------------------ Load other secrets safely ------------------
+# ------------------ Load other secrets ------------------
 telegram_cfg = secrets.get("telegram", {}) if isinstance(secrets.get("telegram", {}), dict) else {}
 BOT_TOKEN = telegram_cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = telegram_cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
 
 APP_CFG = secrets.get("app", {}) if isinstance(secrets.get("app", {}), dict) else {}
-PASSWORD = APP_CFG.get("password", os.environ.get("APP_PASSWORD", DEFAULT_PASSWORD))
+PASSWORD = APP_CFG.get("password", os.environ.get("APP_PASSWORD", "1234"))
 
 SHEETS_CFG = secrets.get("sheets", {}) if isinstance(secrets.get("sheets", {}), dict) else {}
-SHEET_NAME = SHEETS_CFG.get("name", os.environ.get("SHEETS_NAME", DEFAULT_SHEET_NAME))
+SHEET_NAME = SHEETS_CFG.get("name", os.environ.get("SHEETS_NAME", SHEET_NAME))
 
 # ------------------ Connect to Google Sheets ------------------
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -190,7 +205,7 @@ try:
     creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
     gc = gspread.authorize(creds)
 except Exception as e:
-    logger.exception("Google API auth failed (not printing credentials).")
+    logger.exception("Google API auth failed")
     st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
     st.stop()
 
@@ -202,36 +217,39 @@ except Exception as e:
     st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة حساب الخدمة كمحرر (Editor). \n\nتفاصيل: " + str(e))
     st.stop()
 
-# ------------------ Arabic font for PDF (robust) ------------------
+# ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
 
 def ensure_font():
-    # if local font present, register it
-    if os.path.exists(FONT_PATH):
-        try:
-            pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
-            logger.info("Registered local Arabic font.")
-            return FONT_NAME
-        except Exception as e:
-            logger.warning("Failed to register local font: %s", e)
-
-    # try to download (may fail in restricted env)
-    try:
+    if not os.path.exists(FONT_PATH):
         url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
-        r = requests.get(url, timeout=8)
-        r.raise_for_status()
-        with open(FONT_PATH, "wb") as f:
-            f.write(r.content)
-        pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
-        logger.info("Downloaded & registered Arabic font.")
-        return FONT_NAME
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            with open(FONT_PATH, "wb") as f:
+                f.write(r.content)
+            logger.info("Downloaded Arabic font.")
+        except Exception as e:
+            logger.warning("Failed to download Arabic font: %s", e)
+    try:
+        if os.path.exists(FONT_PATH):
+            pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
+            return FONT_NAME
     except Exception as e:
-        logger.warning("Could not download/register Arabic font (continuing with fallback): %s", e)
+        logger.warning("Failed to register font from path: %s", e)
 
-    # fallback: use default PDF fonts (Helvetica) — note: may not render Arabic perfectly
-    logger.info("Using fallback font (Helvetica).")
-    return "Helvetica"
+    # Fallback attempts
+    for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
+        try:
+            pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
+            logger.info("Used fallback font: %s", candidate)
+            return FONT_NAME
+        except Exception:
+            continue
+
+    logger.error("No usable font registered.")
+    return None
 
 REGISTERED_FONT = ensure_font()
 
@@ -244,31 +262,12 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
-    """Read worksheet and normalize column names to English keys: student, teacher, status, date"""
     try:
         data = worksheet.get_all_records()
     except Exception as e:
         logger.exception("Failed to read sheet")
         return pd.DataFrame(columns=["student", "teacher", "status", "date"])
-
     df = pd.DataFrame(data)
-    # normalize headers: map common Arabic headers to english keys
-    col_map = {}
-    for c in df.columns:
-        c_norm = str(c).strip().lower()
-        if c_norm in ("student", "الطالب", "name", "الاسم"):
-            col_map[c] = "student"
-        elif c_norm in ("teacher", "المعلم", "teacher_name"):
-            col_map[c] = "teacher"
-        elif c_norm in ("status", "الحالة", "state"):
-            col_map[c] = "status"
-        elif c_norm in ("date", "التاريخ", "time"):
-            col_map[c] = "date"
-        else:
-            # keep other columns but leave their names as-is
-            col_map[c] = c
-    df = df.rename(columns=col_map)
-    # ensure required columns exist
     for c in ["student", "teacher", "status", "date"]:
         if c not in df.columns:
             df[c] = ""
@@ -311,14 +310,14 @@ def normalize_date_for_pdf(src_date_str):
 
 def send_telegram_message(message):
     """
-    Send message to Telegram using POST. Returns (ok: bool, info: dict_or_text).
+    Send message to Telegram. Returns (ok: bool, info: dict_or_text).
     """
     if not BOT_TOKEN or not CHAT_ID:
-        logger.info("Telegram credentials missing — skipping send.")
+        logger.info("Telegram credentials missing, skipping send.")
         return False, "credentials_missing"
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
-        resp = requests.post(url, data={"chat_id": CHAT_ID, "text": message}, timeout=8)
+        resp = requests.get(url, params={"chat_id": CHAT_ID, "text": message}, timeout=8)
         try:
             j = resp.json()
         except Exception:
@@ -341,7 +340,6 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
     failed = []
     try:
-        # append_rows exists in gspread; fallback to per-row append
         worksheet.append_rows(rows, value_input_option="USER_ENTERED")
     except Exception:
         logger.exception("Batch append failed, falling back to per-row append.")
@@ -363,29 +361,19 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
 def get_student_records(student_name):
     df = read_sheet()
-    # if sheet used Arabic headers and we normalized, search in 'student' column
     if "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     try:
-        df_matches = df[df["student"].astype(str).str.contains(student_name, case=False, na=False)].copy()
+        df_matches = df[df["student"].str.contains(student_name, case=False, na=False)].copy()
     except Exception:
-        df_matches = df[df["student"].astype(str).str.lower() == student_name.lower()].copy()
+        df_matches = df[df["student"].str.lower() == student_name.lower()].copy()
     if df_matches.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
-    # convert columns to Arabic for display
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
-    # ensure columns exist before renaming
-    safe_map = {}
-    if "student" in df_matches.columns:
-        safe_map["student"] = "الطالب"
-    if "teacher" in df_matches.columns:
-        safe_map["teacher"] = "المعلم"
-    if "date" in df_matches.columns:
-        safe_map["date"] = "التاريخ"
-    if "status" in df_matches.columns:
-        safe_map["status"] = "الحالة"
-    df_matches = df_matches.rename(columns=safe_map)
+    df_matches = df_matches.rename(columns={
+        "student": "الطالب", "teacher": "المعلم", "date": "التاريخ", "status": "الحالة"
+    })
     return df_matches[["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
 
 def generate_student_pdf(student_name, df_records):
@@ -405,7 +393,6 @@ def generate_student_pdf(student_name, df_records):
     if df_records.empty:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
     else:
-        # count using Arabic column names
         absent_count = int((df_records["الحالة"] == "غياب بعذر").sum() + (df_records["الحالة"] == "غياب بدون عذر").sum())
         present_count = int((df_records["الحالة"] == "حاضر").sum())
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
@@ -454,22 +441,223 @@ logo_base64 = get_image_base64("images.jpeg")
 if logo_base64:
     logo_src = f"data:image/jpeg;base64,{logo_base64}"
 else:
-    # fallback image (public)
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
 # ------------------ Arabic date for header ------------------
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
-weekday = arabic_weekdays[today.weekday()]  # Monday=0 -> "الإثنين"
+weekday = arabic_weekdays[today.weekday()]  # weekday() Monday=0 -> "الإثنين"
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ (باقي CSS، HTML، UI) ------------------
-# ... نسخة CSS/HTML والـ UI كما عندك (لحفظ الطول لم أكرره بالكامل هنا) ...
-# تأكد فقط أنه لا توجد نقاط زائدة أو أخطاء إملائية في نهايات الأسطر.
+# ------------------ CSS + top toolbar (exact design from original) ------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-# ------------------ UI / Navigation (مثال تدفق) ------------------
+    /* إخفاء الهيدر والفوتر */
+    #MainMenu, header, footer {visibility: hidden !important;}
+
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
+    }
+
+    /* الشريط العلوي */
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
+    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    }
+
+    .content-padding { height: 90px; }
+
+    /* النافذة المنبثقة */
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    /* From Uiverse.io by OnlyCodeChannel */ 
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
+    }
+    
+    /*hover effect*/
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
+    }
+    
+    /*button pressing effect*/
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
+    
+    /* إخفاء label الافتراضي */
+    .student-search label {
+        display: none !important;
+    }
+    
+    /* تطبيق التصميم على input الـ Streamlit */
+    .student-search .stTextInput > div > div > input {
+        border: none;
+        background: #2f3640;
+        outline: none;
+        color: white;
+        font-size: 15px;
+        padding: 24px 46px 24px 26px;
+        border-radius: 50px;
+        font-family: 'Cairo', sans-serif;
+    }
+    
+    .student-search .stTextInput > div {
+        max-width: 230px;
+    }
+
+    /* تحسينات عامة */
+    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------ Top toolbar HTML (exact) ------------------
+st.markdown(f"""
+<div class="top-toolbar">
+    <div class="logo-container">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+        <div class="school-info">
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+            <p class="school-date">{formatted_date}</p>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# ------------------ Modals HTML + script (exact) ------------------
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
+
+<script>
+// إظهار النوافذ المنبثقة
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    var contactModal = document.getElementById('contact-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+    if (event.target == contactModal) {
+        contactModal.style.display = "none";
+    }
+}
+</script>
+""", unsafe_allow_html=True)
+
+
+# ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------
 def safe_rerun():
     try:
         if hasattr(st, "experimental_rerun"):
@@ -571,4 +759,4 @@ elif st.session_state.page == "student":
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.session_state.page = "home"
-        safe_rerun()
+        safe_rerun() .

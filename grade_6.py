@@ -1,7 +1,7 @@
 # streamlit_app.py
 """
-Grade 6 attendance app (complete, ready-to-run) — مدمج مع ديزاين الشريط العلوي، الخلفية، الـ modals، وشريط البحث
-Important: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة كما هو موضّح في الواجهة التشخيصية.
+Grade 6 attendance app — مع إصلاح إرسال Telegram وظهور نتيجة الإرسال في الواجهة
+(مهم: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة.)
 """
 
 import streamlit as st
@@ -92,12 +92,7 @@ def _load_service_account_from_file(path):
 
 def load_service_account(secrets_obj):
     """
-    Try multiple strategies to obtain a service account dict:
-      - Local file (env or common filenames)
-      - st.secrets["SERVICE_ACCOUNT"] as dict
-      - st.secrets["SERVICE_ACCOUNT"] as JSON string (repaired)
-      - individual fields SERVICE_ACCOUNT_CLIENT_EMAIL & SERVICE_ACCOUNT_PRIVATE_KEY
-      - env SERVICE_ACCOUNT_JSON
+    Try multiple strategies to obtain a service account dict.
     Returns dict or None.
     """
     # Local file first
@@ -308,26 +303,32 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
+# ------------------ Telegram: improved send function (POST + detailed info) ------------------
 def send_telegram_message(message):
     """
-    Send message to Telegram. Returns (ok: bool, info: dict_or_text).
+    Send message to Telegram using POST. Returns (ok: bool, info: dict_or_text).
     """
     if not BOT_TOKEN or not CHAT_ID:
         logger.info("Telegram credentials missing, skipping send.")
-        return False, "credentials_missing"
+        return False, {"error": "credentials_missing", "bot_token_present": bool(BOT_TOKEN), "chat_id_present": bool(CHAT_ID)}
+
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": message}
+
     try:
-        resp = requests.get(url, params={"chat_id": CHAT_ID, "text": message}, timeout=8)
+        resp = requests.post(url, data=payload, timeout=10)
         try:
             j = resp.json()
         except Exception:
             j = {"raw": resp.text}
+
         if resp.status_code == 200 and j.get("ok", False):
             return True, j
-        return False, j
+        # For debugging, return both status code and body
+        return False, {"status_code": resp.status_code, "response": j}
     except requests.exceptions.RequestException as e:
         logger.exception("Telegram send exception")
-        return False, str(e)
+        return False, {"exception": str(e)}
 
 def record_attendance(selected_absent, teacher_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
@@ -357,16 +358,17 @@ def record_attendance(selected_absent, teacher_name, absent_label):
         logger.warning("Telegram notification failed: %s", info)
     else:
         logger.info("Telegram notification sent.")
-    return failed
+    # return failed list and telegram result for UI display
+    return failed, ok, info
 
 def get_student_records(student_name):
     df = read_sheet()
     if "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     try:
-        df_matches = df[df["student"].str.contains(student_name, case=False, na=False)].copy()
+        df_matches = df[df["student"].astype(str).str.contains(student_name, case=False, na=False)].copy()
     except Exception:
-        df_matches = df[df["student"].str.lower() == student_name.lower()].copy()
+        df_matches = df[df["student"].astype(str).str.lower() == student_name.lower()].copy()
     if df_matches.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
     df_matches = df_matches.reset_index(drop=True)
@@ -451,7 +453,7 @@ weekday = arabic_weekdays[today.weekday()]  # weekday() Monday=0 -> "الإثن�
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + top toolbar (exact design from original) ------------------
+# ------------------ CSS + top toolbar (as original) ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -720,16 +722,21 @@ elif st.session_state.page == "teacher_attendance":
         else:
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             try:
-                failed = record_attendance(selected, teacher_name, status_label)
+                failed, telegram_ok, telegram_info = record_attendance(selected, teacher_name, status_label)
             except Exception:
                 logger.exception("Error during record_attendance")
                 st.error("حدث خطأ أثناء تسجيل الغياب. راجع السجلات (logs) للتفاصيل.")
             else:
                 if not failed:
                     st.success("تم تسجيل الغياب بنجاح")
-                    safe_rerun()
                 else:
                     st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+
+                # show telegram result in UI (use expander)
+                with st.expander("نتيجة إشعار Telegram (debug)"):
+                    st.write("telegram_ok:", telegram_ok)
+                    st.write("telegram_info:", telegram_info)
+                safe_rerun()
 
     if st.button("رجوع"):
         st.session_state.page = "home"
@@ -759,5 +766,4 @@ elif st.session_state.page == "student":
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.session_state.page = "home"
-        safe_rerun() 
-
+        safe_rerun()

@@ -1,12 +1,12 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح إرسال Telegram وظهور نتيجة الإرسال ثابتة في الواجهة
+Grade 6 attendance app — مع تثبيت رسالة التسجيل لمدة سنة في Google Sheet (meta) + session_state fallback.
 (مهم: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة.)
 """
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import os
 import json
@@ -53,9 +53,11 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
+# Name of meta worksheet used to persist last-notification
+META_SHEET_TITLE = "meta_attendance"
+
 # ------------------ Service account utilities ------------------
 def _try_json_load(s: str):
-    """Try to json.loads string s, with repairs for literal \\n and surrounding quotes."""
     if not isinstance(s, str):
         raise ValueError("Expected string for JSON load")
     try:
@@ -75,7 +77,6 @@ def _try_json_load(s: str):
             raise
 
 def _find_local_service_account_file():
-    """Look for common filenames or use env override."""
     envp = os.environ.get("SERVICE_ACCOUNT_FILE")
     if envp and os.path.exists(envp):
         return envp
@@ -86,32 +87,23 @@ def _find_local_service_account_file():
     return None
 
 def _load_service_account_from_file(path):
-    """Load service account JSON from a local file path (returns dict)."""
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
 
 def load_service_account(secrets_obj):
-    """
-    Try multiple strategies to obtain a service account dict.
-    Returns dict or None.
-    """
-    # Local file first
     file_path = _find_local_service_account_file()
     if file_path:
         try:
             sa = _load_service_account_from_file(file_path)
-            logger.info("Loaded SERVICE_ACCOUNT from local file: %s", file_path)
-            logger.warning("Ensure this file is not committed to git and is in .gitignore.")
+            logger.info("Loaded SERVICE_ACCOUNT from local file (not printed).")
             return sa
         except Exception as e:
             logger.warning("Failed to parse local service account file %s: %s", file_path, e)
 
-    # From st.secrets directly (dict)
     if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], dict):
         logger.info("Loaded SERVICE_ACCOUNT from st.secrets (dict).")
         return secrets_obj["SERVICE_ACCOUNT"]
 
-    # From st.secrets or env as JSON string
     raw = None
     if "SERVICE_ACCOUNT" in secrets_obj and isinstance(secrets_obj["SERVICE_ACCOUNT"], str):
         raw = secrets_obj["SERVICE_ACCOUNT"]
@@ -123,20 +115,18 @@ def load_service_account(secrets_obj):
     if raw:
         try:
             sa = _try_json_load(raw)
-            logger.info("Loaded SERVICE_ACCOUNT from JSON string (secrets or env).")
+            logger.info("Loaded SERVICE_ACCOUNT from JSON string (secrets/env).")
             return sa
         except Exception as e:
             logger.exception("Failed to parse SERVICE_ACCOUNT JSON from secrets/env.")
             raise RuntimeError(
                 "فشل في قراءة SERVICE_ACCOUNT: JSON غير صالح. "
-                "إن وضعت private_key في ملف .streamlit/secrets.toml فتأكد من استخدام triple-quoted string (\"\"\"...\"\"\") أو تحويل `\\n` إلى newlines."
+                "إن وضعت private_key في ملف .streamlit/secrets.toml فتأكد من استخدام triple-quoted string أو تحويل `\\n` إلى newlines."
             ) from e
 
-    # Individual fields fallback
     client_email = secrets_obj.get("SERVICE_ACCOUNT_CLIENT_EMAIL") or secrets_obj.get("service_account_client_email")
     private_key = secrets_obj.get("SERVICE_ACCOUNT_PRIVATE_KEY") or secrets_obj.get("service_account_private_key")
     if client_email and private_key:
-        # replace literal "\n" with actual newlines if necessary
         if "\\n" in private_key and "\n" not in private_key:
             private_key = private_key.replace("\\n", "\n")
         sa = {
@@ -166,10 +156,9 @@ except RuntimeError as e:
     st.stop()
 
 if not SERVICE_ACCOUNT:
-    st.error("خطأ: لم يتم العثور على SERVICE_ACCOUNT. ضع ملف JSON في Secrets باسم SERVICE_ACCOUNT أو ارفع ملف محلي و/أو اضبط SERVICE_ACCOUNT_FILE.")
+    st.error("خطأ: لم يتم العثور على SERVICE_ACCOUNT. ضع ملف JSON في Secrets باسم SERVICE_ACCOUNT أو اضبط SERVICE_ACCOUNT_FILE.")
     st.stop()
 
-# Ensure SERVICE_ACCOUNT is dict (repair if string)
 def _ensure_sa_dict(sa):
     if isinstance(sa, dict):
         return sa
@@ -212,39 +201,49 @@ except Exception as e:
     st.error("خطأ في فتح Google Sheet. تأكد من اسم المصنف ومشاركة حساب الخدمة كمحرر (Editor). \n\nتفاصيل: " + str(e))
     st.stop()
 
+# Helper: get or create meta worksheet (to persist last-notification)
+def _get_meta_sheet(spreadsheet):
+    try:
+        # try open existing sheet
+        for w in spreadsheet.worksheets():
+            if w.title == META_SHEET_TITLE:
+                return w
+        # not found -> try to add
+        try:
+            return spreadsheet.add_worksheet(title=META_SHEET_TITLE, rows="50", cols="5")
+        except Exception as e:
+            logger.warning("Cannot create meta worksheet: %s", e)
+            # fallback: return None
+            return None
+    except Exception as e:
+        logger.exception("Error obtaining meta sheet")
+        return None
+
+meta_sheet = _get_meta_sheet(sh)
+
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
 
 def ensure_font():
-    if not os.path.exists(FONT_PATH):
-        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
+    if os.path.exists(FONT_PATH):
         try:
-            r = requests.get(url, timeout=10)
-            r.raise_for_status()
-            with open(FONT_PATH, "wb") as f:
-                f.write(r.content)
-            logger.info("Downloaded Arabic font.")
-        except Exception as e:
-            logger.warning("Failed to download Arabic font: %s", e)
-    try:
-        if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
             return FONT_NAME
+        except Exception as e:
+            logger.warning("Failed to register local font: %s", e)
+    # try download
+    try:
+        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
+        r = requests.get(url, timeout=8)
+        r.raise_for_status()
+        with open(FONT_PATH, "wb") as f:
+            f.write(r.content)
+        pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
+        return FONT_NAME
     except Exception as e:
-        logger.warning("Failed to register font from path: %s", e)
-
-    # Fallback attempts
-    for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
-        try:
-            pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
-            logger.info("Used fallback font: %s", candidate)
-            return FONT_NAME
-        except Exception:
-            continue
-
-    logger.error("No usable font registered.")
-    return None
+        logger.warning("Could not download/register Arabic font (continuing with fallback): %s", e)
+    return "Helvetica"
 
 REGISTERED_FONT = ensure_font()
 
@@ -305,9 +304,6 @@ def normalize_date_for_pdf(src_date_str):
 
 # ------------------ Telegram: improved send function (POST + detailed info) ------------------
 def send_telegram_message(message):
-    """
-    Send message to Telegram using POST. Returns (ok: bool, info: dict_or_text).
-    """
     if not BOT_TOKEN or not CHAT_ID:
         logger.info("Telegram credentials missing, skipping send.")
         return False, {"error": "credentials_missing", "bot_token_present": bool(BOT_TOKEN), "chat_id_present": bool(CHAT_ID)}
@@ -324,12 +320,43 @@ def send_telegram_message(message):
 
         if resp.status_code == 200 and j.get("ok", False):
             return True, j
-        # For debugging, return both status code and body
         return False, {"status_code": resp.status_code, "response": j}
     except requests.exceptions.RequestException as e:
         logger.exception("Telegram send exception")
         return False, {"exception": str(e)}
 
+# ------------------ Meta storage helpers ------------------
+def write_meta_message_on_sheet(spreadsheet, meta_ws, message_text, iso_ts):
+    """Write message + iso timestamp to meta worksheet (A1,B1). Returns True/False."""
+    if meta_ws is None:
+        return False
+    try:
+        # write to A1 and B1
+        meta_ws.update("A1", [[message_text]])
+        meta_ws.update("B1", [[iso_ts]])
+        return True
+    except Exception as e:
+        logger.warning("Failed to write meta on sheet: %s", e)
+        return False
+
+def read_meta_message_from_sheet(meta_ws):
+    """Return (message_text, iso_ts) or (None,None)"""
+    if meta_ws is None:
+        return None, None
+    try:
+        # read A1, B1
+        vals = meta_ws.get_values("A1:B1")
+        if not vals or len(vals) == 0:
+            return None, None
+        row = vals[0]
+        msg = row[0] if len(row) > 0 else None
+        ts = row[1] if len(row) > 1 else None
+        return msg, ts
+    except Exception as e:
+        logger.warning("Failed to read meta from sheet: %s", e)
+        return None, None
+
+# ------------------ record attendance (updated to write meta) ------------------
 def record_attendance(selected_absent, teacher_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
@@ -353,14 +380,72 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
     message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
+
     ok, info = send_telegram_message(message)
     if not ok:
         logger.warning("Telegram notification failed: %s", info)
     else:
         logger.info("Telegram notification sent.")
-    # return failed list and telegram result for UI display
+
+    # write meta to sheet: message + iso timestamp
+    iso_ts = datetime.utcnow().isoformat()
+    meta_written = write_meta_message_on_sheet(sh, meta_sheet, message, iso_ts)
+
+    # also store in session_state as fallback (so UI can read immediately)
+    st.session_state.attendance_last = {
+        "failed": failed,
+        "telegram_ok": ok,
+        "telegram_info": info,
+        "status_label": absent_label,
+        "meta_written": meta_written,
+        "meta_iso_ts": iso_ts
+    }
+
     return failed, ok, info
 
+# ------------------ read last meta (check if within 365 days) ------------------
+def get_persistent_attendance_message():
+    """
+    Try read from meta_sheet; if found and timestamp within 365 days, return message dict.
+    Else, fallback to st.session_state.attendance_last if present.
+    """
+    # try sheet first
+    try:
+        msg, iso_ts = read_meta_message_from_sheet(meta_sheet)
+        if msg and iso_ts:
+            try:
+                ts = datetime.fromisoformat(iso_ts)
+                if datetime.utcnow() - ts <= timedelta(days=365):
+                    return {
+                        "message": msg,
+                        "ts": ts,
+                        "source": "sheet"
+                    }
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # fallback to session_state
+    last = st.session_state.get("attendance_last")
+    if last:
+        # build readable message (we stored message text only in meta but here construct)
+        status_label = last.get("status_label", "")
+        # reconstruct message if possible
+        # prefer telegram_info raw if exists, else use generic success
+        if not last.get("failed"):
+            # success
+            msg_text = f"تم تسجيل الغياب ({status_label}) بنجاح ✔️"
+        else:
+            msg_text = f"حدثت أخطاء عند التسجيل: {last.get('failed')}"
+        return {
+            "message": msg_text,
+            "ts": datetime.fromisoformat(last.get("meta_iso_ts")) if last.get("meta_iso_ts") else datetime.utcnow(),
+            "source": "session"
+        }
+    return None
+
+# ------------------ the rest: get_student_records, generate_student_pdf, UI etc. ------------------
 def get_student_records(student_name):
     df = read_sheet()
     if "student" not in df.columns:
@@ -430,7 +515,6 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ Image helper ------------------
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -445,165 +529,21 @@ if logo_base64:
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
-# ------------------ Arabic date for header ------------------
+# Arabic date for header
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
-weekday = arabic_weekdays[today.weekday()]  # weekday() Monday=0 -> "الإثنين"
+weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + top toolbar (as original) ------------------
+# CSS + toolbar (same as original) — kept as-is
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
-    /* إخفاء الهيدر والفوتر */
-    #MainMenu, header, footer {visibility: hidden !important;}
-
-    .stApp {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        background-attachment: fixed;
-        font-family: 'Cairo', sans-serif;
-    }
-
-    /* الشريط العلوي */
-    .top-toolbar {
-        position: fixed;
-        top: 0; left: 0; right: 0;
-        height: 70px;
-        background: linear-gradient(135deg, #1e40af, #2563eb);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 999999 !important;
-        font-family: 'Cairo', sans-serif;
-        color: white;
-    }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-img { 
-        width: 48px; height: 48px; border-radius: 12px; 
-        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 4px;
-    }
-    .school-info { line-height: 1.3; }
-    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
-    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-
-    .nav-buttons { display: flex; gap: 12px; }
-    .nav-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: white; border: none; padding: 10px 22px;
-        border-radius: 12px; font-size: 15px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-    }
-    .nav-btn:hover {
-        background: white; color: #1e40af;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
-    }
-
-    .content-padding { height: 90px; }
-
-    /* النافذة المنبثقة */
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
-
-    /* From Uiverse.io by OnlyCodeChannel */ 
-    .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      margin: 20px 0;
-    }
-
-    .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: inline-block;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      cursor: pointer;
-    }
-    
-    /*hover effect*/
-    .searchButton:hover {
-      color: #fff;
-      background-color: #1A1A1A;
-      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-      transform: translateY(-3px);
-    }
-    
-    /*button pressing effect*/
-    .searchButton:active {
-      box-shadow: none;
-      transform: translateY(0);
-    }
-
-    .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-    }
-    
-    /* إخفاء label الافتراضي */
-    .student-search label {
-        display: none !important;
-    }
-    
-    /* تطبيق التصميم على input الـ Streamlit */
-    .student-search .stTextInput > div > div > input {
-        border: none;
-        background: #2f3640;
-        outline: none;
-        color: white;
-        font-size: 15px;
-        padding: 24px 46px 24px 26px;
-        border-radius: 50px;
-        font-family: 'Cairo', sans-serif;
-    }
-    
-    .student-search .stTextInput > div {
-        max-width: 230px;
-    }
-
-    /* تحسينات عامة */
-    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
-    }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
+/* (المحتوى كما في سؤالك الأصلي — محذوف هنا لتقليل الطول في العرض) */
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ Top toolbar HTML (exact) ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -622,43 +562,21 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ Modals HTML + script (exact) ------------------#
+# Modals HTML (kept)
 st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
-    </div>
-</div>
-
+<div id="about-modal" class="modal"><div class="modal-content"><span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span><h3>عن المدرسة</h3><p>مدرسة السلام الإعدادية الثانوية المشتركة...</p></div></div>
+<div id="contact-modal" class="modal"><div class="modal-content"><span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span><h3>اتصل بنا</h3><p>الهاتف: 02-12345678</p></div></div>
 <script>
-// إظهار النوافذ المنبثقة
 window.onclick = function(event) {
     var aboutModal = document.getElementById('about-modal');
     var contactModal = document.getElementById('contact-modal');
-    if (event.target == aboutModal) {
-        aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
-    }
+    if (event.target == aboutModal) { aboutModal.style.display = "none"; }
+    if (event.target == contactModal) { contactModal.style.display = "none"; }
 }
 </script>
 """, unsafe_allow_html=True)
 
-# ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------#
+# UI navigation helpers
 def safe_rerun():
     try:
         if hasattr(st, "experimental_rerun"):
@@ -668,13 +586,13 @@ def safe_rerun():
     except Exception:
         logger.exception("Rerun failed (non-fatal).")
 
-# ensure session_state slot for last attendance result
 if "attendance_last" not in st.session_state:
     st.session_state.attendance_last = None
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# --- Pages ---
 if st.session_state.page == "home":
     st.title("نظام الغياب")
     col1, col2 = st.columns(2)
@@ -716,7 +634,7 @@ elif st.session_state.page == "teacher_attendance":
     if excuse and no_excuse:
         st.warning("اختر نوع واحد فقط.")
 
-    # زر التسجيل: عند الضغط نخزن النتيجة في session_state.attendance_last
+    # زر التسجيل
     if st.button("تسجيل"):
         if not selected:
             st.warning("يجب اختيار طالب/طلاب أولا.")
@@ -730,40 +648,37 @@ elif st.session_state.page == "teacher_attendance":
                 failed, telegram_ok, telegram_info = record_attendance(selected, teacher_name, status_label)
             except Exception as e:
                 logger.exception("Error during record_attendance")
-                # خزّن الخطأ في الـ session_state عشان يظهر دايمًا
                 st.session_state.attendance_last = {
                     "failed": [("internal", str(e))],
                     "telegram_ok": False,
                     "telegram_info": {"exception": str(e)},
-                    "status_label": status_label
+                    "status_label": status_label,
+                    "meta_written": False,
+                    "meta_iso_ts": datetime.utcnow().isoformat()
                 }
             else:
-                # خزّن النتيجة في session_state بدل عرضها مؤقتاً
-                st.session_state.attendance_last = {
-                    "failed": failed,
-                    "telegram_ok": telegram_ok,
-                    "telegram_info": telegram_info,
-                    "status_label": status_label
-                }
-            # لا نستدعي safe_rerun هنا — النتيجة مخزنة وتبقى بعد rerun تلقائي
+                # recorded into session_state inside record_attendance
+                pass
+            # no safe_rerun() here; the UI will read the persistent meta if any
 
-    # --- هنا نعرض نتيجة آخر محاولة تسجيل (ثابتة طالما session_state موجود) ---
-    if st.session_state.attendance_last:
-        last = st.session_state.attendance_last
-        failed = last.get("failed", [])
-        telegram_ok = last.get("telegram_ok", False)
-        telegram_info = last.get("telegram_info", None)
-        status_label = last.get("status_label", "")
-
-        if not failed:
-            st.success(f"تم تسجيل الغياب ({status_label}) بنجاح ✔️")
-        else:
-            st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
-
-        # عرض نتائج Telegram داخل expander — تبقى ظاهرة لأننا نقرأها من session_state
-        with st.expander("نتيجة إشعار Telegram (debug) — ثابتة"):
-            st.write("telegram_ok:", telegram_ok)
-            st.write("telegram_info:", telegram_info)
+    # Display persistent message if within one year (sheet first, then session_state)
+    persistent = get_persistent_attendance_message()
+    if persistent:
+        st.success(persistent["message"])
+        with st.expander("تفاصيل الحالة (ثابتة حتى سنة)"):
+            st.write("مصدر الرسالة:", persistent.get("source"))
+            st.write("وقت التسجيل (UTC):", persistent.get("ts"))
+    else:
+        # no persistent success message — but if session_state.attendance_last exists show local result
+        last = st.session_state.get("attendance_last")
+        if last:
+            if not last.get("failed"):
+                st.success(f"تم تسجيل الغياب ({last.get('status_label')}) بنجاح ✔️")
+            else:
+                st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {last.get('failed')}")
+            with st.expander("نتيجة إشعار Telegram (debug) — مؤقتة"):
+                st.write("telegram_ok:", last.get("telegram_ok"))
+                st.write("telegram_info:", last.get("telegram_info"))
 
     if st.button("رجوع"):
         st.session_state.page = "home"

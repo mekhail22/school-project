@@ -1,6 +1,6 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح إرسال Telegram وظهور نتيجة الإرسال في الواجهة
+Grade 6 attendance app — مع إصلاح إرسال Telegram وظهور نتيجة الإرسال ثابتة في الواجهة
 (مهم: لا تضيف مفاتيح أو ملفات JSON في هذا الملف. استخدم st.secrets أو متغيرات البيئة.)
 """
 
@@ -622,7 +622,7 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ Modals HTML + script (exact) ------------------
+# ------------------ Modals HTML + script (exact) ------------------#
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
@@ -658,8 +658,7 @@ window.onclick = function(event) {
 </script>
 """, unsafe_allow_html=True)
 
-
-# ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------
+# ------------------ UI / Navigation (uses same flows as original Grade 6 app) ------------------#
 def safe_rerun():
     try:
         if hasattr(st, "experimental_rerun"):
@@ -668,6 +667,10 @@ def safe_rerun():
             st.rerun()
     except Exception:
         logger.exception("Rerun failed (non-fatal).")
+
+# ensure session_state slot for last attendance result
+if "attendance_last" not in st.session_state:
+    st.session_state.attendance_last = None
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -712,6 +715,8 @@ elif st.session_state.page == "teacher_attendance":
         no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
     if excuse and no_excuse:
         st.warning("اختر نوع واحد فقط.")
+
+    # زر التسجيل: عند الضغط نخزن النتيجة في session_state.attendance_last
     if st.button("تسجيل"):
         if not selected:
             st.warning("يجب اختيار طالب/طلاب أولا.")
@@ -723,20 +728,42 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             try:
                 failed, telegram_ok, telegram_info = record_attendance(selected, teacher_name, status_label)
-            except Exception:
+            except Exception as e:
                 logger.exception("Error during record_attendance")
-                st.error("حدث خطأ أثناء تسجيل الغياب. راجع السجلات (logs) للتفاصيل.")
+                # خزّن الخطأ في الـ session_state عشان يظهر دايمًا
+                st.session_state.attendance_last = {
+                    "failed": [("internal", str(e))],
+                    "telegram_ok": False,
+                    "telegram_info": {"exception": str(e)},
+                    "status_label": status_label
+                }
             else:
-                if not failed:
-                    st.success("تم تسجيل الغياب بنجاح")
-                else:
-                    st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+                # خزّن النتيجة في session_state بدل عرضها مؤقتاً
+                st.session_state.attendance_last = {
+                    "failed": failed,
+                    "telegram_ok": telegram_ok,
+                    "telegram_info": telegram_info,
+                    "status_label": status_label
+                }
+            # لا نستدعي safe_rerun هنا — النتيجة مخزنة وتبقى بعد rerun تلقائي
 
-                # show telegram result in UI (use expander)
-                with st.expander("نتيجة إشعار Telegram (debug)"):
-                    st.write("telegram_ok:", telegram_ok)
-                    st.write("telegram_info:", telegram_info)
-                safe_rerun()
+    # --- هنا نعرض نتيجة آخر محاولة تسجيل (ثابتة طالما session_state موجود) ---
+    if st.session_state.attendance_last:
+        last = st.session_state.attendance_last
+        failed = last.get("failed", [])
+        telegram_ok = last.get("telegram_ok", False)
+        telegram_info = last.get("telegram_info", None)
+        status_label = last.get("status_label", "")
+
+        if not failed:
+            st.success(f"تم تسجيل الغياب ({status_label}) بنجاح ✔️")
+        else:
+            st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+
+        # عرض نتائج Telegram داخل expander — تبقى ظاهرة لأننا نقرأها من session_state
+        with st.expander("نتيجة إشعار Telegram (debug) — ثابتة"):
+            st.write("telegram_ok:", telegram_ok)
+            st.write("telegram_info:", telegram_info)
 
     if st.button("رجوع"):
         st.session_state.page = "home"

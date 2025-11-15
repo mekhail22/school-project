@@ -49,39 +49,31 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
-# ------------------ تبسيط تحميل الـ Secrets ------------------
+# ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
-    """تحميل كل الإعدادات من Streamlit Secrets بشكل مبسط"""
+    """تحميل كل الإعدادات من Streamlit Secrets"""
     try:
         secrets = st.secrets
         
-        # Telegram - الطريقة المباشرة
+        # Telegram
         BOT_TOKEN = None
         CHAT_ID = None
         
-        # حاول الوصول للإعدادات بطرق مختلفة
-        if hasattr(secrets, 'telegram') and hasattr(secrets.telegram, 'bot_token'):
-            BOT_TOKEN = secrets.telegram.bot_token
-            CHAT_ID = secrets.telegram.chat_id
-        elif hasattr(secrets, 'TELEGRAM_BOT_TOKEN'):
-            BOT_TOKEN = secrets.TELEGRAM_BOT_TOKEN
-            CHAT_ID = secrets.TELEGRAM_CHAT_ID
+        if hasattr(secrets, 'telegram'):
+            if hasattr(secrets.telegram, 'bot_token'):
+                BOT_TOKEN = secrets.telegram.bot_token
+            if hasattr(secrets.telegram, 'chat_id'):
+                CHAT_ID = secrets.telegram.chat_id
         
         # App settings
-        PASSWORD = "1234"  # افتراضي
-        SHEET_NAME = "school_attendance"  # افتراضي
+        PASSWORD = getattr(secrets, 'PASSWORD', '1234')
+        SHEET_NAME = getattr(secrets, 'SHEET_NAME', 'school_attendance')
         
-        if hasattr(secrets, 'app') and hasattr(secrets.app, 'password'):
-            PASSWORD = secrets.app.password
-        if hasattr(secrets, 'app') and hasattr(secrets.app, 'PASSWORD'):
-            PASSWORD = secrets.app.PASSWORD
-        if hasattr(secrets, 'PASSWORD'):
-            PASSWORD = secrets.PASSWORD
-            
-        if hasattr(secrets, 'sheets') and hasattr(secrets.sheets, 'name'):
-            SHEET_NAME = secrets.sheets.name
-        if hasattr(secrets, 'SHEET_NAME'):
-            SHEET_NAME = secrets.SHEET_NAME
+        if hasattr(secrets, 'app'):
+            if hasattr(secrets.app, 'password'):
+                PASSWORD = secrets.app.password
+            if hasattr(secrets.app, 'PASSWORD'):
+                PASSWORD = secrets.app.PASSWORD
         
         # Service Account
         SERVICE_ACCOUNT = None
@@ -98,103 +90,38 @@ def load_secrets():
         
     except Exception as e:
         logger.error(f"خطأ في تحميل الإعدادات: {e}")
-        return None
+        return {
+            'BOT_TOKEN': None,
+            'CHAT_ID': None,
+            'PASSWORD': '1234',
+            'SHEET_NAME': 'school_attendance',
+            'SERVICE_ACCOUNT': None
+        }
 
 # تحميل الإعدادات
 secrets_config = load_secrets()
 
-if not secrets_config:
-    st.error("❌ فشل في تحميل إعدادات التطبيق. تأكد من ضبط Secrets في Streamlet Cloud.")
-    st.stop()
-
-# تعيين المتغيرات
 BOT_TOKEN = secrets_config['BOT_TOKEN']
 CHAT_ID = secrets_config['CHAT_ID']
 PASSWORD = secrets_config['PASSWORD']
 SHEET_NAME = secrets_config['SHEET_NAME']
 SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
-# ------------------ عرض حالة الإعدادات ------------------
-def show_secrets_status():
-    """عرض حالة الإعدادات في الـ sidebar"""
-    st.sidebar.markdown("### 🔧 حالة الإعدادات")
-    
-    # Telegram
-    if BOT_TOKEN and CHAT_ID:
-        st.sidebar.success("✅ Telegram: جاهز")
-        st.sidebar.write(f"BOT_TOKEN: ✅ موجود")
-        st.sidebar.write(f"CHAT_ID: ✅ موجود")
-    else:
-        st.sidebar.error("❌ Telegram: غير مكتمل")
-        st.sidebar.write(f"BOT_TOKEN: {'✅' if BOT_TOKEN else '❌'}")
-        st.sidebar.write(f"CHAT_ID: {'✅' if CHAT_ID else '❌'}")
-    
-    # Service Account
-    if SERVICE_ACCOUNT:
-        st.sidebar.success("✅ Google Sheets: جاهز")
-        st.sidebar.write(f"Service Account: ✅ موجود")
-    else:
-        st.sidebar.error("❌ Google Sheets: غير مكتمل")
-    
-    # App Settings
-    st.sidebar.info(f"🔑 كلمة السر: {'✅' if PASSWORD else '❌'}")
-    st.sidebar.info(f"📊 اسم الورقة: {SHEET_NAME}")
-
-# استدعاء الدالة
-show_secrets_status()
-
-# ------------------ التحقق من الإعدادات المطلوبة ------------------
-if not SERVICE_ACCOUNT:
-    st.error("""
-    ❌ SERVICE_ACCOUNT غير موجود في Secrets.
-    
-    أضف هذه الإعدادات في Streamlit Cloud:
-    1. اذهب إلى Settings → Secrets
-    2. الصق هذا الكود:
-    
-    ```toml
-    [SERVICE_ACCOUNT]
-    type = "service_account"
-    project_id = "مشروعك"
-    private_key_id = "المفتاح"
-    private_key = \"\"\"-----BEGIN PRIVATE KEY-----
-    ...
-    -----END PRIVATE KEY-----\"\"\"
-    client_email = "الحساب@المشروع.iam.gserviceaccount.com"
-    client_id = "الرقم"
-    auth_uri = "https://accounts.google.com/o/oauth2/auth"
-    token_uri = "https://oauth2.googleapis.com/token"
-    auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-    client_x509_cert_url = "الرابط"
-    ```
-    """)
-    st.stop()
-
-# ------------------ Connect to Google Sheets ------------------
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-try:
-    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-    gc = gspread.authorize(creds)
-except Exception as e:
-    logger.exception("Google API auth failed")
-    st.error("خطأ في تهيئة اعتماد Google API: " + str(e))
-    st.stop()
-
-try:
-    sh = gc.open(SHEET_NAME)
-    worksheet = sh.sheet1
-    st.sidebar.success("✅ تم الاتصال بـ Google Sheets")
-except Exception as e:
-    logger.exception("Failed opening sheet")
-    st.error(f"""
-    خطأ في فتح Google Sheet: {str(e)}
-    
-    تأكد من:
-    1. اسم المصنف: {SHEET_NAME}
-    2. مشاركة الـ Sheet مع: {SERVICE_ACCOUNT.get('client_email', 'بريد الخدمة')}
-    3. منح صلاحية Editor للحساب
-    """)
-    st.stop()
+# ------------------ الاتصال بـ Google Sheets ------------------
+worksheet = None
+if SERVICE_ACCOUNT:
+    try:
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        sh = gc.open(SHEET_NAME)
+        worksheet = sh.sheet1
+        logger.info("تم الاتصال بـ Google Sheets بنجاح")
+    except Exception as e:
+        logger.error(f"فشل الاتصال بـ Google Sheets: {e}")
+        worksheet = None
+else:
+    logger.warning("SERVICE_ACCOUNT غير موجود، التطبيق سيعمل بدون اتصال Google Sheets")
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -218,7 +145,6 @@ def ensure_font():
     except Exception as e:
         logger.warning("Failed to register font from path: %s", e)
 
-    # Fallback attempts
     for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
         try:
             pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
@@ -241,11 +167,15 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
+    if worksheet is None:
+        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+    
     try:
         data = worksheet.get_all_records()
     except Exception as e:
         logger.exception("Failed to read sheet")
         return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+    
     df = pd.DataFrame(data)
     for c in ["student", "teacher", "status", "date"]:
         if c not in df.columns:
@@ -287,14 +217,10 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
-# ------------------ Telegram: improved send function ------------------
+# ------------------ Telegram functions ------------------
 def send_telegram_message(message):
-    """
-    Send message to Telegram using POST. Returns (ok: bool, info: dict_or_text).
-    """
     if not BOT_TOKEN or not CHAT_ID:
-        logger.info("Telegram credentials missing, skipping send.")
-        return False, {"error": "credentials_missing", "bot_token_present": bool(BOT_TOKEN), "chat_id_present": bool(CHAT_ID)}
+        return False, {"error": "credentials_missing"}
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message}
@@ -316,6 +242,7 @@ def send_telegram_message(message):
 def record_attendance(selected_absent, teacher_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
+    
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
     for student in STUDENTS:
@@ -323,21 +250,27 @@ def record_attendance(selected_absent, teacher_name, absent_label):
         rows.append([student, teacher_name, status, date_display])
 
     failed = []
-    try:
-        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-    except Exception:
-        logger.exception("Batch append failed, falling back to per-row append.")
-        for r in rows:
-            try:
-                worksheet.append_row(r, value_input_option="USER_ENTERED")
-            except Exception as ex:
-                logger.exception("append_row failed for %s", r[0])
-                failed.append((r[0], str(ex)))
+    
+    # حفظ في Google Sheets إذا كان متصلاً
+    if worksheet:
+        try:
+            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+        except Exception:
+            logger.exception("Batch append failed, falling back to per-row append.")
+            for r in rows:
+                try:
+                    worksheet.append_row(r, value_input_option="USER_ENTERED")
+                except Exception as ex:
+                    logger.exception("append_row failed for %s", r[0])
+                    failed.append((r[0], str(ex)))
+    else:
+        # إذا لم يكن متصلاً بـ Google Sheets
+        st.info("⚠️ التطبيق يعمل بدون اتصال بـ Google Sheets")
 
+    # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
     message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
     
-    # إرسال إلى Telegram مع عرض النتيجة
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
@@ -345,13 +278,12 @@ def record_attendance(selected_absent, teacher_name, absent_label):
         ok, info = send_telegram_message(message)
         if ok:
             telegram_status = "✅ تم الإرسال بنجاح"
-            telegram_details = f"تم إرسال الإشعار إلى Telegram"
+            telegram_details = "تم إرسال الإشعار إلى Telegram"
         else:
             telegram_status = "❌ فشل الإرسال"
             telegram_details = f"تفاصيل الخطأ: {info}"
     else:
         telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
-        telegram_details = f"BOT_TOKEN: {'موجود' if BOT_TOKEN else 'مفقود'}, CHAT_ID: {'موجود' if CHAT_ID else 'مفقود'}"
     
     return failed, telegram_status, telegram_details
 
@@ -359,12 +291,15 @@ def get_student_records(student_name):
     df = read_sheet()
     if "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
+    
     try:
         df_matches = df[df["student"].astype(str).str.contains(student_name, case=False, na=False)].copy()
     except Exception:
         df_matches = df[df["student"].astype(str).str.lower() == student_name.lower()].copy()
+    
     if df_matches.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
+    
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     df_matches = df_matches.rename(columns={
@@ -447,8 +382,200 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ باقي الكود بدون تغيير (CSS, HTML, UI) ------------------
-# ... [كل الكود الخاص بالواجهة والـ CSS يبقى كما هو بدون تغيير] ...
+# ------------------ CSS + top toolbar ------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+    #MainMenu, header, footer {visibility: hidden !important;}
+
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        font-family: 'Cairo', sans-serif;
+    }
+
+    .top-toolbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 70px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 999999 !important;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-img { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
+        background: white; padding: 4px;
+    }
+    .school-info { line-height: 1.3; }
+    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    }
+
+    .content-padding { height: 90px; }
+
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
+    }
+    
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
+    }
+    
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
+    
+    .student-search label {
+        display: none !important;
+    }
+    
+    .student-search .stTextInput > div > div > input {
+        border: none;
+        background: #2f3640;
+        outline: none;
+        color: white;
+        font-size: 15px;
+        padding: 24px 46px 24px 26px;
+        border-radius: 50px;
+        font-family: 'Cairo', sans-serif;
+    }
+    
+    .student-search .stTextInput > div {
+        max-width: 230px;
+    }
+
+    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------ Top toolbar HTML ------------------
+st.markdown(f"""
+<div class="top-toolbar">
+    <div class="logo-container">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+        <div class="school-info">
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+            <p class="school-date">{formatted_date}</p>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# ------------------ Modals HTML + script ------------------
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
+
+<script>
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    var contactModal = document.getElementById('contact-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+    if (event.target == contactModal) {
+        contactModal.style.display = "none";
+    }
+}
+</script>
+""", unsafe_allow_html=True)
 
 # ------------------ UI / Navigation ------------------
 def safe_rerun():
@@ -516,9 +643,8 @@ elif st.session_state.page == "teacher_attendance":
                 st.error(f"حدث خطأ أثناء تسجيل الغياب: {e}")
             else:
                 if not failed:
-                    st.success("✅ تم تسجيل الغياب بنجاح في Google Sheets")
+                    st.success("✅ تم تسجيل الغياب بنجاح")
                     
-                    # عرض حالة Telegram
                     if "✅" in telegram_status:
                         st.success(telegram_status)
                     elif "❌" in telegram_status:

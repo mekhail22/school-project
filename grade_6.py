@@ -115,8 +115,22 @@ if SERVICE_ACCOUNT:
         gc = gspread.authorize(creds)
         sh = gc.open(SHEET_NAME)
         worksheet = sh.sheet1
-    except Exception:
+        
+        # التأكد من وجود العناوين إذا كانت الورقة جديدة
+        try:
+            current_data = worksheet.get_all_records()
+            if not current_data:
+                headers = ["student", "teacher", "status", "date"]
+                worksheet.append_row(headers)
+        except Exception:
+            headers = ["student", "teacher", "status", "date"]
+            worksheet.append_row(headers)
+            
+    except Exception as e:
+        st.error(f"❌ فشل في الاتصال بـ Google Sheets: {str(e)}")
         worksheet = None
+else:
+    st.error("❌ SERVICE_ACCOUNT غير موجود في الـ Secrets")
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -240,21 +254,28 @@ def record_attendance(selected_absent, teacher_name, absent_label):
         rows.append([student, teacher_name, status, date_display])
 
     failed = []
+    success_count = 0
     
     # حفظ في Google Sheets إذا كان متصلاً
     if worksheet:
         try:
+            # إضافة جميع الصفوف مرة واحدة
             worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-        except Exception:
-            for r in rows:
-                try:
+            success_count = len(rows)
+        except Exception as e:
+            # إذا فشلت الإضافة الجماعية، نجرب إضافة كل صف على حدة
+            try:
+                for r in rows:
                     worksheet.append_row(r, value_input_option="USER_ENTERED")
-                except Exception:
-                    failed.append((r[0], "فشل في الحفظ"))
+                    success_count += 1
+            except Exception as ex:
+                failed.append(("جميع الطلاب", str(ex)))
+    else:
+        failed.append(("جميع الطلاب", "لا يوجد اتصال بـ Google Sheets"))
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}"
+    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
     
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
@@ -270,7 +291,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
     else:
         telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
     
-    return failed, telegram_status, telegram_details
+    return failed, telegram_status, telegram_details, success_count
 
 def get_student_records(student_name):
     df = read_sheet()
@@ -620,26 +641,27 @@ elif st.session_state.page == "teacher_attendance":
             st.warning("من فضلك اختر نوع الغياب.")
         else:
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            try:
-                failed, telegram_status, telegram_details = record_attendance(selected, teacher_name, status_label)
-            except Exception:
-                st.error("حدث خطأ أثناء تسجيل الغياب")
-            else:
-                if not failed:
-                    st.success("✅ تم تسجيل الغياب بنجاح")
-                    
-                    if "✅" in telegram_status:
-                        st.success(telegram_status)
-                    elif "❌" in telegram_status:
-                        st.warning(telegram_status)
-                    else:
-                        st.info(telegram_status)
-                        
-                    if telegram_details:
-                        with st.expander("تفاصيل إرسال Telegram"):
-                            st.write(telegram_details)
+            with st.spinner("جاري حفظ البيانات في Google Sheets..."):
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
                 else:
-                    st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+                    if not failed:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في Google Sheets")
+                        
+                        if "✅" in telegram_status:
+                            st.success(telegram_status)
+                        elif "❌" in telegram_status:
+                            st.warning(telegram_status)
+                        else:
+                            st.info(telegram_status)
+                            
+                        if telegram_details:
+                            with st.expander("تفاصيل إرسال Telegram"):
+                                st.write(telegram_details)
+                    else:
+                        st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
 
     if st.button("رجوع"):
         st.session_state.page = "home"

@@ -88,8 +88,7 @@ def load_secrets():
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
         
-    except Exception as e:
-        logger.error(f"خطأ في تحميل الإعدادات: {e}")
+    except Exception:
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
@@ -116,12 +115,8 @@ if SERVICE_ACCOUNT:
         gc = gspread.authorize(creds)
         sh = gc.open(SHEET_NAME)
         worksheet = sh.sheet1
-        logger.info("تم الاتصال بـ Google Sheets بنجاح")
-    except Exception as e:
-        logger.error(f"فشل الاتصال بـ Google Sheets: {e}")
+    except Exception:
         worksheet = None
-else:
-    logger.warning("SERVICE_ACCOUNT غير موجود، التطبيق سيعمل بدون اتصال Google Sheets")
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -135,25 +130,22 @@ def ensure_font():
             r.raise_for_status()
             with open(FONT_PATH, "wb") as f:
                 f.write(r.content)
-            logger.info("Downloaded Arabic font.")
-        except Exception as e:
-            logger.warning("Failed to download Arabic font: %s", e)
+        except Exception:
+            pass
     try:
         if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
             return FONT_NAME
-    except Exception as e:
-        logger.warning("Failed to register font from path: %s", e)
+    except Exception:
+        pass
 
     for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
         try:
             pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
-            logger.info("Used fallback font: %s", candidate)
             return FONT_NAME
         except Exception:
             continue
 
-    logger.error("No usable font registered.")
     return None
 
 REGISTERED_FONT = ensure_font()
@@ -172,8 +164,7 @@ def read_sheet():
     
     try:
         data = worksheet.get_all_records()
-    except Exception as e:
-        logger.exception("Failed to read sheet")
+    except Exception:
         return pd.DataFrame(columns=["student", "teacher", "status", "date"])
     
     df = pd.DataFrame(data)
@@ -235,9 +226,8 @@ def send_telegram_message(message):
         if resp.status_code == 200 and j.get("ok", False):
             return True, j
         return False, {"status_code": resp.status_code, "response": j}
-    except requests.exceptions.RequestException as e:
-        logger.exception("Telegram send exception")
-        return False, {"exception": str(e)}
+    except requests.exceptions.RequestException:
+        return False, {"exception": "Request failed"}
 
 def record_attendance(selected_absent, teacher_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
@@ -256,16 +246,11 @@ def record_attendance(selected_absent, teacher_name, absent_label):
         try:
             worksheet.append_rows(rows, value_input_option="USER_ENTERED")
         except Exception:
-            logger.exception("Batch append failed, falling back to per-row append.")
             for r in rows:
                 try:
                     worksheet.append_row(r, value_input_option="USER_ENTERED")
-                except Exception as ex:
-                    logger.exception("append_row failed for %s", r[0])
-                    failed.append((r[0], str(ex)))
-    else:
-        # إذا لم يكن متصلاً بـ Google Sheets
-        st.info("⚠️ التطبيق يعمل بدون اتصال بـ Google Sheets")
+                except Exception:
+                    failed.append((r[0], "فشل في الحفظ"))
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
@@ -364,8 +349,7 @@ def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode('utf-8')
-    except Exception as e:
-        logger.warning("Failed loading image %s: %s", image_path, e)
+    except Exception:
         return None
 
 logo_base64 = get_image_base64("images.jpeg")
@@ -582,7 +566,7 @@ def safe_rerun():
     try:
         st.rerun()
     except Exception:
-        logger.exception("Rerun failed (non-fatal).")
+        pass
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -638,9 +622,8 @@ elif st.session_state.page == "teacher_attendance":
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
             try:
                 failed, telegram_status, telegram_details = record_attendance(selected, teacher_name, status_label)
-            except Exception as e:
-                logger.exception("Error during record_attendance")
-                st.error(f"حدث خطأ أثناء تسجيل الغياب: {e}")
+            except Exception:
+                st.error("حدث خطأ أثناء تسجيل الغياب")
             else:
                 if not failed:
                     st.success("✅ تم تسجيل الغياب بنجاح")

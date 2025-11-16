@@ -714,7 +714,7 @@ elif st.session_state.page == "teacher_attendance":
 
     if st.button("رجوع"):
         st.session_state.page = "home"
-        st.experimental_rerun()
+        st.rerun()
 
 
 elif st.session_state.page == "student":
@@ -742,5 +742,6 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+
 
 

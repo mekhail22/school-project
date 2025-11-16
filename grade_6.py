@@ -664,7 +664,7 @@ if st.session_state.page == "home":
     col1, col2 = st.columns(2)
     with col1:
         if st.button("معلم"):
-            st.session_state.page = "teacher_login"
+            st.session_state.page = "teacher_attendance"
             safe_rerun()
     with col2:
         if st.button("طالب"):
@@ -708,13 +708,14 @@ elif st.session_state.page == "teacher_attendance":
             else:
                 # رسالة نجاح مختصرة فقط
                 if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح  ")
+                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
                 if failed:
                     st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
     if st.button("رجوع"):
         st.session_state.page = "home"
         st.rerun()
+
 
 
 elif st.session_state.page == "student":
@@ -742,6 +743,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-
-
 

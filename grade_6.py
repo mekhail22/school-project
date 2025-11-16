@@ -664,12 +664,26 @@ if st.session_state.page == "home":
     col1, col2 = st.columns(2)
     with col1:
         if st.button("معلم"):
-            st.session_state.page = "teacher_attendance"
+            st.session_state.page = "teacher_login"
             safe_rerun()
     with col2:
         if st.button("طالب"):
             st.session_state.page = "student"
             safe_rerun()
+elif st.session_state.page == "teacher_login":
+    st.header("تسجيل دخول المعلم")
+    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+    pwd = st.text_input("كلمة السر:", type="password")
+    if st.button("تسجيل الدخول"):
+        if pwd == PASSWORD:
+            st.session_state.teacher_name = teacher_choice
+            st.session_state.page = "teacher_attendance"
+            st.rerun()
+        else:
+            st.error("كلمة السر غير صحيحة")
+    if st.button("رجوع"):
+        st.session_state.page = "home"
+        st.rerun()
 
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")

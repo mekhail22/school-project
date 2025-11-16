@@ -114,33 +114,66 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
 # ------------------ الاتصال بـ Google Sheets ------------------
 worksheet = None
+connection_status = "غير متصل"
+
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
         # التحقق من صحة الـ private key
         private_key = SERVICE_ACCOUNT['private_key']
         if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-            st.error("❌ تنسيق private key غير صحيح")
+            connection_status = "❌ تنسيق private key غير صحيح"
         else:
             SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            
+            # إصلاح نهائي للـ private key
+            if "\\n" in private_key:
+                SERVICE_ACCOUNT['private_key'] = private_key.replace("\\n", "\n")
+            
             creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
             gc = gspread.authorize(creds)
-            sh = gc.open(SHEET_NAME)
-            worksheet = sh.sheet1
             
-            # التأكد من وجود العناوين إذا كانت الورقة جديدة
+            # محاولة فتح الـ Sheet مع معالجة الأخطاء
             try:
-                current_data = worksheet.get_all_records()
-                if not current_data:
-                    headers = ["student", "teacher", "status", "date"]
-                    worksheet.append_row(headers)
-            except Exception:
-                headers = ["student", "teacher", "status", "date"]
-                worksheet.append_row(headers)
+                sh = gc.open(SHEET_NAME)
+                worksheet = sh.sheet1
+                
+                # اختبار الاتصال بمحاولة قراءة البيانات
+                try:
+                    current_data = worksheet.get_all_records()
+                    connection_status = "✅ متصل بـ Google Sheets"
+                    
+                    # إذا كانت الورقة جديدة، أضف العناوين
+                    if not current_data:
+                        headers = ["student", "teacher", "status", "date"]
+                        worksheet.append_row(headers)
+                        st.success("✅ تم إنشاء الجدول بنجاح")
+                        
+                except Exception as e:
+                    # إذا فشلت القراءة، حاول إضافة العناوين
+                    try:
+                        headers = ["student", "teacher", "status", "date"]
+                        worksheet.append_row(headers)
+                        connection_status = "✅ متصل بـ Google Sheets - تم إنشاء جدول جديد"
+                    except Exception:
+                        connection_status = f"❌ خطأ في إنشاء الجدول: {str(e)}"
+                        
+            except gspread.exceptions.SpreadsheetNotFound:
+                connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
+            except gspread.exceptions.APIError as e:
+                connection_status = f"❌ خطأ في API: {str(e)}"
+            except Exception as e:
+                connection_status = f"❌ خطأ في الاتصال: {str(e)}"
                 
     except Exception as e:
-        worksheet = None
+        connection_status = f"❌ فشل في المصادقة: {str(e)}"
 else:
-    worksheet = None
+    connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
+
+# عرض حالة الاتصال
+if "✅" in connection_status:
+    st.success(connection_status)
+else:
+    st.error(connection_status)
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"

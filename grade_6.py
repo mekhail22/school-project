@@ -1,6 +1,6 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح إرسال Telegram وظهور نتيجة الإرسال في الواجهة
+Grade 6 attendance app — مع إصلاح شامل لمشكلة private key
 """
 
 import streamlit as st
@@ -51,40 +51,55 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ تحميل الـ Secrets ------------------
-def fix_private_key_format(private_key):
+def fix_private_key_completely(private_key):
     """
-    إصلاح مشاكل التنسيق الشائعة في private key
+    إصلاح شامل لمشاكل private key
     """
     if not private_key:
         return None
     
-    # إصلاح الـ newlines
-    if "\\n" in private_key:
-        private_key = private_key.replace("\\n", "\n")
+    # إذا كان المفتاح عبارة عن JSON كامل، نستخرج الـ private key فقط
+    if private_key.strip().startswith('{'):
+        try:
+            key_data = json.loads(private_key)
+            if 'private_key' in key_data:
+                private_key = key_data['private_key']
+        except:
+            pass
     
-    # إزالة المسافات الزائدة والأسطر الفارغة
+    # تنظيف المفتاح من أي مسافات زائدة
     private_key = private_key.strip()
     
-    # إذا كان المفتاح في سطر واحد، نقسمه إلى أسطر متعددة
+    # إصلاح الـ newlines بأنواعها المختلفة
+    private_key = private_key.replace("\\n", "\n")
+    private_key = private_key.replace("\\\\n", "\n")
+    private_key = private_key.replace("\\r", "\n")
+    
+    # إذا كان المفتاح في سطر واحد، نحاول تقسيمه
     if '-----BEGIN PRIVATE KEY-----' in private_key and '-----END PRIVATE KEY-----' in private_key:
-        # استخراج الجزء الأساسي من المفتاح
+        # استخراج المحتوى بين البداية والنهاية
         start = private_key.find('-----BEGIN PRIVATE KEY-----') + len('-----BEGIN PRIVATE KEY-----')
         end = private_key.find('-----END PRIVATE KEY-----')
         key_content = private_key[start:end].strip()
         
-        # إزالة أي مسافات أو newlines إضافية
+        # تنظيف المحتوى من المسافات والأسطر الفارغة
         key_content = re.sub(r'\s+', '', key_content)
         
         # إعادة بناء المفتاح بتنسيق صحيح
-        formatted_key = []
-        formatted_key.append('-----BEGIN PRIVATE KEY-----')
+        formatted_lines = ['-----BEGIN PRIVATE KEY-----']
         
         # تقسيم المحتوى إلى أسطر بطول 64 حرف
         for i in range(0, len(key_content), 64):
-            formatted_key.append(key_content[i:i+64])
+            formatted_lines.append(key_content[i:i+64])
             
-        formatted_key.append('-----END PRIVATE KEY-----')
-        private_key = '\n'.join(formatted_key)
+        formatted_lines.append('-----END PRIVATE KEY-----')
+        private_key = '\n'.join(formatted_lines)
+    
+    # التأكد من أن المفتاح يبدأ وينتهي بالرأس والذيل الصحيحين
+    if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+        private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
+    if not private_key.endswith('-----END PRIVATE KEY-----'):
+        private_key = private_key + '\n-----END PRIVATE KEY-----'
     
     return private_key
 
@@ -103,6 +118,12 @@ def validate_service_account(service_account):
     private_key = service_account['private_key']
     if not private_key or not isinstance(private_key, str):
         return False, "private key غير صالح أو غير موجود"
+    
+    if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+        return False, "تنسيق private key غير صحيح - يجب أن يبدأ بـ -----BEGIN PRIVATE KEY-----"
+    
+    if not private_key.endswith('-----END PRIVATE KEY-----'):
+        return False, "تنسيق private key غير صحيح - يجب أن ينتهي بـ -----END PRIVATE KEY-----"
     
     return True, "بيانات صالحة"
 
@@ -139,7 +160,7 @@ def load_secrets():
             # إصلاح شامل لـ private key
             if 'private_key' in SERVICE_ACCOUNT:
                 private_key = SERVICE_ACCOUNT['private_key']
-                SERVICE_ACCOUNT['private_key'] = fix_private_key_format(private_key)
+                SERVICE_ACCOUNT['private_key'] = fix_private_key_completely(private_key)
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -175,7 +196,7 @@ connection_details = ""
 
 def debug_secrets():
     """وظيفة للمساعدة في تشخيص مشاكل الـ Secrets"""
-    st.subheader("🔍 فحص الإعدادات")
+    st.subheader("🔍 فحص الإعدادات التفصيلي")
     
     secrets_config = load_secrets()
     
@@ -184,6 +205,8 @@ def debug_secrets():
     with col1:
         st.write("**إعدادات Telegram:**")
         st.write(f"- BOT_TOKEN: {'✅ موجود' if secrets_config['BOT_TOKEN'] else '❌ مفقود'}")
+        if secrets_config['BOT_TOKEN']:
+            st.write(f"  - الطول: {len(secrets_config['BOT_TOKEN'])} حرف")
         st.write(f"- CHAT_ID: {'✅ موجود' if secrets_config['CHAT_ID'] else '❌ مفقود'}")
         
         st.write("**إعدادات التطبيق:**")
@@ -196,15 +219,23 @@ def debug_secrets():
             sa = secrets_config['SERVICE_ACCOUNT']
             st.write(f"- type: {sa.get('type', '❌ مفقود')}")
             st.write(f"- project_id: {sa.get('project_id', '❌ مفقود')}")
+            st.write(f"- private_key_id: {sa.get('private_key_id', '❌ مفقود')}")
             st.write(f"- client_email: {sa.get('client_email', '❌ مفقود')}")
             st.write(f"- private_key: {'✅ موجود' if sa.get('private_key') else '❌ مفقود'}")
             
             if sa.get('private_key'):
-                pk_preview = sa['private_key'][:100] + "..." if len(sa['private_key']) > 100 else sa['private_key']
-                st.text_area("معاينة Private Key (أول 100 حرف):", pk_preview, height=80)
+                pk = sa['private_key']
+                st.write(f"  - الطول: {len(pk)} حرف")
+                st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
+                st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
+                
+                # عرض أول وآخر 100 حرف
+                st.text_area("أول 100 حرف من private key:", pk[:100], height=60)
+                st.text_area("آخر 100 حرف من private key:", pk[-100:], height=60)
         else:
             st.write("❌ Service Account غير متوفر")
 
+# محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
         # التحقق من صحة Service Account أولاً
@@ -215,45 +246,50 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
         else:
             # إصلاح الـ private key نهائياً
             private_key = SERVICE_ACCOUNT['private_key']
-            SERVICE_ACCOUNT['private_key'] = fix_private_key_format(private_key)
+            SERVICE_ACCOUNT['private_key'] = fix_private_key_completely(private_key)
             
             SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
             
-            creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-            gc = gspread.authorize(creds)
-            
-            # محاولة فتح الـ Sheet
+            # محاولة المصادقة
             try:
-                sh = gc.open(SHEET_NAME)
-                worksheet = sh.sheet1
+                creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+                gc = gspread.authorize(creds)
                 
-                # اختبار الاتصال
+                # محاولة فتح الـ Sheet
                 try:
-                    current_data = worksheet.get_all_records()
-                    connection_status = "✅ متصل بـ Google Sheets"
-                    connection_details = f"تم تحميل {len(current_data)} سجل"
+                    sh = gc.open(SHEET_NAME)
+                    worksheet = sh.sheet1
                     
-                    # إذا كانت الورقة جديدة، أضف العناوين
-                    if not current_data:
-                        headers = ["student", "teacher", "status", "date"]
-                        worksheet.append_row(headers)
-                        connection_details += " - تم إنشاء جدول جديد"
+                    # اختبار الاتصال
+                    try:
+                        current_data = worksheet.get_all_records()
+                        connection_status = "✅ متصل بـ Google Sheets"
+                        connection_details = f"تم تحميل {len(current_data)} سجل"
                         
+                        # إذا كانت الورقة جديدة، أضف العناوين
+                        if not current_data:
+                            headers = ["student", "teacher", "status", "date"]
+                            worksheet.append_row(headers)
+                            connection_details += " - تم إنشاء جدول جديد"
+                            
+                    except Exception as e:
+                        st.warning(f"⚠️ مشكلة في قراءة البيانات: {str(e)}")
+                        connection_status = "✅ متصل ولكن هناك مشكلة في البيانات"
+                        
+                except gspread.exceptions.SpreadsheetNotFound:
+                    connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
+                except gspread.exceptions.APIError as e:
+                    connection_status = f"❌ خطأ في API: {str(e)}"
                 except Exception as e:
-                    st.warning(f"⚠️ مشكلة في قراءة البيانات: {str(e)}")
-                    connection_status = "✅ متصل ولكن هناك مشكلة في البيانات"
+                    connection_status = f"❌ خطأ في الاتصال: {str(e)}"
                     
-            except gspread.exceptions.SpreadsheetNotFound:
-                connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
-            except gspread.exceptions.APIError as e:
-                connection_status = f"❌ خطأ في API: {str(e)}"
             except Exception as e:
-                connection_status = f"❌ خطأ في الاتصال: {str(e)}"
+                connection_status = f"❌ فشل في المصادقة: {str(e)}"
+                # عرض تفاصيل أكثر للمساعدة في التشخيص
+                st.error(f"تفاصيل الخطأ في المصادقة: {str(e)}")
                 
     except Exception as e:
-        connection_status = f"❌ فشل في المصادقة: {str(e)}"
-        # عرض تفاصيل أكثر للمساعدة في التشخيص
-        st.error(f"تفاصيل الخطأ: {str(e)}")
+        connection_status = f"❌ فشل في معالجة Service Account: {str(e)}"
 else:
     connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
@@ -265,9 +301,37 @@ if "✅" in connection_status:
 else:
     st.error(connection_status)
     # عرض فحص الإعدادات إذا كان هناك مشكلة
-    with st.expander("🔍 فحص الإعدادات - للمساعدة في التشخيص"):
+    with st.expander("🔍 فحص الإعدادات التفصيلي - للمساعدة في التشخيص"):
         debug_secrets()
+    
+    # إضافة اقتراحات استكشاف الأخطاء وإصلاحها
+    st.markdown("""
+    ### 🛠️ استكشاف الأخطاء وإصلاحها:
+    
+    1. **تحقق من تنسيق Service Account في Streamlit Secrets:**
+       - يجب أن يكون الـ private key بتنسيق صحيح
+       - تأكد من وجود جميع الحقول المطلوبة
+    
+    2. **طريقة بديلة: استخدم ملف JSON مباشرة**
+       ```python
+       # في secrets.toml
+       SERVICE_ACCOUNT_JSON = '''
+       {
+         "type": "service_account",
+         "project_id": "...",
+         "private_key_id": "...",
+         "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
+         "client_email": "...",
+         "client_id": "...",
+         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+         "token_uri": "https://oauth2.googleapis.com/token",
+         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+       }
+       '''
+       ```
+    """)
 
+# باقي الكود يبقى كما هو...
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"

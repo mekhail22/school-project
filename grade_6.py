@@ -708,27 +708,15 @@ elif st.session_state.page == "teacher_attendance":
             st.warning("من فضلك اختر نوع الغياب.")
         else:
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            with st.spinner("جاري حفظ البيانات في Google Sheets..."):
-                try:
-                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                else:
-                    if not failed:
-                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في Google Sheets")
-                        
-                        if "✅" in telegram_status:
-                            st.success(telegram_status)
-                        elif "❌" in telegram_status:
-                            st.warning(telegram_status)
-                        else:
-                            st.info(telegram_status)
-                            
-                        if telegram_details:
-                            with st.expander("تفاصيل إرسال Telegram"):
-                                st.write(telegram_details)
-                    else:
-                        st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+            # تسجيل الغياب
+failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+
+# عرض رسالة نجاح مختصرة فقط
+if success_count > 0:
+    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+if failed:
+    st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+
 
     if st.button("رجوع"):
         st.session_state.page = "home"

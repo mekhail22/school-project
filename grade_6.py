@@ -722,7 +722,7 @@ elif st.session_state.page == "teacher_attendance":
             else:
                 # رسالة نجاح مختصرة فقط
                 if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    st.success(f"✅ تم تسجيل الغياب بنجاح ")
                 if failed:
                     st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
@@ -757,4 +757,5 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+
 

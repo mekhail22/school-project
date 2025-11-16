@@ -1,6 +1,6 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح كامل لتحميل الـ Secrets
+Grade 6 attendance app — مع إصلاح نهائي باستخدام JSON
 """
 
 import streamlit as st
@@ -12,7 +12,6 @@ import json
 import logging
 import base64
 import requests
-import re
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -51,168 +50,23 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ تحميل الـ Secrets ------------------
-def debug_all_secrets():
-    """عرض جميع الـ secrets المتاحة للمساعدة في التشخيص"""
-    st.subheader("🔍 فحص جميع الـ Secrets المتاحة")
-    
-    try:
-        secrets = st.secrets
-        st.write("**جميع أقسام الـ secrets:**")
-        
-        # عرض جميع attributes المتاحة
-        for attr in dir(secrets):
-            if not attr.startswith('_'):
-                try:
-                    value = getattr(secrets, attr)
-                    st.write(f"- {attr}: {type(value)}")
-                    
-                    # إذا كان قسمًا (مثل telegram, app, etc)
-                    if hasattr(value, '__dict__') or (hasattr(value, '__class__') and not isinstance(value, (str, int, float, bool))):
-                        st.write(f"  محتويات {attr}:")
-                        for sub_attr in dir(value):
-                            if not sub_attr.startswith('_'):
-                                try:
-                                    sub_value = getattr(value, sub_attr)
-                                    if isinstance(sub_value, (str, int, float, bool)):
-                                        st.write(f"    - {sub_attr}: {'*' * len(str(sub_value)) if 'key' in sub_attr.lower() or 'token' in sub_attr.lower() or 'password' in sub_attr.lower() else sub_value}")
-                                except:
-                                    pass
-                except:
-                    pass
-                    
-    except Exception as e:
-        st.error(f"خطأ في فحص الـ secrets: {e}")
-
-def fix_private_key_completely(private_key):
-    """
-    إصلاح شامل لمشاكل private key
-    """
-    if not private_key:
-        return None
-    
-    # تنظيف المفتاح
-    private_key = private_key.strip()
-    
-    # إصلاح جميع أنواع newlines
-    private_key = private_key.replace("\\n", "\n")
-    private_key = private_key.replace("\\\\n", "\n")
-    private_key = private_key.replace("\\r", "\n")
-    private_key = private_key.replace("\r\n", "\n")
-    
-    # إذا كان المفتاح يحتوي على """ نزيلها
-    private_key = private_key.replace('"""', '')
-    private_key = private_key.replace('"', '')
-    
-    # التأكد من أن المفتاح يبدأ وينتهي بالرأس والذيل الصحيحين
-    if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-        private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
-    if not private_key.endswith('-----END PRIVATE KEY-----'):
-        private_key = private_key + '\n-----END PRIVATE KEY-----'
-    
-    # تنظيف المسافات الزائدة بين الأسطر
-    lines = private_key.split('\n')
-    cleaned_lines = []
-    
-    for line in lines:
-        line = line.strip()
-        if line and not line.isspace():
-            cleaned_lines.append(line)
-    
-    private_key = '\n'.join(cleaned_lines)
-    
-    return private_key
-
 def load_secrets():
-    """تحميل الإعدادات من Streamlit Secrets"""
+    """تحميل الإعدادات من Streamlit Secrets باستخدام JSON"""
     try:
         secrets = st.secrets
         
         # Telegram
-        BOT_TOKEN = None
-        CHAT_ID = None
-        
-        # محاولة الوصول إلى telegram بطرق مختلفة
-        try:
-            if hasattr(secrets, 'telegram'):
-                BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None)
-                CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
-            elif hasattr(secrets, 'TELEGRAM_BOT_TOKEN'):
-                BOT_TOKEN = secrets.TELEGRAM_BOT_TOKEN
-                CHAT_ID = secrets.TELEGRAM_CHAT_ID
-        except:
-            pass
+        BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None)
+        CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
         # App settings
-        PASSWORD = "1234"
-        SHEET_NAME = "school_attendance"
+        PASSWORD = getattr(secrets.app, 'password', '1234')
+        SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
-        try:
-            if hasattr(secrets, 'app'):
-                PASSWORD = getattr(secrets.app, 'password', '1234')
-            elif hasattr(secrets, 'PASSWORD'):
-                PASSWORD = secrets.PASSWORD
-        except:
-            pass
-        
-        try:
-            if hasattr(secrets, 'sheets'):
-                SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
-            elif hasattr(secrets, 'SHEET_NAME'):
-                SHEET_NAME = secrets.SHEET_NAME
-        except:
-            pass
-        
-        # Service Account - البحث بطرق مختلفة
+        # Service Account من JSON
         SERVICE_ACCOUNT = None
-        
-        # الطريقة 1: SERVICE_ACCOUNT كقسم
-        try:
-            if hasattr(secrets, 'SERVICE_ACCOUNT'):
-                SERVICE_ACCOUNT = {
-                    'type': getattr(secrets.SERVICE_ACCOUNT, 'type', ''),
-                    'project_id': getattr(secrets.SERVICE_ACCOUNT, 'project_id', ''),
-                    'private_key_id': getattr(secrets.SERVICE_ACCOUNT, 'private_key_id', ''),
-                    'private_key': getattr(secrets.SERVICE_ACCOUNT, 'private_key', ''),
-                    'client_email': getattr(secrets.SERVICE_ACCOUNT, 'client_email', ''),
-                    'client_id': getattr(secrets.SERVICE_ACCOUNT, 'client_id', ''),
-                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
-                }
-        except Exception as e:
-            st.warning(f"لم يتم العثور على SERVICE_ACCOUNT كقسم: {e}")
-        
-        # الطريقة 2: SERVICE_ACCOUNT_JSON
-        if not SERVICE_ACCOUNT or not SERVICE_ACCOUNT.get('private_key'):
-            try:
-                if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
-                    import json
-                    SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
-            except:
-                pass
-        
-        # الطريقة 3: الحقول المنفردة
-        if not SERVICE_ACCOUNT or not SERVICE_ACCOUNT.get('private_key'):
-            try:
-                SERVICE_ACCOUNT = {
-                    'type': getattr(secrets, 'type', 'service_account'),
-                    'project_id': getattr(secrets, 'project_id', ''),
-                    'private_key_id': getattr(secrets, 'private_key_id', ''),
-                    'private_key': getattr(secrets, 'private_key', ''),
-                    'client_email': getattr(secrets, 'client_email', ''),
-                    'client_id': getattr(secrets, 'client_id', ''),
-                    'auth_uri': getattr(secrets, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': getattr(secrets, 'token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': getattr(secrets, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': getattr(secrets, 'client_x509_cert_url', '')
-                }
-            except:
-                pass
-        
-        # إصلاح private key إذا كان موجودًا
-        if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
-            SERVICE_ACCOUNT['private_key'] = fix_private_key_completely(SERVICE_ACCOUNT['private_key'])
+        if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
+            SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -278,59 +132,39 @@ def debug_secrets():
                 st.write(f"  - الطول: {len(pk)} حرف")
                 st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
                 st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
-                
-                # عرض أول 5 أسطر
-                lines = pk.split('\n')
-                st.write("**أول 5 أسطر من private key:**")
-                for i, line in enumerate(lines[:5]):
-                    st.write(f"  {i+1}: {line}")
-                
         else:
             st.write("❌ Service Account غير متوفر")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
-        # التحقق من صحة private key
-        private_key = SERVICE_ACCOUNT['private_key']
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         
-        # فحص نهائي للـ private key
-        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-            connection_status = "❌ تنسيق private key غير صحيح - لا يبدأ بالرأس الصحيح"
-        elif not private_key.endswith('-----END PRIVATE KEY-----'):
-            connection_status = "❌ تنسيق private key غير صحيح - لا ينتهي بالذيل الصحيح"
-        else:
-            SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        # استخدام JSON مباشرة
+        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        
+        # محاولة فتح الـ Sheet
+        try:
+            sh = gc.open(SHEET_NAME)
+            worksheet = sh.sheet1
             
-            # محاولة المصادقة
+            # اختبار الاتصال
             try:
-                creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-                gc = gspread.authorize(creds)
+                current_data = worksheet.get_all_records()
+                connection_status = "✅ متصل بـ Google Sheets"
+                connection_details = f"تم تحميل {len(current_data)} سجل"
                 
-                # محاولة فتح الـ Sheet
-                try:
-                    sh = gc.open(SHEET_NAME)
-                    worksheet = sh.sheet1
-                    
-                    # اختبار الاتصال
-                    try:
-                        current_data = worksheet.get_all_records()
-                        connection_status = "✅ متصل بـ Google Sheets"
-                        connection_details = f"تم تحميل {len(current_data)} سجل"
-                        
-                    except Exception as e:
-                        connection_status = f"✅ متصل ولكن خطأ في القراءة: {str(e)}"
-                        
-                except gspread.exceptions.SpreadsheetNotFound:
-                    connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
-                except Exception as e:
-                    connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
-                    
             except Exception as e:
-                connection_status = f"❌ فشل في المصادقة: {str(e)}"
+                connection_status = f"✅ متصل ولكن خطأ في القراءة: {str(e)}"
                 
+        except gspread.exceptions.SpreadsheetNotFound:
+            connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
+        except Exception as e:
+            connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
+            
     except Exception as e:
-        connection_status = f"❌ خطأ عام: {str(e)}"
+        connection_status = f"❌ فشل في المصادقة: {str(e)}"
 else:
     connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
@@ -343,11 +177,8 @@ else:
     st.error(connection_status)
     with st.expander("🔍 فحص الإعدادات التفصيلي"):
         debug_secrets()
-    with st.expander("🔍 فحص جميع الـ Secrets المتاحة"):
-        debug_all_secrets()
 
-# ------------------ باقي الكود يبقى كما هو ------------------
-# Arabic font for PDF
+# ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
 
@@ -379,7 +210,7 @@ def ensure_font():
 
 REGISTERED_FONT = ensure_font()
 
-# Helper functions
+# ------------------ Helper functions ------------------
 def reshape_arabic_text(text):
     try:
         reshaped = arabic_reshaper.reshape(str(text))
@@ -437,7 +268,7 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
-# Telegram functions
+# ------------------ Telegram functions ------------------
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
         return False, {"error": "credentials_missing"}
@@ -580,7 +411,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# Image helper
+# ------------------ Image helper ------------------
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -594,7 +425,7 @@ if logo_base64:
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
-# Arabic date for header
+# ------------------ Arabic date for header ------------------
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -606,12 +437,15 @@ formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
     #MainMenu, header, footer {visibility: hidden !important;}
+
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
     }
+
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -635,6 +469,7 @@ st.markdown("""
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
+
     .nav-buttons { display: flex; gap: 12px; }
     .nav-btn {
         background: rgba(255, 255, 255, 0.2);
@@ -648,7 +483,9 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
+
     .content-padding { height: 90px; }
+
     .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
     .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -656,6 +493,7 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
+
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -667,6 +505,7 @@ st.markdown("""
       position: relative;
       margin: 20px 0;
     }
+
     .searchButton {
       color: white;
       position: absolute;
@@ -680,16 +519,19 @@ st.markdown("""
       transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
       cursor: pointer;
     }
+    
     .searchButton:hover {
       color: #fff;
       background-color: #1A1A1A;
       box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
       transform: translateY(-3px);
     }
+    
     .searchButton:active {
       box-shadow: none;
       transform: translateY(0);
     }
+
     .searchInput {
       border: none;
       background: none;
@@ -699,9 +541,11 @@ st.markdown("""
       padding: 24px 46px 24px 26px;
       width: 100%;
     }
+    
     .student-search label {
         display: none !important;
     }
+    
     .student-search .stTextInput > div > div > input {
         border: none;
         background: #2f3640;
@@ -712,9 +556,11 @@ st.markdown("""
         border-radius: 50px;
         font-family: 'Cairo', sans-serif;
     }
+    
     .student-search .stTextInput > div {
         max-width: 230px;
     }
+
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -728,7 +574,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML
+# ------------------ Top toolbar HTML ------------------
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -747,7 +593,7 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# Modals HTML + script
+# ------------------ Modals HTML + script ------------------
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
@@ -757,6 +603,7 @@ st.markdown("""
         <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
+
 <div id="contact-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
@@ -766,6 +613,7 @@ st.markdown("""
         <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
+
 <script>
 window.onclick = function(event) {
     var aboutModal = document.getElementById('about-modal');
@@ -780,7 +628,7 @@ window.onclick = function(event) {
 </script>
 """, unsafe_allow_html=True)
 
-# UI / Navigation
+# ------------------ UI / Navigation ------------------
 def safe_rerun():
     try:
         st.rerun()

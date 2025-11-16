@@ -671,34 +671,25 @@ if st.session_state.page == "home":
             st.session_state.page = "student"
             safe_rerun()
 
-elif st.session_state.page == "teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd == PASSWORD:
-            st.session_state.teacher_name = teacher_choice
-            st.session_state.page = "teacher_attendance"
-            safe_rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        safe_rerun()
-
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
     st.subheader(f"المعلم: {teacher_name}")
+
+    # اختيار الطلاب الغائبين
     selected = st.multiselect("اختر الغائبين", STUDENTS)
+
+    # اختيار نوع الغياب
     st.markdown("**اختر نوع الغياب:**")
     col_a, col_b = st.columns(2)
     with col_a:
         excuse = st.checkbox("غياب بعذر", key="excuse")
     with col_b:
         no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+
     if excuse and no_excuse:
         st.warning("اختر نوع واحد فقط.")
+
     if st.button("تسجيل"):
         if not selected:
             st.warning("يجب اختيار طالب/طلاب أولا.")
@@ -708,19 +699,23 @@ elif st.session_state.page == "teacher_attendance":
             st.warning("من فضلك اختر نوع الغياب.")
         else:
             status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+            
             # تسجيل الغياب
-failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-
-# عرض رسالة نجاح مختصرة فقط
-if success_count > 0:
-    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-if failed:
-    st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
-
+            try:
+                failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+            except Exception as e:
+                st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+            else:
+                # رسالة نجاح مختصرة فقط
+                if success_count > 0:
+                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                if failed:
+                    st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
     if st.button("رجوع"):
         st.session_state.page = "home"
-        safe_rerun()
+        st.experimental_rerun()
+
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")

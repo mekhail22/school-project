@@ -592,4 +592,171 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
     }
     .stButton>button:hover {
-        background: linear-gradient(to right
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Top toolbar HTML
+st.markdown(f"""
+<div class="top-toolbar">
+    <div class="logo-container">
+        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+        <div class="school-info">
+            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+            <p class="school-date">{formatted_date}</p>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# Modals HTML + script
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
+<script>
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    var contactModal = document.getElementById('contact-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+    if (event.target == contactModal) {
+        contactModal.style.display = "none";
+    }
+}
+</script>
+""", unsafe_allow_html=True)
+
+# UI / Navigation
+def safe_rerun():
+    try:
+        st.rerun()
+    except Exception:
+        pass
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+if st.session_state.page == "home":
+    st.title("نظام الغياب")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("معلم"):
+            st.session_state.page = "teacher_login"
+            safe_rerun()
+    with col2:
+        if st.button("طالب"):
+            st.session_state.page = "student"
+            safe_rerun()
+
+elif st.session_state.page == "teacher_login":
+    st.header("تسجيل دخول المعلم")
+    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+    pwd = st.text_input("كلمة السر:", type="password")
+    if st.button("تسجيل الدخول"):
+        if pwd == PASSWORD:
+            st.session_state.teacher_name = teacher_choice
+            st.session_state.page = "teacher_attendance"
+            safe_rerun()
+        else:
+            st.error("كلمة السر غير صحيحة")
+    if st.button("رجوع"):
+        st.session_state.page = "home"
+        safe_rerun()
+
+elif st.session_state.page == "teacher_attendance":
+    st.header("تسجيل الغياب")
+    teacher_name = st.session_state.get("teacher_name", "غير معروف")
+    st.subheader(f"المعلم: {teacher_name}")
+    selected = st.multiselect("اختر الغائبين", STUDENTS)
+    st.markdown("**اختر نوع الغياب:**")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        excuse = st.checkbox("غياب بعذر", key="excuse")
+    with col_b:
+        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+    if excuse and no_excuse:
+        st.warning("اختر نوع واحد فقط.")
+    if st.button("تسجيل"):
+        if not selected:
+            st.warning("يجب اختيار طالب/طلاب أولا.")
+        elif excuse and no_excuse:
+            st.warning("اختر نوع واحد فقط.")
+        elif not (excuse or no_excuse):
+            st.warning("من فضلك اختر نوع الغياب.")
+        else:
+            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+            with st.spinner("جاري حفظ البيانات في Google Sheets..."):
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                else:
+                    if not failed:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في Google Sheets")
+                        
+                        if "✅" in telegram_status:
+                            st.success(telegram_status)
+                        elif "❌" in telegram_status:
+                            st.warning(telegram_status)
+                        else:
+                            st.info(telegram_status)
+                            
+                        if telegram_details:
+                            with st.expander("تفاصيل إرسال Telegram"):
+                                st.write(telegram_details)
+                    else:
+                        st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
+
+    if st.button("رجوع"):
+        st.session_state.page = "home"
+        safe_rerun()
+
+elif st.session_state.page == "student":
+    st.header("تقارير الغياب")
+    st.markdown('<div class="student-search">', unsafe_allow_html=True)
+    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if search_query and search_query.strip():
+        df_student = get_student_records(search_query.strip())
+        if df_student.empty:
+            st.info(f"لا يوجد سجلات للطالب: {search_query}")
+        else:
+            st.dataframe(df_student, use_container_width=True, hide_index=True)
+            pdf_buf = generate_student_pdf(search_query, df_student)
+            st.download_button(
+                "تحميل PDF",
+                data=pdf_buf,
+                file_name=f"{search_query}_report.pdf",
+                mime="application/pdf"
+            )
+
+    if st.button("رجوع"):
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
+        st.session_state.page = "home"
+        safe_rerun()

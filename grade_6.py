@@ -206,15 +206,14 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
 else:
     connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
-# عرض حالة الاتصال
-if "✅" in connection_status:
-    st.success(connection_status)
-    if connection_details:
-        st.info(connection_details)
-else:
-    st.error(connection_status)
-    with st.expander("🔍 فحص الإعدادات التفصيلي"):
-        debug_secrets()
+# إخفاء رسائل الاتصال بالكامل
+if "disable_connection_alerts" not in st.session_state:
+    st.session_state.disable_connection_alerts = True
+
+# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
+_ = connection_status
+_ = connection_details
+
 
 # ------------------ باقي الكود يبقى كما هو ------------------
 # Arabic font for PDF
@@ -760,3 +759,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+

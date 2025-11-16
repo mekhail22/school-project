@@ -184,6 +184,8 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
             # اختبار الاتصال
             try:
                 current_data = worksheet.get_all_records()
+                connection_status = "✅ متصل بـ Google Sheets"
+                connection_details = f"تم تحميل {len(current_data)} سجل"
                 
                 # إذا كانت الورقة جديدة، أضف العناوين
                 if not current_data:
@@ -758,4 +760,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-

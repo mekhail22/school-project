@@ -1,6 +1,6 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح شامل لمشكلة private key
+Grade 6 attendance app — مع إصلاح هيكل الـ Secrets
 """
 
 import streamlit as st
@@ -51,116 +51,63 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ تحميل الـ Secrets ------------------
-def fix_private_key_completely(private_key):
+def fix_private_key_format(private_key):
     """
-    إصلاح شامل لمشاكل private key
+    إصلاح مشاكل التنسيق الشائعة في private key
     """
     if not private_key:
         return None
     
-    # إذا كان المفتاح عبارة عن JSON كامل، نستخرج الـ private key فقط
-    if private_key.strip().startswith('{'):
-        try:
-            key_data = json.loads(private_key)
-            if 'private_key' in key_data:
-                private_key = key_data['private_key']
-        except:
-            pass
-    
     # تنظيف المفتاح من أي مسافات زائدة
     private_key = private_key.strip()
     
-    # إصلاح الـ newlines بأنواعها المختلفة
+    # إصلاح الـ newlines
     private_key = private_key.replace("\\n", "\n")
-    private_key = private_key.replace("\\\\n", "\n")
-    private_key = private_key.replace("\\r", "\n")
-    
-    # إذا كان المفتاح في سطر واحد، نحاول تقسيمه
-    if '-----BEGIN PRIVATE KEY-----' in private_key and '-----END PRIVATE KEY-----' in private_key:
-        # استخراج المحتوى بين البداية والنهاية
-        start = private_key.find('-----BEGIN PRIVATE KEY-----') + len('-----BEGIN PRIVATE KEY-----')
-        end = private_key.find('-----END PRIVATE KEY-----')
-        key_content = private_key[start:end].strip()
-        
-        # تنظيف المحتوى من المسافات والأسطر الفارغة
-        key_content = re.sub(r'\s+', '', key_content)
-        
-        # إعادة بناء المفتاح بتنسيق صحيح
-        formatted_lines = ['-----BEGIN PRIVATE KEY-----']
-        
-        # تقسيم المحتوى إلى أسطر بطول 64 حرف
-        for i in range(0, len(key_content), 64):
-            formatted_lines.append(key_content[i:i+64])
-            
-        formatted_lines.append('-----END PRIVATE KEY-----')
-        private_key = '\n'.join(formatted_lines)
-    
-    # التأكد من أن المفتاح يبدأ وينتهي بالرأس والذيل الصحيحين
-    if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-        private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
-    if not private_key.endswith('-----END PRIVATE KEY-----'):
-        private_key = private_key + '\n-----END PRIVATE KEY-----'
     
     return private_key
 
-def validate_service_account(service_account):
-    """التحقق من صحة بيانات Service Account"""
-    if not service_account:
-        return False, "Service Account غير موجود"
-    
-    required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
-    missing_fields = [field for field in required_fields if field not in service_account]
-    
-    if missing_fields:
-        return False, f"الحقول المفقودة: {', '.join(missing_fields)}"
-    
-    # التحقق من تنسيق private key
-    private_key = service_account['private_key']
-    if not private_key or not isinstance(private_key, str):
-        return False, "private key غير صالح أو غير موجود"
-    
-    if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-        return False, "تنسيق private key غير صحيح - يجب أن يبدأ بـ -----BEGIN PRIVATE KEY-----"
-    
-    if not private_key.endswith('-----END PRIVATE KEY-----'):
-        return False, "تنسيق private key غير صحيح - يجب أن ينتهي بـ -----END PRIVATE KEY-----"
-    
-    return True, "بيانات صالحة"
-
 def load_secrets():
-    """تحميل وإصلاح الإعدادات من Streamlit Secrets"""
+    """تحميل الإعدادات من Streamlit Secrets بالهيكل الصحيح"""
     try:
         secrets = st.secrets
         
-        # Telegram
+        # Telegram - الهيكل الجديد
         BOT_TOKEN = None
         CHAT_ID = None
         
         if hasattr(secrets, 'telegram'):
-            if hasattr(secrets.telegram, 'bot_token'):
-                BOT_TOKEN = secrets.telegram.bot_token
-            if hasattr(secrets.telegram, 'chat_id'):
-                CHAT_ID = secrets.telegram.chat_id
+            BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None)
+            CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
-        # App settings
-        PASSWORD = getattr(secrets, 'PASSWORD', '1234')
-        SHEET_NAME = getattr(secrets, 'SHEET_NAME', 'school_attendance')
+        # App settings - الهيكل الجديد
+        PASSWORD = "1234"
+        SHEET_NAME = "school_attendance"
         
         if hasattr(secrets, 'app'):
-            if hasattr(secrets.app, 'password'):
-                PASSWORD = secrets.app.password
-            if hasattr(secrets.app, 'PASSWORD'):
-                PASSWORD = secrets.app.PASSWORD
+            PASSWORD = getattr(secrets.app, 'password', '1234')
         
-        # Service Account - الإصلاح الرئيسي هنا
+        if hasattr(secrets, 'sheets'):
+            SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
+        
+        # Service Account - الهيكل الجديد
         SERVICE_ACCOUNT = None
         if hasattr(secrets, 'SERVICE_ACCOUNT'):
-            SERVICE_ACCOUNT = dict(secrets.SERVICE_ACCOUNT)
+            SERVICE_ACCOUNT = {
+                'type': getattr(secrets.SERVICE_ACCOUNT, 'type', ''),
+                'project_id': getattr(secrets.SERVICE_ACCOUNT, 'project_id', ''),
+                'private_key_id': getattr(secrets.SERVICE_ACCOUNT, 'private_key_id', ''),
+                'private_key': getattr(secrets.SERVICE_ACCOUNT, 'private_key', ''),
+                'client_email': getattr(secrets.SERVICE_ACCOUNT, 'client_email', ''),
+                'client_id': getattr(secrets.SERVICE_ACCOUNT, 'client_id', ''),
+                'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', ''),
+                'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', ''),
+                'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', ''),
+                'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
+            }
             
-            # إصلاح شامل لـ private key
-            if 'private_key' in SERVICE_ACCOUNT:
-                private_key = SERVICE_ACCOUNT['private_key']
-                SERVICE_ACCOUNT['private_key'] = fix_private_key_completely(private_key)
+            # إصلاح private key
+            if SERVICE_ACCOUNT['private_key']:
+                SERVICE_ACCOUNT['private_key'] = fix_private_key_format(SERVICE_ACCOUNT['private_key'])
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -229,110 +176,78 @@ def debug_secrets():
                 st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
                 st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
                 
-                # عرض أول وآخر 100 حرف
-                st.text_area("أول 100 حرف من private key:", pk[:100], height=60)
-                st.text_area("آخر 100 حرف من private key:", pk[-100:], height=60)
         else:
             st.write("❌ Service Account غير متوفر")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
-        # التحقق من صحة Service Account أولاً
-        is_valid, validation_msg = validate_service_account(SERVICE_ACCOUNT)
-        
-        if not is_valid:
-            connection_status = f"❌ {validation_msg}"
+        # التحقق من صحة private key
+        private_key = SERVICE_ACCOUNT['private_key']
+        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+            connection_status = "❌ تنسيق private key غير صحيح"
         else:
-            # إصلاح الـ private key نهائياً
-            private_key = SERVICE_ACCOUNT['private_key']
-            SERVICE_ACCOUNT['private_key'] = fix_private_key_completely(private_key)
-            
             SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
             
-            # محاولة المصادقة
+            # إصلاح نهائي للـ private key
+            if "\\n" in private_key:
+                SERVICE_ACCOUNT['private_key'] = private_key.replace("\\n", "\n")
+            
+            creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            
+            # محاولة فتح الـ Sheet
             try:
-                creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-                gc = gspread.authorize(creds)
+                sh = gc.open(SHEET_NAME)
+                worksheet = sh.sheet1
                 
-                # محاولة فتح الـ Sheet
+                # اختبار الاتصال
                 try:
-                    sh = gc.open(SHEET_NAME)
-                    worksheet = sh.sheet1
+                    current_data = worksheet.get_all_records()
+                    connection_status = "✅ متصل بـ Google Sheets"
+                    connection_details = f"تم تحميل {len(current_data)} سجل"
                     
-                    # اختبار الاتصال
-                    try:
-                        current_data = worksheet.get_all_records()
-                        connection_status = "✅ متصل بـ Google Sheets"
-                        connection_details = f"تم تحميل {len(current_data)} سجل"
+                    # إذا كانت الورقة جديدة، أضف العناوين
+                    if not current_data:
+                        headers = ["student", "teacher", "status", "date"]
+                        worksheet.append_row(headers)
+                        connection_details += " - تم إنشاء جدول جديد"
                         
-                        # إذا كانت الورقة جديدة، أضف العناوين
-                        if not current_data:
-                            headers = ["student", "teacher", "status", "date"]
-                            worksheet.append_row(headers)
-                            connection_details += " - تم إنشاء جدول جديد"
-                            
-                    except Exception as e:
-                        st.warning(f"⚠️ مشكلة في قراءة البيانات: {str(e)}")
-                        connection_status = "✅ متصل ولكن هناك مشكلة في البيانات"
-                        
-                except gspread.exceptions.SpreadsheetNotFound:
-                    connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
-                except gspread.exceptions.APIError as e:
-                    connection_status = f"❌ خطأ في API: {str(e)}"
                 except Exception as e:
-                    connection_status = f"❌ خطأ في الاتصال: {str(e)}"
-                    
+                    # إذا فشلت القراءة، حاول إضافة العناوين
+                    try:
+                        headers = ["student", "teacher", "status", "date"]
+                        worksheet.append_row(headers)
+                        connection_status = "✅ متصل بـ Google Sheets - تم إنشاء جدول جديد"
+                    except Exception:
+                        connection_status = f"❌ خطأ في إنشاء الجدول: {str(e)}"
+                        
+            except gspread.exceptions.SpreadsheetNotFound:
+                connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
+            except gspread.exceptions.APIError as e:
+                connection_status = f"❌ خطأ في API: {str(e)}"
             except Exception as e:
-                connection_status = f"❌ فشل في المصادقة: {str(e)}"
-                # عرض تفاصيل أكثر للمساعدة في التشخيص
-                st.error(f"تفاصيل الخطأ في المصادقة: {str(e)}")
+                connection_status = f"❌ خطأ في الاتصال: {str(e)}"
                 
     except Exception as e:
-        connection_status = f"❌ فشل في معالجة Service Account: {str(e)}"
+        connection_status = f"❌ فشل في المصادقة: {str(e)}"
+        st.error(f"تفاصيل الخطأ: {str(e)}")
 else:
     connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
 # عرض حالة الاتصال
 if "✅" in connection_status:
-    st.success(f"{connection_status}")
+    st.success(connection_status)
     if connection_details:
         st.info(connection_details)
 else:
     st.error(connection_status)
     # عرض فحص الإعدادات إذا كان هناك مشكلة
-    with st.expander("🔍 فحص الإعدادات التفصيلي - للمساعدة في التشخيص"):
+    with st.expander("🔍 فحص الإعدادات - للمساعدة في التشخيص"):
         debug_secrets()
-    
-    # إضافة اقتراحات استكشاف الأخطاء وإصلاحها
-    st.markdown("""
-    ### 🛠️ استكشاف الأخطاء وإصلاحها:
-    
-    1. **تحقق من تنسيق Service Account في Streamlit Secrets:**
-       - يجب أن يكون الـ private key بتنسيق صحيح
-       - تأكد من وجود جميع الحقول المطلوبة
-    
-    2. **طريقة بديلة: استخدم ملف JSON مباشرة**
-       ```python
-       # في secrets.toml
-       SERVICE_ACCOUNT_JSON = '''
-       {
-         "type": "service_account",
-         "project_id": "...",
-         "private_key_id": "...",
-         "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
-         "client_email": "...",
-         "client_id": "...",
-         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-         "token_uri": "https://oauth2.googleapis.com/token",
-         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
-       }
-       '''
-       ```
-    """)
 
-# باقي الكود يبقى كما هو...
-# ------------------ Arabic font for PDF ------------------
+# ------------------ باقي الكود يبقى كما هو بدون تغيير ------------------
+# Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
 
@@ -364,7 +279,7 @@ def ensure_font():
 
 REGISTERED_FONT = ensure_font()
 
-# ------------------ Helper functions ------------------
+# Helper functions
 def reshape_arabic_text(text):
     try:
         reshaped = arabic_reshaper.reshape(str(text))
@@ -422,7 +337,7 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
-# ------------------ Telegram functions ------------------
+# Telegram functions
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
         return False, {"error": "credentials_missing"}
@@ -565,7 +480,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ Image helper ------------------
+# Image helper
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -579,7 +494,7 @@ if logo_base64:
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
-# ------------------ Arabic date for header ------------------
+# Arabic date for header
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -587,19 +502,16 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + top toolbar ------------------
+# CSS + top toolbar (نفس الكود السابق)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
     #MainMenu, header, footer {visibility: hidden !important;}
-
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
     }
-
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -623,7 +535,6 @@ st.markdown("""
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-
     .nav-buttons { display: flex; gap: 12px; }
     .nav-btn {
         background: rgba(255, 255, 255, 0.2);
@@ -637,9 +548,7 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
-
     .content-padding { height: 90px; }
-
     .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
     .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -647,7 +556,6 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
-
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -659,7 +567,6 @@ st.markdown("""
       position: relative;
       margin: 20px 0;
     }
-
     .searchButton {
       color: white;
       position: absolute;
@@ -673,19 +580,16 @@ st.markdown("""
       transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
       cursor: pointer;
     }
-    
     .searchButton:hover {
       color: #fff;
       background-color: #1A1A1A;
       box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
       transform: translateY(-3px);
     }
-    
     .searchButton:active {
       box-shadow: none;
       transform: translateY(0);
     }
-
     .searchInput {
       border: none;
       background: none;
@@ -695,11 +599,9 @@ st.markdown("""
       padding: 24px 46px 24px 26px;
       width: 100%;
     }
-    
     .student-search label {
         display: none !important;
     }
-    
     .student-search .stTextInput > div > div > input {
         border: none;
         background: #2f3640;
@@ -710,11 +612,9 @@ st.markdown("""
         border-radius: 50px;
         font-family: 'Cairo', sans-serif;
     }
-    
     .student-search .stTextInput > div {
         max-width: 230px;
     }
-
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -728,7 +628,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ Top toolbar HTML ------------------
+# Top toolbar HTML
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -747,7 +647,7 @@ st.markdown(f"""
 
 st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# ------------------ Modals HTML + script ------------------
+# Modals HTML + script
 st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
@@ -757,7 +657,6 @@ st.markdown("""
         <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
     </div>
 </div>
-
 <div id="contact-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
@@ -767,7 +666,6 @@ st.markdown("""
         <p>العنوان: حي السلام - القاهرة</p>
     </div>
 </div>
-
 <script>
 window.onclick = function(event) {
     var aboutModal = document.getElementById('about-modal');
@@ -782,7 +680,7 @@ window.onclick = function(event) {
 </script>
 """, unsafe_allow_html=True)
 
-# ------------------ UI / Navigation ------------------
+# UI / Navigation
 def safe_rerun():
     try:
         st.rerun()

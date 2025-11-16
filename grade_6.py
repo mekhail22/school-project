@@ -79,6 +79,12 @@ def load_secrets():
         SERVICE_ACCOUNT = None
         if hasattr(secrets, 'SERVICE_ACCOUNT'):
             SERVICE_ACCOUNT = dict(secrets.SERVICE_ACCOUNT)
+            # إصلاح مشكلة الـ private key
+            if 'private_key' in SERVICE_ACCOUNT:
+                private_key = SERVICE_ACCOUNT['private_key']
+                # إصلاح مشكلة الـ newlines
+                if "\\n" in private_key:
+                    SERVICE_ACCOUNT['private_key'] = private_key.replace("\\n", "\n")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -108,29 +114,33 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
 # ------------------ الاتصال بـ Google Sheets ------------------
 worksheet = None
-if SERVICE_ACCOUNT:
+if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
-        SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-        gc = gspread.authorize(creds)
-        sh = gc.open(SHEET_NAME)
-        worksheet = sh.sheet1
-        
-        # التأكد من وجود العناوين إذا كانت الورقة جديدة
-        try:
-            current_data = worksheet.get_all_records()
-            if not current_data:
+        # التحقق من صحة الـ private key
+        private_key = SERVICE_ACCOUNT['private_key']
+        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+            st.error("❌ تنسيق private key غير صحيح")
+        else:
+            SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            sh = gc.open(SHEET_NAME)
+            worksheet = sh.sheet1
+            
+            # التأكد من وجود العناوين إذا كانت الورقة جديدة
+            try:
+                current_data = worksheet.get_all_records()
+                if not current_data:
+                    headers = ["student", "teacher", "status", "date"]
+                    worksheet.append_row(headers)
+            except Exception:
                 headers = ["student", "teacher", "status", "date"]
                 worksheet.append_row(headers)
-        except Exception:
-            headers = ["student", "teacher", "status", "date"]
-            worksheet.append_row(headers)
-            
+                
     except Exception as e:
-        st.error(f"❌ فشل في الاتصال بـ Google Sheets: {str(e)}")
         worksheet = None
 else:
-    st.error("❌ SERVICE_ACCOUNT غير موجود في الـ Secrets")
+    worksheet = None
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"

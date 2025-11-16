@@ -12,6 +12,7 @@ import json
 import logging
 import base64
 import requests
+import re
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -50,8 +51,63 @@ STUDENTS = [
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ تحميل الـ Secrets ------------------
+def fix_private_key_format(private_key):
+    """
+    إصلاح مشاكل التنسيق الشائعة في private key
+    """
+    if not private_key:
+        return None
+    
+    # إصلاح الـ newlines
+    if "\\n" in private_key:
+        private_key = private_key.replace("\\n", "\n")
+    
+    # إزالة المسافات الزائدة والأسطر الفارغة
+    private_key = private_key.strip()
+    
+    # إذا كان المفتاح في سطر واحد، نقسمه إلى أسطر متعددة
+    if '-----BEGIN PRIVATE KEY-----' in private_key and '-----END PRIVATE KEY-----' in private_key:
+        # استخراج الجزء الأساسي من المفتاح
+        start = private_key.find('-----BEGIN PRIVATE KEY-----') + len('-----BEGIN PRIVATE KEY-----')
+        end = private_key.find('-----END PRIVATE KEY-----')
+        key_content = private_key[start:end].strip()
+        
+        # إزالة أي مسافات أو newlines إضافية
+        key_content = re.sub(r'\s+', '', key_content)
+        
+        # إعادة بناء المفتاح بتنسيق صحيح
+        formatted_key = []
+        formatted_key.append('-----BEGIN PRIVATE KEY-----')
+        
+        # تقسيم المحتوى إلى أسطر بطول 64 حرف
+        for i in range(0, len(key_content), 64):
+            formatted_key.append(key_content[i:i+64])
+            
+        formatted_key.append('-----END PRIVATE KEY-----')
+        private_key = '\n'.join(formatted_key)
+    
+    return private_key
+
+def validate_service_account(service_account):
+    """التحقق من صحة بيانات Service Account"""
+    if not service_account:
+        return False, "Service Account غير موجود"
+    
+    required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+    missing_fields = [field for field in required_fields if field not in service_account]
+    
+    if missing_fields:
+        return False, f"الحقول المفقودة: {', '.join(missing_fields)}"
+    
+    # التحقق من تنسيق private key
+    private_key = service_account['private_key']
+    if not private_key or not isinstance(private_key, str):
+        return False, "private key غير صالح أو غير موجود"
+    
+    return True, "بيانات صالحة"
+
 def load_secrets():
-    """تحميل كل الإعدادات من Streamlit Secrets"""
+    """تحميل وإصلاح الإعدادات من Streamlit Secrets"""
     try:
         secrets = st.secrets
         
@@ -75,16 +131,15 @@ def load_secrets():
             if hasattr(secrets.app, 'PASSWORD'):
                 PASSWORD = secrets.app.PASSWORD
         
-        # Service Account
+        # Service Account - الإصلاح الرئيسي هنا
         SERVICE_ACCOUNT = None
         if hasattr(secrets, 'SERVICE_ACCOUNT'):
             SERVICE_ACCOUNT = dict(secrets.SERVICE_ACCOUNT)
-            # إصلاح مشكلة الـ private key
+            
+            # إصلاح شامل لـ private key
             if 'private_key' in SERVICE_ACCOUNT:
                 private_key = SERVICE_ACCOUNT['private_key']
-                # إصلاح مشكلة الـ newlines
-                if "\\n" in private_key:
-                    SERVICE_ACCOUNT['private_key'] = private_key.replace("\\n", "\n")
+                SERVICE_ACCOUNT['private_key'] = fix_private_key_format(private_key)
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -94,7 +149,8 @@ def load_secrets():
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
         
-    except Exception:
+    except Exception as e:
+        st.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
@@ -115,48 +171,78 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 # ------------------ الاتصال بـ Google Sheets ------------------
 worksheet = None
 connection_status = "غير متصل"
+connection_details = ""
+
+def debug_secrets():
+    """وظيفة للمساعدة في تشخيص مشاكل الـ Secrets"""
+    st.subheader("🔍 فحص الإعدادات")
+    
+    secrets_config = load_secrets()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**إعدادات Telegram:**")
+        st.write(f"- BOT_TOKEN: {'✅ موجود' if secrets_config['BOT_TOKEN'] else '❌ مفقود'}")
+        st.write(f"- CHAT_ID: {'✅ موجود' if secrets_config['CHAT_ID'] else '❌ مفقود'}")
+        
+        st.write("**إعدادات التطبيق:**")
+        st.write(f"- PASSWORD: {'✅ موجود' if secrets_config['PASSWORD'] else '❌ مفقود'}")
+        st.write(f"- SHEET_NAME: {secrets_config['SHEET_NAME']}")
+    
+    with col2:
+        st.write("**Service Account:**")
+        if secrets_config['SERVICE_ACCOUNT']:
+            sa = secrets_config['SERVICE_ACCOUNT']
+            st.write(f"- type: {sa.get('type', '❌ مفقود')}")
+            st.write(f"- project_id: {sa.get('project_id', '❌ مفقود')}")
+            st.write(f"- client_email: {sa.get('client_email', '❌ مفقود')}")
+            st.write(f"- private_key: {'✅ موجود' if sa.get('private_key') else '❌ مفقود'}")
+            
+            if sa.get('private_key'):
+                pk_preview = sa['private_key'][:100] + "..." if len(sa['private_key']) > 100 else sa['private_key']
+                st.text_area("معاينة Private Key (أول 100 حرف):", pk_preview, height=80)
+        else:
+            st.write("❌ Service Account غير متوفر")
 
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
-        # التحقق من صحة الـ private key
-        private_key = SERVICE_ACCOUNT['private_key']
-        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-            connection_status = "❌ تنسيق private key غير صحيح"
+        # التحقق من صحة Service Account أولاً
+        is_valid, validation_msg = validate_service_account(SERVICE_ACCOUNT)
+        
+        if not is_valid:
+            connection_status = f"❌ {validation_msg}"
         else:
-            SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            # إصلاح الـ private key نهائياً
+            private_key = SERVICE_ACCOUNT['private_key']
+            SERVICE_ACCOUNT['private_key'] = fix_private_key_format(private_key)
             
-            # إصلاح نهائي للـ private key
-            if "\\n" in private_key:
-                SERVICE_ACCOUNT['private_key'] = private_key.replace("\\n", "\n")
+            SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
             
             creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
             gc = gspread.authorize(creds)
             
-            # محاولة فتح الـ Sheet مع معالجة الأخطاء
+            # محاولة فتح الـ Sheet
             try:
                 sh = gc.open(SHEET_NAME)
                 worksheet = sh.sheet1
                 
-                # اختبار الاتصال بمحاولة قراءة البيانات
+                # اختبار الاتصال
                 try:
                     current_data = worksheet.get_all_records()
                     connection_status = "✅ متصل بـ Google Sheets"
+                    connection_details = f"تم تحميل {len(current_data)} سجل"
                     
                     # إذا كانت الورقة جديدة، أضف العناوين
                     if not current_data:
                         headers = ["student", "teacher", "status", "date"]
                         worksheet.append_row(headers)
-                        st.success("✅ تم إنشاء الجدول بنجاح")
+                        connection_details += " - تم إنشاء جدول جديد"
                         
                 except Exception as e:
-                    # إذا فشلت القراءة، حاول إضافة العناوين
-                    try:
-                        headers = ["student", "teacher", "status", "date"]
-                        worksheet.append_row(headers)
-                        connection_status = "✅ متصل بـ Google Sheets - تم إنشاء جدول جديد"
-                    except Exception:
-                        connection_status = f"❌ خطأ في إنشاء الجدول: {str(e)}"
-                        
+                    st.warning(f"⚠️ مشكلة في قراءة البيانات: {str(e)}")
+                    connection_status = "✅ متصل ولكن هناك مشكلة في البيانات"
+                    
             except gspread.exceptions.SpreadsheetNotFound:
                 connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
             except gspread.exceptions.APIError as e:
@@ -166,14 +252,21 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
                 
     except Exception as e:
         connection_status = f"❌ فشل في المصادقة: {str(e)}"
+        # عرض تفاصيل أكثر للمساعدة في التشخيص
+        st.error(f"تفاصيل الخطأ: {str(e)}")
 else:
     connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
 # عرض حالة الاتصال
 if "✅" in connection_status:
-    st.success(connection_status)
+    st.success(f"{connection_status}")
+    if connection_details:
+        st.info(connection_details)
 else:
     st.error(connection_status)
+    # عرض فحص الإعدادات إذا كان هناك مشكلة
+    with st.expander("🔍 فحص الإعدادات - للمساعدة في التشخيص"):
+        debug_secrets()
 
 # ------------------ Arabic font for PDF ------------------
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"

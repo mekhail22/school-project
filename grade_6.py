@@ -1,6 +1,6 @@
 # streamlit_app.py
 """
-Grade 6 attendance app — مع إصلاح نهائي باستخدام JSON
+Grade 6 attendance app — الإصدار النهائي
 """
 
 import streamlit as st
@@ -51,7 +51,7 @@ TEACHERS = ["مينا سمير", "فادي حبيب"]
 
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
-    """تحميل الإعدادات من Streamlit Secrets باستخدام JSON"""
+    """تحميل الإعدادات من Streamlit Secrets"""
     try:
         secrets = st.secrets
         
@@ -63,10 +63,33 @@ def load_secrets():
         PASSWORD = getattr(secrets.app, 'password', '1234')
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
-        # Service Account من JSON
+        # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
         SERVICE_ACCOUNT = None
+        
+        # الطريقة 1: SERVICE_ACCOUNT_JSON
         if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
-            SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
+            try:
+                SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
+            except Exception as e:
+                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
+        
+        # الطريقة 2: SERVICE_ACCOUNT كقسم (للتوافق مع الإصدارات القديمة)
+        if not SERVICE_ACCOUNT and hasattr(secrets, 'SERVICE_ACCOUNT'):
+            try:
+                SERVICE_ACCOUNT = {
+                    'type': getattr(secrets.SERVICE_ACCOUNT, 'type', ''),
+                    'project_id': getattr(secrets.SERVICE_ACCOUNT, 'project_id', ''),
+                    'private_key_id': getattr(secrets.SERVICE_ACCOUNT, 'private_key_id', ''),
+                    'private_key': getattr(secrets.SERVICE_ACCOUNT, 'private_key', ''),
+                    'client_email': getattr(secrets.SERVICE_ACCOUNT, 'client_email', ''),
+                    'client_id': getattr(secrets.SERVICE_ACCOUNT, 'client_id', ''),
+                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
+                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
+                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
+                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
+                }
+            except Exception as e:
+                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -134,6 +157,15 @@ def debug_secrets():
                 st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
         else:
             st.write("❌ Service Account غير متوفر")
+            
+        # فحص وجود SERVICE_ACCOUNT_JSON
+        try:
+            if hasattr(st.secrets, 'SERVICE_ACCOUNT_JSON'):
+                st.write("✅ SERVICE_ACCOUNT_JSON موجود")
+            else:
+                st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
+        except:
+            st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
@@ -154,6 +186,12 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
                 current_data = worksheet.get_all_records()
                 connection_status = "✅ متصل بـ Google Sheets"
                 connection_details = f"تم تحميل {len(current_data)} سجل"
+                
+                # إذا كانت الورقة جديدة، أضف العناوين
+                if not current_data:
+                    headers = ["student", "teacher", "status", "date"]
+                    worksheet.append_row(headers)
+                    connection_details += " - تم إنشاء جدول جديد"
                 
             except Exception as e:
                 connection_status = f"✅ متصل ولكن خطأ في القراءة: {str(e)}"
@@ -178,7 +216,8 @@ else:
     with st.expander("🔍 فحص الإعدادات التفصيلي"):
         debug_secrets()
 
-# ------------------ Arabic font for PDF ------------------
+# ------------------ باقي الكود يبقى كما هو ------------------
+# Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
 
@@ -210,7 +249,7 @@ def ensure_font():
 
 REGISTERED_FONT = ensure_font()
 
-# ------------------ Helper functions ------------------
+# Helper functions
 def reshape_arabic_text(text):
     try:
         reshaped = arabic_reshaper.reshape(str(text))
@@ -268,7 +307,7 @@ def normalize_date_for_pdf(src_date_str):
         pass
     return s
 
-# ------------------ Telegram functions ------------------
+# Telegram functions
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
         return False, {"error": "credentials_missing"}
@@ -411,7 +450,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# ------------------ Image helper ------------------
+# Image helper
 def get_image_base64(image_path):
     try:
         with open(image_path, "rb") as img_file:
@@ -425,7 +464,7 @@ if logo_base64:
 else:
     logo_src = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png"
 
-# ------------------ Arabic date for header ------------------
+# Arabic date for header
 today = datetime.now()
 arabic_weekdays = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 arabic_months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -433,19 +472,16 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + top toolbar ------------------
+# CSS + top toolbar (نفس الكود السابق)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
     #MainMenu, header, footer {visibility: hidden !important;}
-
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
     }
-
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -469,7 +505,6 @@ st.markdown("""
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-
     .nav-buttons { display: flex; gap: 12px; }
     .nav-btn {
         background: rgba(255, 255, 255, 0.2);
@@ -483,9 +518,7 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
-
     .content-padding { height: 90px; }
-
     .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
     .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -493,7 +526,6 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
-
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -505,7 +537,6 @@ st.markdown("""
       position: relative;
       margin: 20px 0;
     }
-
     .searchButton {
       color: white;
       position: absolute;
@@ -519,19 +550,16 @@ st.markdown("""
       transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
       cursor: pointer;
     }
-    
     .searchButton:hover {
       color: #fff;
       background-color: #1A1A1A;
       box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
       transform: translateY(-3px);
     }
-    
     .searchButton:active {
       box-shadow: none;
       transform: translateY(0);
     }
-
     .searchInput {
       border: none;
       background: none;
@@ -541,11 +569,9 @@ st.markdown("""
       padding: 24px 46px 24px 26px;
       width: 100%;
     }
-    
     .student-search label {
         display: none !important;
     }
-    
     .student-search .stTextInput > div > div > input {
         border: none;
         background: #2f3640;
@@ -556,11 +582,9 @@ st.markdown("""
         border-radius: 50px;
         font-family: 'Cairo', sans-serif;
     }
-    
     .student-search .stTextInput > div {
         max-width: 230px;
     }
-
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -568,173 +592,4 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
     }
     .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ------------------ Top toolbar HTML ------------------
-st.markdown(f"""
-<div class="top-toolbar">
-    <div class="logo-container">
-        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
-            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
-            <p class="school-date">{formatted_date}</p>
-        </div>
-    </div>
-    <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
-
-# ------------------ Modals HTML + script ------------------
-st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
-    </div>
-</div>
-
-<script>
-window.onclick = function(event) {
-    var aboutModal = document.getElementById('about-modal');
-    var contactModal = document.getElementById('contact-modal');
-    if (event.target == aboutModal) {
-        aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
-    }
-}
-</script>
-""", unsafe_allow_html=True)
-
-# ------------------ UI / Navigation ------------------
-def safe_rerun():
-    try:
-        st.rerun()
-    except Exception:
-        pass
-
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-
-if st.session_state.page == "home":
-    st.title("نظام الغياب")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("معلم"):
-            st.session_state.page = "teacher_login"
-            safe_rerun()
-    with col2:
-        if st.button("طالب"):
-            st.session_state.page = "student"
-            safe_rerun()
-
-elif st.session_state.page == "teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd == PASSWORD:
-            st.session_state.teacher_name = teacher_choice
-            st.session_state.page = "teacher_attendance"
-            safe_rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        safe_rerun()
-
-elif st.session_state.page == "teacher_attendance":
-    st.header("تسجيل الغياب")
-    teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
-    selected = st.multiselect("اختر الغائبين", STUDENTS)
-    st.markdown("**اختر نوع الغياب:**")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        excuse = st.checkbox("غياب بعذر", key="excuse")
-    with col_b:
-        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-    if excuse and no_excuse:
-        st.warning("اختر نوع واحد فقط.")
-    if st.button("تسجيل"):
-        if not selected:
-            st.warning("يجب اختيار طالب/طلاب أولا.")
-        elif excuse and no_excuse:
-            st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse):
-            st.warning("من فضلك اختر نوع الغياب.")
-        else:
-            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            with st.spinner("جاري حفظ البيانات في Google Sheets..."):
-                try:
-                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                else:
-                    if not failed:
-                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في Google Sheets")
-                        
-                        if "✅" in telegram_status:
-                            st.success(telegram_status)
-                        elif "❌" in telegram_status:
-                            st.warning(telegram_status)
-                        else:
-                            st.info(telegram_status)
-                            
-                        if telegram_details:
-                            with st.expander("تفاصيل إرسال Telegram"):
-                                st.write(telegram_details)
-                    else:
-                        st.error(f"حدثت أخطاء عند تسجيل بعض الطلاب: {failed}")
-
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        safe_rerun()
-
-elif st.session_state.page == "student":
-    st.header("تقارير الغياب")
-    st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if search_query and search_query.strip():
-        df_student = get_student_records(search_query.strip())
-        if df_student.empty:
-            st.info(f"لا يوجد سجلات للطالب: {search_query}")
-        else:
-            st.dataframe(df_student, use_container_width=True, hide_index=True)
-            pdf_buf = generate_student_pdf(search_query, df_student)
-            st.download_button(
-                "تحميل PDF",
-                data=pdf_buf,
-                file_name=f"{search_query}_report.pdf",
-                mime="application/pdf"
-            )
-
-    if st.button("رجوع"):
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.session_state.page = "home"
-        safe_rerun()
+        background: linear-gradient(to right

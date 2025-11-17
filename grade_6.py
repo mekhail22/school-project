@@ -210,10 +210,11 @@ else:
 if "disable_connection_alerts" not in st.session_state:
     st.session_state.disable_connection_alerts = True
 
-# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
-_ = connection_status
-_ = connection_details
-
+# ------------------ Session State ------------------
+if "show_about" not in st.session_state:
+    st.session_state.show_about = False
+if "show_contact" not in st.session_state:
+    st.session_state.show_contact = False
 
 # ------------------ باقي الكود يبقى كما هو ------------------
 # Arabic font for PDF
@@ -471,7 +472,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar (نفس الكود السابق)
+# CSS + top toolbar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -504,70 +505,46 @@ st.markdown("""
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-buttons { display: flex; gap: 12px; }
-    .nav-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: white; border: none; padding: 10px 22px;
-        border-radius: 12px; font-size: 15px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-    }
-    .nav-btn:hover {
-        background: white; color: #1e40af;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+    .nav-buttons { 
+        display: flex; 
+        gap: 12px; 
+        margin-top: 13px;
     }
     .content-padding { height: 90px; }
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
-    .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      margin: 20px 0;
+    
+    /* تنسيق أزرار Streamlit في الـ toolbar */
+    .toolbar-buttons .stButton > button {
+        width: 120px !important;
+        height: 44px !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.3) !important;
+        border-radius: 12px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        backdrop-filter: blur(10px) !important;
+        margin: 0 !important;
+        transition: all 0.3s ease !important;
     }
-    .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: inline-block;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      cursor: pointer;
+    .toolbar-buttons .stButton > button:hover {
+        background: white !important;
+        color: #1e40af !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4) !important;
     }
-    .searchButton:hover {
-      color: #fff;
-      background-color: #1A1A1A;
-      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-      transform: translateY(-3px);
+    
+    /* تنسيق أزرار Streamlit الرئيسية */
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
     }
-    .searchButton:active {
-      box-shadow: none;
-      transform: translateY(0);
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
     }
-    .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-    }
+    
+    /* تنسيق حقول البحث */
     .student-search label {
         display: none !important;
     }
@@ -584,16 +561,8 @@ st.markdown("""
     .student-search .stTextInput > div {
         max-width: 230px;
     }
+    
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
-    }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -608,46 +577,79 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+        <!-- الأزرار ستضاف باستخدام Streamlit -->
     </div>
 </div>
+<div class="content-padding"></div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+# إضافة أزرار الـ toolbar باستخدام Streamlit
+with st.container():
+    cols = st.columns([3, 1, 1])
+    with cols[1]:
+        if st.button("عنا", key="about_btn"):
+            st.session_state.show_about = True
+    with cols[2]:
+        if st.button("اتصل بنا", key="contact_btn"):
+            st.session_state.show_contact = True
 
-# Modals HTML + script
-st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
-    </div>
-</div>
-<script>
-window.onclick = function(event) {
-    var aboutModal = document.getElementById('about-modal');
-    var contactModal = document.getElementById('contact-modal');
-    if (event.target == aboutModal) {
-        aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
-    }
-}
-</script>
-""", unsafe_allow_html=True)
+# عرض modal "عنا"
+if st.session_state.show_about:
+    st.markdown("---")
+    with st.container():
+        st.header("🎓 عن المدرسة")
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.image(logo_src, width=100)
+        with col2:
+            st.subheader("مدرسة السلام الإعدادية الثانوية المشتركة")
+        
+        st.info("""
+        **الرؤية:** 
+        - تقديم تعليم متميز يجمع بين العلم والأخلاق
+        - تنمية مهارات الطلاب academically واجتماعياً
+        
+        **الصف:** السادس الابتدائي
+        **النظام:** تعليم حكومي متميز
+        
+        **رسالتنا:** 
+        "نعمل على إعداد جيل متعلم، واعي، قادر على مواجهة تحديات المستقبل"
+        """)
+        
+        if st.button("إغلاق", key="close_about"):
+            st.session_state.show_about = False
+            st.rerun()
+
+# عرض modal "اتصل بنا"  
+if st.session_state.show_contact:
+    st.markdown("---")
+    with st.container():
+        st.header("📞 اتصل بنا")
+        
+        contact_col1, contact_col2 = st.columns(2)
+        
+        with contact_col1:
+            st.subheader("معلومات الاتصال")
+            st.write("""
+            **📞 الهاتف:** 02-12345678  
+            **📧 البريد:** alsalam.school@example.com  
+            **📍 العنوان:** حي السلام - القاهرة
+            """)
+            
+        with contact_col2:
+            st.subheader("المسؤولون")
+            st.write("""
+            **👨‍🏫 مدير المدرسة:** الأستاذ / مينا سمير  
+            **👨‍🏫 نائب المدير:** الأستاذ / فادي حبيب
+            **🕒 مواعيد العمل:** 8:00 ص - 2:00 م
+            """)
+        
+        st.success("نحن متاحون خلال أوقات العمل الرسمية للرد على استفساراتكم")
+        
+        if st.button("إغلاق", key="close_contact"):
+            st.session_state.show_contact = False
+            st.rerun()
 
 # UI / Navigation
 def safe_rerun():
@@ -730,8 +732,6 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
-
-
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
@@ -757,4 +757,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-

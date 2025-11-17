@@ -472,7 +472,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar (بنفس التصميم القديم)
+# CSS + top toolbar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -520,48 +520,6 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
     .content-padding { height: 90px; }
-    .modal { 
-        display: none; 
-        position: fixed; 
-        z-index: 1000000; 
-        left: 0; 
-        top: 0; 
-        width: 100%; 
-        height: 100%; 
-        background-color: rgba(0,0,0,0.5); 
-        backdrop-filter: blur(5px); 
-        justify-content: center; 
-        align-items: center; 
-    }
-    .modal.active {
-        display: flex !important;
-    }
-    .modal-content { 
-        background: white; 
-        padding: 25px; 
-        border-radius: 16px; 
-        width: 90%; 
-        max-width: 500px; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-        position: relative; 
-        animation: modalPop 0.3s ease; 
-    }
-    @keyframes modalPop { 
-        from { transform: scale(0.8); opacity: 0; } 
-        to { transform: scale(1); opacity: 1; } 
-    }
-    .close-btn { 
-        position: absolute; 
-        top: 10px; 
-        left: 15px; 
-        font-size: 28px; 
-        font-weight: bold; 
-        color: #aaa; 
-        cursor: pointer; 
-    }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
     
     .searchBox {
       display: flex;
@@ -635,7 +593,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML بنفس التصميم القديم
+# Top toolbar HTML
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -646,65 +604,25 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-buttons">
-        <button class="nav-btn" onclick="showModal('about')">عنا</button>
-        <button class="nav-btn" onclick="showModal('contact')">اتصل بنا</button>
+        <button class="nav-btn" onclick="alert('مدرسة السلام الإعدادية الثانوية المشتركة - الصف السادس الابتدائي')">عنا</button>
+        <button class="nav-btn" onclick="alert('الهاتف: 02-12345678\\nالبريد: alsalam.school@example.com\\nالعنوان: حي السلام - القاهرة')">اتصل بنا</button>
     </div>
 </div>
 <div class="content-padding"></div>
 """, unsafe_allow_html=True)
 
-# Modals HTML + script بنفس التصميم القديم
+# JavaScript للتعامل مع الأزرار
 st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="hideModal('about')">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-        <p><strong>الصف السادس الابتدائي</strong></p>
-    </div>
-</div>
-
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="hideModal('contact')">×</span>
-        <h3>اتصل بنا</h3>
-        <p>📞 الهاتف: 02-12345678</p>
-        <p>📧 البريد: alsalam.school@example.com</p>
-        <p>📍 العنوان: حي السلام - القاهرة</p>
-        <p>👨‍🏫 المسؤول: الأستاذ / مينا سمير</p>
-    </div>
-</div>
-
 <script>
-function showModal(type) {
-    const modal = document.getElementById(type + '-modal');
-    if (modal) {
-        modal.classList.add('active');
-    }
-}
-
-function hideModal(type) {
-    const modal = document.getElementById(type + '-modal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-}
-
-// إغلاق الـ modal عند الضغط خارج المحتوى
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.classList.remove('active');
-    }
-}
-
-// إغلاق بالزر Escape
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.classList.remove('active');
+// جعل الأزرار تعمل عند الضغط عليها
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('.nav-btn');
+    
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            // الأزرار ستعمل الآن وتظهر رسائل التنبيه
         });
-    }
+    });
 });
 </script>
 """, unsafe_allow_html=True)
@@ -730,6 +648,7 @@ if st.session_state.page == "home":
         if st.button("طالب"):
             st.session_state.page = "student"
             safe_rerun()
+
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -815,3 +734,30 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+
+# قسم "عنا" و "اتصل بنا" في الأسفل
+st.markdown("---")
+st.markdown("### معلومات المدرسة")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("📚 عن المدرسة", use_container_width=True):
+        st.info("""
+        **مدرسة السلام الإعدادية الثانوية المشتركة**
+        
+        من أعرق المدارس الحكومية في المنطقة
+        تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق
+        الصف: السادس الابتدائي
+        """)
+
+with col2:
+    if st.button("📞 اتصل بنا", use_container_width=True):
+        st.success("""
+        **معلومات الاتصال:**
+        
+        📞 الهاتف: 02-12345678
+        📧 البريد: alsalam.school@example.com  
+        📍 العنوان: حي السلام - القاهرة
+        👨‍🏫 المسؤول: الأستاذ / مينا سمير
+        """)

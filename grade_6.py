@@ -472,7 +472,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar
+# CSS + top toolbar (بنفس التصميم القديم)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -505,46 +505,107 @@ st.markdown("""
     .school-info { line-height: 1.3; }
     .school-name { font-size: 17px; font-weight: bold; margin: 0; }
     .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-buttons { 
-        display: flex; 
-        gap: 12px; 
-        margin-top: 13px;
+    .nav-buttons { display: flex; gap: 12px; }
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white; border: none; padding: 10px 22px;
+        border-radius: 12px; font-size: 15px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease;
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        font-family: 'Cairo', sans-serif;
+    }
+    .nav-btn:hover {
+        background: white; color: #1e40af;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
     .content-padding { height: 90px; }
+    .modal { 
+        display: none; 
+        position: fixed; 
+        z-index: 1000000; 
+        left: 0; 
+        top: 0; 
+        width: 100%; 
+        height: 100%; 
+        background-color: rgba(0,0,0,0.5); 
+        backdrop-filter: blur(5px); 
+        justify-content: center; 
+        align-items: center; 
+    }
+    .modal.active {
+        display: flex !important;
+    }
+    .modal-content { 
+        background: white; 
+        padding: 25px; 
+        border-radius: 16px; 
+        width: 90%; 
+        max-width: 500px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        position: relative; 
+        animation: modalPop 0.3s ease; 
+    }
+    @keyframes modalPop { 
+        from { transform: scale(0.8); opacity: 0; } 
+        to { transform: scale(1); opacity: 1; } 
+    }
+    .close-btn { 
+        position: absolute; 
+        top: 10px; 
+        left: 15px; 
+        font-size: 28px; 
+        font-weight: bold; 
+        color: #aaa; 
+        cursor: pointer; 
+    }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
     
-    /* تنسيق أزرار Streamlit في الـ toolbar */
-    .toolbar-buttons .stButton > button {
-        width: 120px !important;
-        height: 44px !important;
-        background: rgba(255, 255, 255, 0.2) !important;
-        color: white !important;
-        border: 1px solid rgba(255,255,255,0.3) !important;
-        border-radius: 12px !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        backdrop-filter: blur(10px) !important;
-        margin: 0 !important;
-        transition: all 0.3s ease !important;
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
     }
-    .toolbar-buttons .stButton > button:hover {
-        background: white !important;
-        color: #1e40af !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4) !important;
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
     }
-    
-    /* تنسيق أزرار Streamlit الرئيسية */
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
     }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
     }
-    
-    /* تنسيق حقول البحث */
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
     .student-search label {
         display: none !important;
     }
@@ -561,12 +622,20 @@ st.markdown("""
     .student-search .stTextInput > div {
         max-width: 230px;
     }
-    
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
+    .stButton>button {
+        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #1d4ed8, #1e40af);
+        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML
+# Top toolbar HTML بنفس التصميم القديم
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -577,79 +646,68 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-buttons">
-        <!-- الأزرار ستضاف باستخدام Streamlit -->
+        <button class="nav-btn" onclick="showModal('about')">عنا</button>
+        <button class="nav-btn" onclick="showModal('contact')">اتصل بنا</button>
     </div>
 </div>
 <div class="content-padding"></div>
 """, unsafe_allow_html=True)
 
-# إضافة أزرار الـ toolbar باستخدام Streamlit
-with st.container():
-    cols = st.columns([3, 1, 1])
-    with cols[1]:
-        if st.button("عنا", key="about_btn"):
-            st.session_state.show_about = True
-    with cols[2]:
-        if st.button("اتصل بنا", key="contact_btn"):
-            st.session_state.show_contact = True
+# Modals HTML + script بنفس التصميم القديم
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="hideModal('about')">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+        <p><strong>الصف السادس الابتدائي</strong></p>
+    </div>
+</div>
 
-# عرض modal "عنا"
-if st.session_state.show_about:
-    st.markdown("---")
-    with st.container():
-        st.header("🎓 عن المدرسة")
-        
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            st.image(logo_src, width=100)
-        with col2:
-            st.subheader("مدرسة السلام الإعدادية الثانوية المشتركة")
-        
-        st.info("""
-        **الرؤية:** 
-        - تقديم تعليم متميز يجمع بين العلم والأخلاق
-        - تنمية مهارات الطلاب academically واجتماعياً
-        
-        **الصف:** السادس الابتدائي
-        **النظام:** تعليم حكومي متميز
-        
-        **رسالتنا:** 
-        "نعمل على إعداد جيل متعلم، واعي، قادر على مواجهة تحديات المستقبل"
-        """)
-        
-        if st.button("إغلاق", key="close_about"):
-            st.session_state.show_about = False
-            st.rerun()
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="hideModal('contact')">×</span>
+        <h3>اتصل بنا</h3>
+        <p>📞 الهاتف: 02-12345678</p>
+        <p>📧 البريد: alsalam.school@example.com</p>
+        <p>📍 العنوان: حي السلام - القاهرة</p>
+        <p>👨‍🏫 المسؤول: الأستاذ / مينا سمير</p>
+    </div>
+</div>
 
-# عرض modal "اتصل بنا"  
-if st.session_state.show_contact:
-    st.markdown("---")
-    with st.container():
-        st.header("📞 اتصل بنا")
-        
-        contact_col1, contact_col2 = st.columns(2)
-        
-        with contact_col1:
-            st.subheader("معلومات الاتصال")
-            st.write("""
-            **📞 الهاتف:** 02-12345678  
-            **📧 البريد:** alsalam.school@example.com  
-            **📍 العنوان:** حي السلام - القاهرة
-            """)
-            
-        with contact_col2:
-            st.subheader("المسؤولون")
-            st.write("""
-            **👨‍🏫 مدير المدرسة:** الأستاذ / مينا سمير  
-            **👨‍🏫 نائب المدير:** الأستاذ / فادي حبيب
-            **🕒 مواعيد العمل:** 8:00 ص - 2:00 م
-            """)
-        
-        st.success("نحن متاحون خلال أوقات العمل الرسمية للرد على استفساراتكم")
-        
-        if st.button("إغلاق", key="close_contact"):
-            st.session_state.show_contact = False
-            st.rerun()
+<script>
+function showModal(type) {
+    const modal = document.getElementById(type + '-modal');
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function hideModal(type) {
+    const modal = document.getElementById(type + '-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// إغلاق الـ modal عند الضغط خارج المحتوى
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('active');
+    }
+}
+
+// إغلاق بالزر Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+});
+</script>
+""", unsafe_allow_html=True)
 
 # UI / Navigation
 def safe_rerun():

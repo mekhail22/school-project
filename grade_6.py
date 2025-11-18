@@ -255,15 +255,15 @@ def reshape_arabic_text(text):
 
 def read_sheet():
     if worksheet is None:
-        return pd.DataFrame(columns=["", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
     
     try:
         data = worksheet.get_all_records()
     except Exception:
-        return pd.DataFrame(columns=["", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
     
     df = pd.DataFrame(data)
-    for c in ["", "teacher", "status", "date"]:
+    for c in ["student", "teacher", "status", "date"]:
         if c not in df.columns:
             df[c] = ""
     return df
@@ -330,7 +330,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
     
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
-    for  in S:
+    for student in STUDENTS:
         status = absent_label if student in selected_absent else "حاضر"
         rows.append([student, teacher_name, status, date_display])
 
@@ -468,7 +468,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar (نفس الكود السابق)
+# CSS + top toolbar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -523,109 +523,52 @@ st.markdown("""
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
     
-    /* التصميم الجديد لـ text box */
-    .inputGroup {
-      font-family: 'Cairo', sans-serif;
-      margin: 1em 0 1em 0;
-      max-width: 300px;
-      position: relative;
+    /* تصميم text box للبحث */
+    .search-container {
+        display: flex;
+        justify-content: center;
+        margin: 2rem 0;
     }
-
-    .inputGroup input {
-      font-size: 100%;
-      padding: 0.8em;
-      outline: none;
-      border: 2px solid rgb(200, 200, 200);
-      background-color: transparent;
-      border-radius: 20px;
-      width: 100%;
-      font-family: 'Cairo', sans-serif;
-      text-align: right;
+    .search-box {
+        position: relative;
+        width: 300px;
     }
-
-    .inputGroup label {
-      font-size: 100%;
-      position: absolute;
-      right: 0;
-      padding: 0.8em;
-      margin-right: 0.5em;
-      pointer-events: none;
-      transition: all 0.3s ease;
-      color: rgb(100, 100, 100);
-      font-family: 'Cairo', sans-serif;
-    }
-
-    .inputGroup :is(input:focus, input:valid)~label {
-      transform: translateY(-50%) scale(.9);
-      margin: 0em;
-      margin-right: 1.3em;
-      padding: 0.4em;
-      background-color: #e8e8e8;
-    }
-
-    .inputGroup :is(input:focus, input:valid) {
-      border-color: rgb(150, 150, 200);
-    }
-    
-    .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      margin: 20px 0;
-    }
-    .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: inline-block;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      cursor: pointer;
-    }
-    .searchButton:hover {
-      color: #fff;
-      background-color: #1A1A1A;
-      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-      transform: translateY(-3px);
-    }
-    .searchButton:active {
-      box-shadow: none;
-      transform: translateY(0);
-    }
-    .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-    }
-    .student-search label {
-        display: none !important;
-    }
-    .student-search .stTextInput > div > div > input {
-        border: none;
-        background: #2f3640;
+    .search-box input {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 25px;
         outline: none;
-        color: white;
-        font-size: 15px;
-        padding: 24px 46px 24px 26px;
-        border-radius: 50px;
+        transition: all 0.3s ease;
+        font-family: 'Cairo', sans-serif;
+        text-align: right;
+        background: white;
+    }
+    .search-box input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.2);
+    }
+    .search-box label {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        color: #999;
+        transition: all 0.3s ease;
+        pointer-events: none;
         font-family: 'Cairo', sans-serif;
     }
-    .student-search .stTextInput > div {
-        max-width: 230px;
+    .search-box input:focus + label,
+    .search-box input:not(:placeholder-shown) + label {
+        top: -10px;
+        right: 15px;
+        font-size: 12px;
+        color: #2563eb;
+        background: white;
+        padding: 0 8px;
     }
+    
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -764,7 +707,7 @@ elif st.session_state.page == "teacher_attendance":
             else:
                 # رسالة نجاح مختصرة فقط
                 if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح ")
+                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {len(selected)} طالب")
                 if failed:
                     st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
@@ -772,45 +715,51 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
-
-
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     
-    # استخدام التصميم الجديد لـ text box
+    # تصميم text box للبحث
     st.markdown("""
-    <div class="inputGroup">
-        <input type="text" id="student_search_input" required="" autocomplete="off">
-        <label for="student_search_input">اكتب اسم الطالب...</label>
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="student_search" placeholder=" ">
+            <label for="student_search">اكتب اسم الطالب...</label>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # JavaScript لجلب القيمة من حقل الإدخال المخصص
+    # استخدام st.text_input العادي مع التصميم المحسن
     st.markdown("""
-    <script>
-    function updateSearchQuery() {
-        const input = document.getElementById('student_search_input');
-        if (input && input.value) {
-            // هنا يمكنك إضافة كود لإرسال القيمة إلى Streamlit
-            console.log('Search query:', input.value);
-        }
+    <style>
+    div[data-testid="stTextInput"] label {
+        display: none !important;
     }
-    
-    // إضافة event listener لحقل الإدخال
-    document.addEventListener('DOMContentLoaded', function() {
-        const input = document.getElementById('student_search_input');
-        if (input) {
-            input.addEventListener('input', updateSearchQuery);
-            input.addEventListener('change', updateSearchQuery);
-        }
-    });
-    </script>
+    div[data-testid="stTextInput"] input {
+        width: 300px !important;
+        margin: 0 auto !important;
+        display: block !important;
+        padding: 12px 20px !important;
+        font-size: 16px !important;
+        border: 2px solid #ddd !important;
+        border-radius: 25px !important;
+        outline: none !important;
+        transition: all 0.3s ease !important;
+        font-family: 'Cairo', sans-serif !important;
+        text-align: right !important;
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: #2563eb !important;
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.2) !important;
+    }
+    </style>
     """, unsafe_allow_html=True)
     
-    # للحفاظ على التوافق، نستخدم أيضًا حقل Streamlit العادي
-    st.markdown('<div style="margin-top: 20px;">', unsafe_allow_html=True)
-    search_query = st.text_input("ابحث عن طالب", placeholder="اكتب اسم الطالب هنا...", key="student_search")
-    st.markdown('</div>', unsafe_allow_html=True)
+    search_query = st.text_input(
+        "ابحث عن طالب",
+        placeholder="اكتب اسم الطالب هنا...",
+        key="student_search",
+        label_visibility="collapsed"
+    )
 
     if search_query and search_query.strip():
         df_student = get_student_records(search_query.strip())
@@ -831,4 +780,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-

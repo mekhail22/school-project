@@ -354,7 +354,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون:"
+    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
     
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
@@ -730,7 +730,7 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("اكتب الاسم ثلاثي", placeholder="اكتب اسم الطالب", key="student_search")
+    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if search_query and search_query.strip():
@@ -752,5 +752,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-
-

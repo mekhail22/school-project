@@ -229,6 +229,8 @@ def ensure_font():
         if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
             return FONT_NAME
+        else:
+            return None
     except Exception:
         pass
 
@@ -520,6 +522,51 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
+    
+    /* التصميم الجديد لـ text box */
+    .inputGroup {
+      font-family: 'Cairo', sans-serif;
+      margin: 1em 0 1em 0;
+      max-width: 300px;
+      position: relative;
+    }
+
+    .inputGroup input {
+      font-size: 100%;
+      padding: 0.8em;
+      outline: none;
+      border: 2px solid rgb(200, 200, 200);
+      background-color: transparent;
+      border-radius: 20px;
+      width: 100%;
+      font-family: 'Cairo', sans-serif;
+      text-align: right;
+    }
+
+    .inputGroup label {
+      font-size: 100%;
+      position: absolute;
+      right: 0;
+      padding: 0.8em;
+      margin-right: 0.5em;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      color: rgb(100, 100, 100);
+      font-family: 'Cairo', sans-serif;
+    }
+
+    .inputGroup :is(input:focus, input:valid)~label {
+      transform: translateY(-50%) scale(.9);
+      margin: 0em;
+      margin-right: 1.3em;
+      padding: 0.4em;
+      background-color: #e8e8e8;
+    }
+
+    .inputGroup :is(input:focus, input:valid) {
+      border-color: rgb(150, 150, 200);
+    }
+    
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -729,8 +776,11 @@ elif st.session_state.page == "teacher_attendance":
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
-    st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+    
+    # استخدام التصميم الجديد لـ text box
+    st.markdown('<div class="inputGroup">', unsafe_allow_html=True)
+    search_query = st.text_input(" ", placeholder=" ", key="student_search", label_visibility="collapsed")
+    st.markdown('<label for="student_search">اكتب اسم الطالب...</label>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     if search_query and search_query.strip():

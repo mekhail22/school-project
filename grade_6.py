@@ -33,11 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(
-    page_title="نظام الغياب", 
-    layout="centered",
-    page_icon="📊"
-)
+st.set_page_config(page_title="نظام الغياب", layout="centered")
 
 # ------------------ App settings ------------------
 STUDENTS = [
@@ -233,8 +229,6 @@ def ensure_font():
         if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
             return FONT_NAME
-        else:
-            return None
     except Exception:
         pass
 
@@ -472,7 +466,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar
+# CSS + top toolbar (نفس الكود السابق)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -526,56 +520,65 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
-    
-    /* تصميم text box واحد للبحث */
-    .single-search-container {
-        display: flex;
-        justify-content: center;
-        margin: 2rem 0;
+    .searchBox {
+      display: flex;
+      max-width: 230px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #2f3640;
+      border-radius: 50px;
+      position: relative;
+      margin: 20px 0;
     }
-    
-    /* إخفاء جميع labels الافتراضية */
-    div[data-testid="stTextInput"] label {
+    .searchButton {
+      color: white;
+      position: absolute;
+      right: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
+      border: 0;
+      display: inline-block;
+      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      cursor: pointer;
+    }
+    .searchButton:hover {
+      color: #fff;
+      background-color: #1A1A1A;
+      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
+      transform: translateY(-3px);
+    }
+    .searchButton:active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+    .searchInput {
+      border: none;
+      background: none;
+      outline: none;
+      color: white;
+      font-size: 15px;
+      padding: 24px 46px 24px 26px;
+      width: 100%;
+    }
+    .student-search label {
         display: none !important;
     }
-    
-    /* تصميم حقل البحث الوحيد */
-    div[data-testid="stTextInput"] {
-        width: 100% !important;
-        display: flex !important;
-        justify-content: center !important;
+    .student-search .stTextInput > div > div > input {
+        border: none;
+        background: #2f3640;
+        outline: none;
+        color: white;
+        font-size: 15px;
+        padding: 24px 46px 24px 26px;
+        border-radius: 50px;
+        font-family: 'Cairo', sans-serif;
     }
-    
-    div[data-testid="stTextInput"] > div > div {
-        width: 400px !important;
-        max-width: 90% !important;
+    .student-search .stTextInput > div {
+        max-width: 230px;
     }
-    
-    div[data-testid="stTextInput"] input {
-        width: 100% !important;
-        padding: 16px 24px !important;
-        font-size: 18px !important;
-        border: 2px solid #cbd5e1 !important;
-        border-radius: 25px !important;
-        text-align: right !important;
-        font-family: 'Cairo', sans-serif !important;
-        background: white !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    div[data-testid="stTextInput"] input:focus {
-        border-color: #2563eb !important;
-        box-shadow: 0 0 20px rgba(37, 99, 235, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    div[data-testid="stTextInput"] input::placeholder {
-        color: #94a3b8 !important;
-        text-align: right !important;
-        font-family: 'Cairo', sans-serif !important;
-    }
-    
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -714,7 +717,7 @@ elif st.session_state.page == "teacher_attendance":
             else:
                 # رسالة نجاح مختصرة فقط
                 if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {len(selected)} طالب")
+                    st.success(f"✅ تم تسجيل الغياب بنجاح ")
                 if failed:
                     st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
@@ -722,16 +725,13 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
+
+
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
-    
-    # text box واحد فقط - بدون أي HTML إضافي
-    search_query = st.text_input(
-        "ابحث عن طالب",
-        placeholder="اكتب اسم الطالب هنا...",
-        key="student_search",
-        label_visibility="collapsed"
-    )
+    st.markdown('<div class="student-search">', unsafe_allow_html=True)
+    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if search_query and search_query.strip():
         df_student = get_student_records(search_query.strip())
@@ -746,11 +746,47 @@ elif st.session_state.page == "student":
                 file_name=f"{search_query}_report.pdf",
                 mime="application/pdf"
             )
-    else:
-        st.info("🔍 اكتب اسم الطالب في مربع البحث أعلاه لعرض سجلات الغياب")
 
     if st.button("رجوع"):
         if "student_search" in st.session_state:
             del st.session_state.student_search
         st.session_state.page = "home"
-        safe_rerun()
+        safe_rerun() في صفحه الطالب في test box حوشه و حط الشكل ده .inputGroup {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 1em 0 1em 0;
+  max-width: 190px;
+  position: relative;
+}
+
+.inputGroup input {
+  font-size: 100%;
+  padding: 0.8em;
+  outline: none;
+  border: 2px solid rgb(200, 200, 200);
+  background-color: transparent;
+  border-radius: 20px;
+  width: 100%;
+}
+
+.inputGroup label {
+  font-size: 100%;
+  position: absolute;
+  left: 0;
+  padding: 0.8em;
+  margin-left: 0.5em;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  color: rgb(100, 100, 100);
+}
+
+.inputGroup :is(input:focus, input:valid)~label {
+  transform: translateY(-50%) scale(.9);
+  margin: 0em;
+  margin-left: 1.3em;
+  padding: 0.4em;
+  background-color: #e8e8e8;
+}
+
+.inputGroup :is(input:focus, input:valid) {
+  border-color: rgb(150, 150, 200);
+}

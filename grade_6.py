@@ -255,15 +255,15 @@ def reshape_arabic_text(text):
 
 def read_sheet():
     if worksheet is None:
-        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["", "teacher", "status", "date"])
     
     try:
         data = worksheet.get_all_records()
     except Exception:
-        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["", "teacher", "status", "date"])
     
     df = pd.DataFrame(data)
-    for c in ["student", "teacher", "status", "date"]:
+    for c in ["", "teacher", "status", "date"]:
         if c not in df.columns:
             df[c] = ""
     return df
@@ -330,7 +330,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
     
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
-    for student in STUDENTS:
+    for  in S:
         status = absent_label if student in selected_absent else "حاضر"
         rows.append([student, teacher_name, status, date_display])
 
@@ -777,64 +777,39 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     
-    # CSS مخصص لحقل الإدخال مع الحفاظ على وظيفة Streamlit
+    # استخدام التصميم الجديد لـ text box
     st.markdown("""
-    <style>
-    .custom-input-container {
-        position: relative;
-        margin: 2em 0;
-        max-width: 300px;
-    }
-    .custom-input-container input {
-        font-size: 100%;
-        padding: 0.8em;
-        outline: none;
-        border: 2px solid rgb(200, 200, 200);
-        background-color: transparent;
-        border-radius: 20px;
-        width: 100%;
-        font-family: 'Cairo', sans-serif;
-        text-align: right;
-    }
-    .custom-input-container label {
-        font-size: 100%;
-        position: absolute;
-        right: 0;
-        padding: 0.8em;
-        margin-right: 0.5em;
-        pointer-events: none;
-        transition: all 0.3s ease;
-        color: rgb(100, 100, 100);
-        font-family: 'Cairo', sans-serif;
-    }
-    .custom-input-container input:focus + label,
-    .custom-input-container input:not(:placeholder-shown) + label {
-        transform: translateY(-50%) scale(.9);
-        margin: 0em;
-        margin-right: 1.3em;
-        padding: 0.4em;
-        background-color: #e8e8e8;
-    }
-    .custom-input-container input:focus {
-        border-color: rgb(150, 150, 200);
-    }
-    
-    /* إخفاء label الافتراضي لـ Streamlit */
-    .custom-input-container .stTextInput > div > div > label {
-        display: none !important;
-    }
-    </style>
+    <div class="inputGroup">
+        <input type="text" id="student_search_input" required="" autocomplete="off">
+        <label for="student_search_input">اكتب اسم الطالب...</label>
+    </div>
     """, unsafe_allow_html=True)
     
-    # حقل الإدخال مع التصميم المخصص
-    st.markdown('<div class="custom-input-container">', unsafe_allow_html=True)
-    search_query = st.text_input(
-        "ابحث عن طالب", 
-        placeholder=" ",  # مسافة فارغة لتفعيل تأثير الـ label
-        key="student_search",
-        label_visibility="collapsed"
-    )
-    st.markdown('<label for="student_search">اكتب اسم الطالب...</label>', unsafe_allow_html=True)
+    # JavaScript لجلب القيمة من حقل الإدخال المخصص
+    st.markdown("""
+    <script>
+    function updateSearchQuery() {
+        const input = document.getElementById('student_search_input');
+        if (input && input.value) {
+            // هنا يمكنك إضافة كود لإرسال القيمة إلى Streamlit
+            console.log('Search query:', input.value);
+        }
+    }
+    
+    // إضافة event listener لحقل الإدخال
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('student_search_input');
+        if (input) {
+            input.addEventListener('input', updateSearchQuery);
+            input.addEventListener('change', updateSearchQuery);
+        }
+    });
+    </script>
+    """, unsafe_allow_html=True)
+    
+    # للحفاظ على التوافق، نستخدم أيضًا حقل Streamlit العادي
+    st.markdown('<div style="margin-top: 20px;">', unsafe_allow_html=True)
+    search_query = st.text_input("ابحث عن طالب", placeholder="اكتب اسم الطالب هنا...", key="student_search")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if search_query and search_query.strip():
@@ -856,3 +831,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+

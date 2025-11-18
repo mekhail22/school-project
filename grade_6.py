@@ -354,7 +354,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
+    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون:"
     
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
@@ -752,4 +752,5 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+
 

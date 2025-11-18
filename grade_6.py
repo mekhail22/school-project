@@ -790,3 +790,4 @@ elif st.session_state.page == "student":
 .inputGroup :is(input:focus, input:valid) {
   border-color: rgb(150, 150, 200);
 }
+

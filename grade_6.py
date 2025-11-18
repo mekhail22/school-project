@@ -1,8 +1,3 @@
-# streamlit_app.py
-"""
-Grade 6 attendance app — الإصدار النهائي
-"""
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -210,11 +205,10 @@ else:
 if "disable_connection_alerts" not in st.session_state:
     st.session_state.disable_connection_alerts = True
 
-# ------------------ Session State ------------------
-if "show_about" not in st.session_state:
-    st.session_state.show_about = False
-if "show_contact" not in st.session_state:
-    st.session_state.show_contact = False
+# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
+_ = connection_status
+_ = connection_details
+
 
 # ------------------ باقي الكود يبقى كما هو ------------------
 # Arabic font for PDF
@@ -472,7 +466,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar
+# CSS + top toolbar (نفس الكود السابق)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -512,7 +506,6 @@ st.markdown("""
         border-radius: 12px; font-size: 15px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
         backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-        font-family: 'Cairo', sans-serif;
     }
     .nav-btn:hover {
         background: white; color: #1e40af;
@@ -520,7 +513,13 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
     .content-padding { height: 90px; }
-    
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
+    .modal p { text-align: center; color: #475569; line-height: 1.6; }
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -604,26 +603,44 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-buttons">
-        <button class="nav-btn" onclick="alert('مدرسة السلام الإعدادية الثانوية المشتركة - الصف السادس الابتدائي')">عنا</button>
-        <button class="nav-btn" onclick="alert('الهاتف: 02-12345678\\nالبريد: alsalam.school@example.com\\nالعنوان: حي السلام - القاهرة')">اتصل بنا</button>
+        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
     </div>
 </div>
-<div class="content-padding"></div>
 """, unsafe_allow_html=True)
 
-# JavaScript للتعامل مع الأزرار
+st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# Modals HTML + script
 st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن المدرسة</h3>
+        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+    </div>
+</div>
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+        <h3>اتصل بنا</h3>
+        <p>الهاتف: 02-12345678</p>
+        <p>البريد: alsalam.school@example.com</p>
+        <p>العنوان: حي السلام - القاهرة</p>
+    </div>
+</div>
 <script>
-// جعل الأزرار تعمل عند الضغط عليها
-document.addEventListener('DOMContentLoaded', function() {
-    const buttons = document.querySelectorAll('.nav-btn');
-    
-    buttons.forEach(button => {
-        button.addEventListener('click', function() {
-            // الأزرار ستعمل الآن وتظهر رسائل التنبيه
-        });
-    });
-});
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    var contactModal = document.getElementById('contact-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+    if (event.target == contactModal) {
+        contactModal.style.display = "none";
+    }
+}
 </script>
 """, unsafe_allow_html=True)
 
@@ -648,7 +665,6 @@ if st.session_state.page == "home":
         if st.button("طالب"):
             st.session_state.page = "student"
             safe_rerun()
-
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
@@ -709,6 +725,8 @@ elif st.session_state.page == "teacher_attendance":
         st.session_state.page = "home"
         st.rerun()
 
+
+
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
@@ -734,31 +752,3 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
-
-# قسم "عنا" و "اتصل بنا" في الأسفل
-st.markdown("---")
-st.markdown("### معلومات المدرسة")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("📚 عن المدرسة", use_container_width=True):
-        st.info("""
-        **مدرسة السلام الإعدادية الثانوية المشتركة**
-        
-        من أعرق المدارس الحكومية في المنطقة
-        تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق
-        الصف: السادس الابتدائي
-        """)
-
-with col2:
-    if st.button("📞 اتصل بنا", use_container_width=True):
-        st.success("""
-        **معلومات الاتصال:**
-        
-        📞 الهاتف: 02-12345678
-        📧 البريد: alsalam.school@example.com  
-        📍 العنوان: حي السلام - القاهرة
-        👨‍🏫 المسؤول: الأستاذ / مينا سمير
-        """)
-

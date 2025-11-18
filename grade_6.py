@@ -730,7 +730,7 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+    search_query = st.text_input("اكتب الاسم ثلاثي", placeholder="اكتب اسم الطالب", key="student_search")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if search_query and search_query.strip():
@@ -752,3 +752,4 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+

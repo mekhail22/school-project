@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", page_image="images.jpeg", layout="centered")
+st.set_page_config(page_title="نظام الغياب", page_icon="📊", layout="centered")
 
 # ------------------ App settings ------------------
 STUDENTS = [
@@ -780,4 +780,5 @@ elif st.session_state.page == "student":
             del st.session_state.student_search
         st.session_state.page = "home"
         safe_rerun()
+
 

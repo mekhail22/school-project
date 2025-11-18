@@ -33,7 +33,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.set_page_config(
+    page_title="نظام الغياب", 
+    layout="centered",
+    page_icon="📊"
+)
 
 # ------------------ App settings ------------------
 STUDENTS = [
@@ -524,46 +528,31 @@ st.markdown("""
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
     
     /* تصميم text box واحد للبحث */
-    .student-search-container {
+    .single-search-container {
         display: flex;
         justify-content: center;
-        margin: 3rem 0;
-    }
-    .student-search-box {
-        position: relative;
-        width: 400px;
-    }
-    .student-search-input {
-        width: 100%;
-        padding: 16px 24px;
-        font-size: 18px;
-        border: 2px solid #cbd5e1;
-        border-radius: 25px;
-        outline: none;
-        transition: all 0.3s ease;
-        font-family: 'Cairo', sans-serif;
-        text-align: right;
-        background: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .student-search-input:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
-        transform: translateY(-2px);
-    }
-    .student-search-input::placeholder {
-        color: #94a3b8;
-        text-align: right;
+        margin: 2rem 0;
     }
     
-    /* إخفاء label الافتراضي لـ Streamlit */
+    /* إخفاء جميع labels الافتراضية */
     div[data-testid="stTextInput"] label {
         display: none !important;
     }
-    div[data-testid="stTextInput"] input {
+    
+    /* تصميم حقل البحث الوحيد */
+    div[data-testid="stTextInput"] {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div {
         width: 400px !important;
-        margin: 0 auto !important;
-        display: block !important;
+        max-width: 90% !important;
+    }
+    
+    div[data-testid="stTextInput"] input {
+        width: 100% !important;
         padding: 16px 24px !important;
         font-size: 18px !important;
         border: 2px solid #cbd5e1 !important;
@@ -574,10 +563,17 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
         transition: all 0.3s ease !important;
     }
+    
     div[data-testid="stTextInput"] input:focus {
         border-color: #2563eb !important;
         box-shadow: 0 0 20px rgba(37, 99, 235, 0.3) !important;
         transform: translateY(-2px) !important;
+    }
+    
+    div[data-testid="stTextInput"] input::placeholder {
+        color: #94a3b8 !important;
+        text-align: right !important;
+        font-family: 'Cairo', sans-serif !important;
     }
     
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
@@ -729,17 +725,7 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     
-    # تصميم text box واحد فقط للبحث
-    st.markdown("""
-    <div class="student-search-container">
-        <div class="student-search-box">
-            <input type="text" class="student-search-input" placeholder="اكتب اسم الطالب..." 
-                   onclick="this.style.display='none'; document.getElementById('realSearchInput').style.display='block'; document.getElementById('realSearchInput').focus();">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # text box واحد فقط من Streamlit
+    # text box واحد فقط - بدون أي HTML إضافي
     search_query = st.text_input(
         "ابحث عن طالب",
         placeholder="اكتب اسم الطالب هنا...",
@@ -753,3 +739,18 @@ elif st.session_state.page == "student":
             st.info(f"لا يوجد سجلات للطالب: {search_query}")
         else:
             st.dataframe(df_student, use_container_width=True, hide_index=True)
+            pdf_buf = generate_student_pdf(search_query, df_student)
+            st.download_button(
+                "تحميل PDF",
+                data=pdf_buf,
+                file_name=f"{search_query}_report.pdf",
+                mime="application/pdf"
+            )
+    else:
+        st.info("🔍 اكتب اسم الطالب في مربع البحث أعلاه لعرض سجلات الغياب")
+
+    if st.button("رجوع"):
+        if "student_search" in st.session_state:
+            del st.session_state.student_search
+        st.session_state.page = "home"
+        safe_rerun()

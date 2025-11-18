@@ -777,9 +777,63 @@ elif st.session_state.page == "teacher_attendance":
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
     
-    # استخدام التصميم الجديد لـ text box
-    st.markdown('<div class="inputGroup">', unsafe_allow_html=True)
-    search_query = st.text_input(" ", placeholder=" ", key="student_search", label_visibility="collapsed")
+    # CSS مخصص لحقل الإدخال مع الحفاظ على وظيفة Streamlit
+    st.markdown("""
+    <style>
+    .custom-input-container {
+        position: relative;
+        margin: 2em 0;
+        max-width: 300px;
+    }
+    .custom-input-container input {
+        font-size: 100%;
+        padding: 0.8em;
+        outline: none;
+        border: 2px solid rgb(200, 200, 200);
+        background-color: transparent;
+        border-radius: 20px;
+        width: 100%;
+        font-family: 'Cairo', sans-serif;
+        text-align: right;
+    }
+    .custom-input-container label {
+        font-size: 100%;
+        position: absolute;
+        right: 0;
+        padding: 0.8em;
+        margin-right: 0.5em;
+        pointer-events: none;
+        transition: all 0.3s ease;
+        color: rgb(100, 100, 100);
+        font-family: 'Cairo', sans-serif;
+    }
+    .custom-input-container input:focus + label,
+    .custom-input-container input:not(:placeholder-shown) + label {
+        transform: translateY(-50%) scale(.9);
+        margin: 0em;
+        margin-right: 1.3em;
+        padding: 0.4em;
+        background-color: #e8e8e8;
+    }
+    .custom-input-container input:focus {
+        border-color: rgb(150, 150, 200);
+    }
+    
+    /* إخفاء label الافتراضي لـ Streamlit */
+    .custom-input-container .stTextInput > div > div > label {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # حقل الإدخال مع التصميم المخصص
+    st.markdown('<div class="custom-input-container">', unsafe_allow_html=True)
+    search_query = st.text_input(
+        "ابحث عن طالب", 
+        placeholder=" ",  # مسافة فارغة لتفعيل تأثير الـ label
+        key="student_search",
+        label_visibility="collapsed"
+    )
     st.markdown('<label for="student_search">اكتب اسم الطالب...</label>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 

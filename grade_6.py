@@ -8,6 +8,8 @@ import json
 import logging
 import base64
 import requests
+import hashlib
+import uuid
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -45,6 +47,244 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
+# ------------------ New Users Database ------------------
+USERS_DB_FILE = "users_database.json"
+
+class UsersDatabase:
+    """فئة لإدارة قاعدة بيانات المستخدمين"""
+    
+    def __init__(self):
+        self.db_file = USERS_DB_FILE
+        self.init_database()
+    
+    def init_database(self):
+        """تهيئة قاعدة البيانات إذا لم تكن موجودة"""
+        if not os.path.exists(self.db_file):
+            default_data = {
+                "users": [],
+                "sessions": [],
+                "statistics": {
+                    "total_users": 0,
+                    "total_logins": 0,
+                    "total_teachers": 0,
+                    "total_students": 0,
+                    "active_sessions": 0
+                },
+                "metadata": {
+                    "created_at": datetime.now().isoformat(),
+                    "last_updated": datetime.now().isoformat(),
+                    "version": "1.0.0"
+                }
+            }
+            self.save_database(default_data)
+    
+    def load_database(self):
+        """تحميل قاعدة البيانات من ملف JSON"""
+        try:
+            with open(self.db_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # تحديث آخر وقت تحديث
+                data["metadata"]["last_updated"] = datetime.now().isoformat()
+                return data
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.init_database()
+            return self.load_database()
+    
+    def save_database(self, data):
+        """حفظ قاعدة البيانات إلى ملف JSON"""
+        try:
+            data["metadata"]["last_updated"] = datetime.now().isoformat()
+            with open(self.db_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"Error saving database: {str(e)}")
+            return False
+    
+    def hash_password(self, password):
+        """تشفير كلمة المرور"""
+        salt = "school_attendance_system_salt_2024"
+        return hashlib.sha256((password + salt).encode()).hexdigest()
+    
+    def generate_user_id(self):
+        """إنشاء معرف فريد للمستخدم"""
+        return f"user_{uuid.uuid4().hex[:8]}"
+    
+    def generate_session_id(self):
+        """إنشاء معرف فريد للجلسة"""
+        return f"session_{uuid.uuid4().hex[:12]}"
+    
+    def register_user(self, name, email, password, user_type, teacher_name=None):
+        """تسجيل مستخدم جديد"""
+        db = self.load_database()
+        
+        # التحقق من عدم تكرار الإيميل
+        for user in db["users"]:
+            if user["email"].lower() == email.lower():
+                return False, "Email already exists"
+        
+        # إنشاء مستخدم جديد
+        new_user = {
+            "id": self.generate_user_id(),
+            "name": name,
+            "email": email.lower(),
+            "password_hash": self.hash_password(password),
+            "user_type": user_type,  # "teacher" أو "student"
+            "teacher_name": teacher_name if user_type == "teacher" else None,
+            "created_at": datetime.now().isoformat(),
+            "last_login": None,
+            "login_count": 0,
+            "is_active": True,
+            "preferences": {
+                "theme": "light",
+                "language": "ar",
+                "notifications": True
+            }
+        }
+        
+        db["users"].append(new_user)
+        
+        # تحديث الإحصائيات
+        db["statistics"]["total_users"] = len(db["users"])
+        if user_type == "teacher":
+            db["statistics"]["total_teachers"] += 1
+        else:
+            db["statistics"]["total_students"] += 1
+        
+        if self.save_database(db):
+            return True, "User registered successfully"
+        else:
+            return False, "Failed to save user data"
+    
+    def authenticate_user(self, email, password):
+        """المصادقة على المستخدم"""
+        db = self.load_database()
+        
+        for user in db["users"]:
+            if user["email"].lower() == email.lower():
+                if user["password_hash"] == self.hash_password(password):
+                    if user.get("is_active", True):
+                        # تحديث معلومات تسجيل الدخول
+                        user["last_login"] = datetime.now().isoformat()
+                        user["login_count"] = user.get("login_count", 0) + 1
+                        
+                        # إنشاء جلسة جديدة
+                        session_id = self.generate_session_id()
+                        new_session = {
+                            "session_id": session_id,
+                            "user_id": user["id"],
+                            "user_email": email,
+                            "user_type": user["user_type"],
+                            "login_time": datetime.now().isoformat(),
+                            "logout_time": None,
+                            "ip_address": "localhost",  # يمكن إضافة IP حقيقي لاحقاً
+                            "user_agent": "streamlit_app"
+                        }
+                        db["sessions"].append(new_session)
+                        
+                        # تحديث الإحصائيات
+                        db["statistics"]["total_logins"] += 1
+                        db["statistics"]["active_sessions"] = len([
+                            s for s in db["sessions"] if s["logout_time"] is None
+                        ])
+                        
+                        self.save_database(db)
+                        
+                        # إرجاع بيانات المستخدم والجلسة
+                        return True, {
+                            "user": user,
+                            "session_id": session_id
+                        }
+                    else:
+                        return False, "Account is deactivated"
+                else:
+                    return False, "Invalid password"
+        
+        return False, "User not found"
+    
+    def logout_user(self, session_id):
+        """تسجيل خروج المستخدم"""
+        db = self.load_database()
+        
+        for session in db["sessions"]:
+            if session["session_id"] == session_id and session["logout_time"] is None:
+                session["logout_time"] = datetime.now().isoformat()
+                db["statistics"]["active_sessions"] = len([
+                    s for s in db["sessions"] if s["logout_time"] is None
+                ])
+                self.save_database(db)
+                return True
+        
+        return False
+    
+    def get_user_by_email(self, email):
+        """الحصول على بيانات المستخدم بواسطة الإيميل"""
+        db = self.load_database()
+        
+        for user in db["users"]:
+            if user["email"].lower() == email.lower():
+                return user
+        
+        return None
+    
+    def get_user_by_id(self, user_id):
+        """الحصول على بيانات المستخدم بواسطة المعرف"""
+        db = self.load_database()
+        
+        for user in db["users"]:
+            if user["id"] == user_id:
+                return user
+        
+        return None
+    
+    def update_user_preferences(self, user_id, preferences):
+        """تحديث تفضيلات المستخدم"""
+        db = self.load_database()
+        
+        for user in db["users"]:
+            if user["id"] == user_id:
+                user["preferences"].update(preferences)
+                self.save_database(db)
+                return True
+        
+        return False
+    
+    def get_all_users(self):
+        """الحصول على جميع المستخدمين"""
+        db = self.load_database()
+        return db["users"]
+    
+    def get_active_sessions(self):
+        """الحصول على الجلسات النشطة"""
+        db = self.load_database()
+        return [s for s in db["sessions"] if s["logout_time"] is None]
+    
+    def get_statistics(self):
+        """الحصول على إحصائيات قاعدة البيانات"""
+        db = self.load_database()
+        return db["statistics"]
+    
+    def get_recent_sessions(self, limit=10):
+        """الحصول على أحدث الجلسات"""
+        db = self.load_database()
+        sessions = db["sessions"][-limit:][::-1]  # أحدث الجلسات أولاً
+        return sessions
+    
+    def reset_password(self, email, new_password):
+        """إعادة تعيين كلمة المرور"""
+        db = self.load_database()
+        
+        for user in db["users"]:
+            if user["email"].lower() == email.lower():
+                user["password_hash"] = self.hash_password(new_password)
+                self.save_database(db)
+                return True, "Password reset successfully"
+        
+        return False, "User not found"
+
+# إنشاء كائن قاعدة البيانات
+users_db = UsersDatabase()
+
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
     """تحميل الإعدادات من Streamlit Secrets"""
@@ -56,7 +296,6 @@ def load_secrets():
         CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
         # App settings
-        PASSWORD = getattr(secrets.app, 'password', '1234')
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
         # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
@@ -90,7 +329,6 @@ def load_secrets():
         return {
             'BOT_TOKEN': BOT_TOKEN,
             'CHAT_ID': CHAT_ID,
-            'PASSWORD': PASSWORD,
             'SHEET_NAME': SHEET_NAME,
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
@@ -100,7 +338,6 @@ def load_secrets():
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
-            'PASSWORD': '1234',
             'SHEET_NAME': 'school_attendance',
             'SERVICE_ACCOUNT': None
         }
@@ -110,7 +347,6 @@ secrets_config = load_secrets()
 
 BOT_TOKEN = secrets_config['BOT_TOKEN']
 CHAT_ID = secrets_config['CHAT_ID']
-PASSWORD = secrets_config['PASSWORD']
 SHEET_NAME = secrets_config['SHEET_NAME']
 SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
@@ -118,50 +354,6 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 worksheet = None
 connection_status = "غير متصل"
 connection_details = ""
-
-def debug_secrets():
-    """وظيفة للمساعدة في تشخيص مشاكل الـ Secrets"""
-    st.subheader("🔍 فحص الإعدادات التفصيلي")
-    
-    secrets_config = load_secrets()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**إعدادات Telegram:**")
-        st.write(f"- BOT_TOKEN: {'✅ موجود' if secrets_config['BOT_TOKEN'] else '❌ مفقود'}")
-        st.write(f"- CHAT_ID: {'✅ موجود' if secrets_config['CHAT_ID'] else '❌ مفقود'}")
-        
-        st.write("**إعدادات التطبيق:**")
-        st.write(f"- PASSWORD: {'✅ موجود' if secrets_config['PASSWORD'] else '❌ مفقود'}")
-        st.write(f"- SHEET_NAME: {secrets_config['SHEET_NAME']}")
-    
-    with col2:
-        st.write("**Service Account:**")
-        if secrets_config['SERVICE_ACCOUNT']:
-            sa = secrets_config['SERVICE_ACCOUNT']
-            st.write(f"- type: {sa.get('type', '❌ مفقود')}")
-            st.write(f"- project_id: {sa.get('project_id', '❌ مفقود')}")
-            st.write(f"- private_key_id: {sa.get('private_key_id', '❌ مفقود')}")
-            st.write(f"- client_email: {sa.get('client_email', '❌ مفقود')}")
-            st.write(f"- private_key: {'✅ موجود' if sa.get('private_key') else '❌ مفقود'}")
-            
-            if sa.get('private_key'):
-                pk = sa['private_key']
-                st.write(f"  - الطول: {len(pk)} حرف")
-                st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
-                st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
-        else:
-            st.write("❌ Service Account غير متوفر")
-            
-        # فحص وجود SERVICE_ACCOUNT_JSON
-        try:
-            if hasattr(st.secrets, 'SERVICE_ACCOUNT_JSON'):
-                st.write("✅ SERVICE_ACCOUNT_JSON موجود")
-            else:
-                st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
-        except:
-            st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
@@ -206,10 +398,6 @@ else:
 if "disable_connection_alerts" not in st.session_state:
     st.session_state.disable_connection_alerts = True
 
-# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
-_ = connection_status
-_ = connection_details
-
 # ------------------ HTML للواجهة التفاعلية ------------------
 def show_login_page():
     """عرض صفحة تسجيل الدخول التفاعلية"""
@@ -224,6 +412,7 @@ def show_login_page():
       <input type="text" placeholder="Name" id="signupName" />
       <input type="email" placeholder="Email" id="signupEmail" />
       <input type="password" placeholder="Password" id="signupPassword" />
+      <input type="password" placeholder="Confirm Password" id="signupConfirmPassword" />
       <button type="button" onclick="handleSignUp()">Sign Up</button>
     </form>
   </div>
@@ -235,7 +424,7 @@ def show_login_page():
       <span>or use your account</span>
       <input type="email" placeholder="Email" id="signinEmail" />
       <input type="password" placeholder="Password" id="signinPassword" />
-      <a href="#">Forgot your password?</a>
+      <a href="#" onclick="showForgotPassword()">Forgot your password?</a>
       <button type="button" onclick="handleSignIn()">Sign In</button>
     </form>
   </div>
@@ -515,41 +704,82 @@ function handleSignIn() {
     const email = document.getElementById('signinEmail').value;
     const password = document.getElementById('signinPassword').value;
     
-    if (email && password) {
-        // إرسال البيانات إلى Streamlit
-        window.parent.postMessage({
-            type: 'streamlit:setComponentValue',
-            value: 'login_completed',
-            data: {
-                email: email,
-                password: password,
-                action: 'signin'
-            }
-        }, '*');
-    } else {
+    if (!email || !password) {
         alert('Please fill in both email and password.');
+        return;
     }
+    
+    // التحقق من صحة الإيميل
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+    
+    // إرسال البيانات إلى Streamlit
+    window.parent.postMessage({
+        type: 'streamlit:setComponentValue',
+        value: 'login_completed',
+        data: {
+            email: email,
+            password: password,
+            action: 'signin'
+        }
+    }, '*');
 }
 
 function handleSignUp() {
     const name = document.getElementById('signupName').value;
     const email = document.getElementById('signupEmail').value;
     const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
     
-    if (name && email && password) {
-        // إرسال البيانات إلى Streamlit
+    if (!name || !email || !password || !confirmPassword) {
+        alert('Please fill in all fields.');
+        return;
+    }
+    
+    // التحقق من صحة الإيميل
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+    
+    // التحقق من تطابق كلمتي المرور
+    if (password !== confirmPassword) {
+        alert('Passwords do not match.');
+        return;
+    }
+    
+    // التحقق من قوة كلمة المرور
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters long.');
+        return;
+    }
+    
+    // إرسال البيانات إلى Streamlit
+    window.parent.postMessage({
+        type: 'streamlit:setComponentValue',
+        value: 'login_completed',
+        data: {
+            name: name,
+            email: email,
+            password: password,
+            action: 'signup'
+        }
+    }, '*');
+}
+
+function showForgotPassword() {
+    const email = prompt("Please enter your email to reset password:");
+    if (email) {
+        // إرسال طلب استعادة كلمة المرور
         window.parent.postMessage({
             type: 'streamlit:setComponentValue',
-            value: 'login_completed',
-            data: {
-                name: name,
-                email: email,
-                password: password,
-                action: 'signup'
-            }
+            value: 'forgot_password',
+            data: { email: email }
         }, '*');
-    } else {
-        alert('Please fill in all fields.');
     }
 }
 
@@ -1038,6 +1268,37 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(16,185,129,0.3);
     }
+    
+    /* Admin panel styles */
+    .admin-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .stat-number {
+        font-size: 36px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .stat-label {
+        font-size: 16px;
+        opacity: 0.9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1052,44 +1313,184 @@ def safe_rerun():
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-if "user_data" not in st.session_state:
-    st.session_state.user_data = None
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+
+if "current_session" not in st.session_state:
+    st.session_state.current_session = None
 
 if "show_role_selection" not in st.session_state:
     st.session_state.show_role_selection = False
 
-# الوظيفة لعرض اختيار الدور
+# وظيفة لعرض لوحة تحكم المدير
+def show_admin_panel():
+    """عرض لوحة تحكم المدير"""
+    st.subheader("📊 لوحة تحكم النظام")
+    
+    # عرض إحصائيات قاعدة البيانات
+    stats = users_db.get_statistics()
+    recent_sessions = users_db.get_recent_sessions(5)
+    
+    # شبكة الإحصائيات
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{stats['total_users']}</div>
+            <div class="stat-label">👥 إجمالي المستخدمين</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="stat-number">{stats['total_teachers']}</div>
+            <div class="stat-label">👨‍🏫 المعلمين</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="stat-number">{stats['total_students']}</div>
+            <div class="stat-label">👨‍🎓 الطلاب</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="stat-number">{stats['total_logins']}</div>
+            <div class="stat-label">🔐 مرات الدخول</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # علامات التبويب
+    tab1, tab2, tab3 = st.tabs(["📝 المستخدمين", "📊 الجلسات", "⚙️ الإعدادات"])
+    
+    with tab1:
+        st.subheader("قائمة المستخدمين")
+        users = users_db.get_all_users()
+        
+        if users:
+            users_df = pd.DataFrame(users)
+            # إخفاء الحقول الحساسة
+            if "password_hash" in users_df.columns:
+                users_df = users_df.drop(columns=["password_hash"])
+            
+            st.dataframe(users_df, use_container_width=True)
+            
+            # خيارات المدير
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 تحديث القائمة"):
+                    st.rerun()
+            with col2:
+                if st.button("📥 تصدير البيانات"):
+                    csv = users_df.to_csv(index=False)
+                    st.download_button(
+                        "تحميل كـ CSV",
+                        data=csv,
+                        file_name="users_data.csv",
+                        mime="text/csv"
+                    )
+        else:
+            st.info("لا يوجد مستخدمين مسجلين بعد.")
+    
+    with tab2:
+        st.subheader("الجلسات الأخيرة")
+        sessions = users_db.get_recent_sessions(10)
+        
+        if sessions:
+            sessions_df = pd.DataFrame(sessions)
+            st.dataframe(sessions_df, use_container_width=True)
+        else:
+            st.info("لا توجد جلسات مسجلة.")
+    
+    with tab3:
+        st.subheader("إعدادات قاعدة البيانات")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔄 إعادة تحميل قاعدة البيانات"):
+                users_db.init_database()
+                st.success("✅ تم إعادة تحميل قاعدة البيانات")
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ حذف جميع المستخدمين", type="secondary"):
+                st.warning("⚠️ هذا الإجراء لا يمكن التراجع عنه!")
+                if st.checkbox("أنا متأكد من حذف جميع المستخدمين"):
+                    # إعادة تهيئة قاعدة البيانات
+                    users_db.init_database()
+                    st.success("✅ تم حذف جميع المستخدمين")
+                    st.rerun()
+
+# وظيفة لعرض اختيار الدور
 def show_role_selection():
     """عرض اختيار المعلم أو الطالب"""
     st.markdown('<div class="role-selection-container">', unsafe_allow_html=True)
-    st.markdown('<h1 class="role-title">Welcome!</h1>', unsafe_allow_html=True)
+    
+    # عرض بيانات المستخدم
+    if st.session_state.current_user:
+        st.markdown(f'<h2 class="role-title">Welcome, {st.session_state.current_user["name"]}!</h2>', unsafe_allow_html=True)
+        st.markdown(f'<p style="color: #6b7280; margin-bottom: 30px;">Email: {st.session_state.current_user["email"]}</p>', unsafe_allow_html=True)
+    
     st.markdown('<p class="role-subtitle">Are you a Teacher or Student?</p>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
     with col1:
         if st.button("👨‍🏫 Teacher", key="teacher_role", use_container_width=True):
-            st.session_state.page = "teacher_login"
-            st.session_state.show_role_selection = False
-            st.rerun()
+            if st.session_state.current_user:
+                # تحديث نوع المستخدم في قاعدة البيانات إذا لزم الأمر
+                user = users_db.get_user_by_id(st.session_state.current_user["id"])
+                if user:
+                    user["user_type"] = "teacher"
+                    # الحصول على اسم المعلم
+                    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS, key="teacher_select")
+                    if teacher_choice:
+                        user["teacher_name"] = teacher_choice
+                        st.session_state.current_user = user
+                        st.session_state.page = "teacher_attendance"
+                        st.rerun()
     
     with col2:
         if st.button("👨‍🎓 Student", key="student_role", use_container_width=True):
-            st.session_state.page = "student"
-            st.session_state.show_role_selection = False
-            st.rerun()
+            if st.session_state.current_user:
+                # تحديث نوع المستخدم في قاعدة البيانات إذا لزم الأمر
+                user = users_db.get_user_by_id(st.session_state.current_user["id"])
+                if user:
+                    user["user_type"] = "student"
+                    st.session_state.current_user = user
+                    st.session_state.page = "student"
+                    st.rerun()
+    
+    # زر تسجيل الخروج
+    st.markdown("---")
+    if st.button("🚪 تسجيل الخروج", use_container_width=True, type="secondary"):
+        if st.session_state.current_session:
+            users_db.logout_user(st.session_state.current_session)
+        st.session_state.current_user = None
+        st.session_state.current_session = None
+        st.session_state.page = "home"
+        st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 # إذا كانت الصفحة الرئيسية، إخفاء كل شيء وإظهار واجهة تسجيل الدخول فقط
 if st.session_state.page == "home":
-    if st.session_state.show_role_selection:
+    if st.session_state.show_role_selection and st.session_state.current_user:
         show_role_selection()
     else:
         show_login_page()
         
 # إذا كانت الصفحة الأخرى، إظهار شريط الأدوات العلوي
-elif st.session_state.page in ["teacher_login", "teacher_attendance", "student"]:
+elif st.session_state.page in ["teacher_login", "teacher_attendance", "student", "admin"]:
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -1142,6 +1543,50 @@ elif st.session_state.page in ["teacher_login", "teacher_attendance", "student"]
     </script>
     """, unsafe_allow_html=True)
 
+# معالجة بيانات تسجيل الدخول من JavaScript
+if "login_data" not in st.session_state:
+    st.session_state.login_data = None
+
+# محاكاة استقبال البيانات من JavaScript
+# في التطبيق الحقيقي، سيتم استقبال البيانات من components.html
+# هنا سنستخدم أزرار اختبار
+
+# شريط اختبار سريع
+if st.session_state.page == "home" and not st.session_state.show_role_selection:
+    st.sidebar.title("🔧 اختبار سريع (Development)")
+    st.sidebar.info("هذا القسم للاختبار فقط")
+    
+    test_email = st.sidebar.text_input("Email للتجربة", "test@example.com")
+    test_password = st.sidebar.text_input("Password للتجربة", "123456", type="password")
+    
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        if st.button("تسجيل دخول تجريبي"):
+            success, result = users_db.authenticate_user(test_email, test_password)
+            if success:
+                st.session_state.current_user = result["user"]
+                st.session_state.current_session = result["session_id"]
+                st.session_state.show_role_selection = True
+                st.success(f"✅ تم تسجيل الدخول: {result['user']['name']}")
+                st.rerun()
+            else:
+                st.error(f"❌ {result}")
+    
+    with col2:
+        if st.button("تسجيل مستخدم جديد"):
+            # محاولة تسجيل مستخدم جديد
+            success, message = users_db.register_user(
+                name="Test User",
+                email=test_email,
+                password=test_password,
+                user_type="teacher",
+                teacher_name="مينا سمير"
+            )
+            if success:
+                st.success(f"✅ {message}")
+            else:
+                st.error(f"❌ {message}")
+
 # عرض الصفحة المناسبة بناءً على الحالة
 if st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
@@ -1151,7 +1596,7 @@ if st.session_state.page == "teacher_login":
     col1, col2 = st.columns(2)
     with col1:
         if st.button("تسجيل الدخول", use_container_width=True, type="primary"):
-            if pwd == PASSWORD:
+            if pwd == "1234":  # كلمة السر الافتراضية
                 st.session_state.teacher_name = teacher_choice
                 st.session_state.page = "teacher_attendance"
                 st.rerun()
@@ -1165,8 +1610,20 @@ if st.session_state.page == "teacher_login":
 
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
-    teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
+    
+    # عرض معلومات المستخدم
+    if st.session_state.current_user:
+        user = st.session_state.current_user
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("👤 الاسم", user.get("name", "غير معروف"))
+        with col2:
+            st.metric("📧 الإيميل", user.get("email", "غير معروف"))
+        with col3:
+            teacher_name = user.get("teacher_name", "غير معروف")
+            st.metric("👨‍🏫 المعلم", teacher_name)
+    
+    st.subheader(f"المعلم: {teacher_name if 'teacher_name' in locals() else 'غير معروف'}")
 
     # اختيار الطلاب الغائبين
     selected = st.multiselect("اختر الغائبين", STUDENTS)
@@ -1214,6 +1671,11 @@ elif st.session_state.page == "teacher_attendance":
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
+    
+    # عرض معلومات الطالب
+    if st.session_state.current_user:
+        st.info(f"👤 **الطالب:** {st.session_state.current_user.get('name', 'غير معروف')}")
+    
     st.markdown('<div class="student-search">', unsafe_allow_html=True)
     search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -1240,3 +1702,19 @@ elif st.session_state.page == "student":
             st.session_state.page = "home"
             st.session_state.show_role_selection = True
             safe_rerun()
+
+# زر للوصول إلى لوحة التحكم (للمطورين فقط)
+if st.session_state.page != "home" and st.session_state.current_user:
+    if st.session_state.current_user.get("email") == "admin@school.com":
+        st.sidebar.markdown("---")
+        if st.sidebar.button("🛠️ لوحة تحكم المدير"):
+            st.session_state.page = "admin"
+            st.rerun()
+
+# إظهار لوحة التحكم إذا كانت الصفحة admin
+if st.session_state.page == "admin":
+    show_admin_panel()
+    
+    if st.button("🏠 العودة للواجهة الرئيسية"):
+        st.session_state.page = "home"
+        st.rerun()

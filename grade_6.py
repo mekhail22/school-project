@@ -216,29 +216,27 @@ def show_login_page():
     html_code = """
 <div class="container" id="container">
   <div class="form-container sign-up-container">
-    <form action="#">
+    <form action="#" id="signupForm">
       <h1>Create Account</h1>
       <div class="social-container">
       </div>
       <span>or use your email for registration</span>
-      <input type="text" placeholder="Name" />
-      <input type="email" placeholder="Email" />
-      <input type="password" placeholder="Password" />
-      <button type="button" onclick="handleRoleSelect('teacher')" style="margin-top: 10px; background: #1e40af;">Sign Up as Teacher</button>
-      <button type="button" onclick="handleRoleSelect('student')" style="margin-top: 5px; background: #10b981;">Sign Up as Student</button>
+      <input type="text" placeholder="Name" id="signupName" />
+      <input type="email" placeholder="Email" id="signupEmail" />
+      <input type="password" placeholder="Password" id="signupPassword" />
+      <button type="button" onclick="handleSignUp()">Sign Up</button>
     </form>
   </div>
   <div class="form-container sign-in-container">
-    <form action="#">
+    <form action="#" id="signinForm">
       <h1>Sign in</h1>
       <div class="social-container">
       </div>
       <span>or use your account</span>
-      <input type="email" placeholder="Email" />
-      <input type="password" placeholder="Password" />
+      <input type="email" placeholder="Email" id="signinEmail" />
+      <input type="password" placeholder="Password" id="signinPassword" />
       <a href="#">Forgot your password?</a>
-      <button type="button" onclick="handleRoleSelect('teacher')" style="margin-top: 10px; background: #1e40af; width: 100%;">Login as Teacher</button>
-      <button type="button" onclick="handleRoleSelect('student')" style="margin-top: 5px; background: #10b981; width: 100%;">Login as Student</button>
+      <button type="button" onclick="handleSignIn()">Sign In</button>
     </form>
   </div>
   <div class="overlay-container">
@@ -493,17 +491,6 @@ input {
 	width: 40px;
 }
 
-/* Teacher and Student buttons */
-.teacher-btn {
-	background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-	border-color: #1e40af !important;
-}
-
-.student-btn {
-	background: linear-gradient(135deg, #10b981, #059669) !important;
-	border-color: #10b981 !important;
-}
-
 /* Streamlit hiding */
 [data-testid="stHeader"] { display: none !important; }
 [data-testid="stToolbar"] { display: none !important; }
@@ -524,12 +511,46 @@ signInButton.addEventListener('click', () => {
 	container.classList.remove("right-panel-active");
 });
 
-function handleRoleSelect(role) {
-    // إرسال البيانات إلى Streamlit
-    window.parent.postMessage({
-        type: 'streamlit:setComponentValue',
-        value: role
-    }, '*');
+function handleSignIn() {
+    const email = document.getElementById('signinEmail').value;
+    const password = document.getElementById('signinPassword').value;
+    
+    if (email && password) {
+        // إرسال البيانات إلى Streamlit
+        window.parent.postMessage({
+            type: 'streamlit:setComponentValue',
+            value: 'login_completed',
+            data: {
+                email: email,
+                password: password,
+                action: 'signin'
+            }
+        }, '*');
+    } else {
+        alert('Please fill in both email and password.');
+    }
+}
+
+function handleSignUp() {
+    const name = document.getElementById('signupName').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    
+    if (name && email && password) {
+        // إرسال البيانات إلى Streamlit
+        window.parent.postMessage({
+            type: 'streamlit:setComponentValue',
+            value: 'login_completed',
+            data: {
+                name: name,
+                email: email,
+                password: password,
+                action: 'signup'
+            }
+        }, '*');
+    } else {
+        alert('Please fill in all fields.');
+    }
 }
 
 // جعل الحاوية تملأ الشاشة كاملة
@@ -549,22 +570,18 @@ window.onload = function() {
     .stApp > header { display: none !important; }
     footer { visibility: hidden; }
     #MainMenu { visibility: hidden; }
+    
+    /* إخفاء كل شيء غير واجهة تسجيل الدخول */
+    .stApp > div:not(:first-child),
+    .stApp > div > div:not(:first-child) {
+        display: none !important;
+    }
     </style>
     """, unsafe_allow_html=True)
     
     # إنشاء حاوية مركزية
     col1, col2, col3 = st.columns([1, 10, 1])
     with col2:
-        # إضافة زر رجوع صغير في الزاوية
-        st.markdown("""
-        <div style="position: fixed; top: 20px; left: 20px; z-index: 10000;">
-            <button onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'back_home'}, '*')" 
-                    style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                ↩ رجوع
-            </button>
-        </div>
-        """, unsafe_allow_html=True)
-        
         # عرض واجهة تسجيل الدخول التفاعلية
         components.html(html_code, height=800)
 
@@ -964,6 +981,63 @@ st.markdown("""
     .english-font {
         font-family: 'Montserrat', sans-serif !important;
     }
+    
+    /* Role selection styling */
+    .role-selection-container {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        max-width: 600px;
+        margin: 50px auto;
+        text-align: center;
+    }
+    .role-title {
+        color: #1e40af;
+        font-size: 28px;
+        margin-bottom: 10px;
+        font-family: 'Montserrat', sans-serif;
+    }
+    .role-subtitle {
+        color: #6b7280;
+        margin-bottom: 40px;
+        font-size: 18px;
+        font-family: 'Montserrat', sans-serif;
+    }
+    .role-button {
+        width: 100%;
+        padding: 20px;
+        margin: 15px 0;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        font-family: 'Montserrat', sans-serif;
+    }
+    .teacher-role-btn {
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        color: white;
+    }
+    .teacher-role-btn:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+    }
+    .student-role-btn {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+    .student-role-btn:hover {
+        background: linear-gradient(135deg, #0da271, #047857);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(16,185,129,0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -978,20 +1052,44 @@ def safe_rerun():
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# الاستماع للرسائل من JavaScript
-try:
-    # هذا الاستماع للرسائل من JavaScript في واجهة تسجيل الدخول
-    # لكن للتبسيط، سنستخدم زر عربي فقط للرجوع
-    pass
-except:
-    pass
+if "user_data" not in st.session_state:
+    st.session_state.user_data = None
+
+if "show_role_selection" not in st.session_state:
+    st.session_state.show_role_selection = False
+
+# الوظيفة لعرض اختيار الدور
+def show_role_selection():
+    """عرض اختيار المعلم أو الطالب"""
+    st.markdown('<div class="role-selection-container">', unsafe_allow_html=True)
+    st.markdown('<h1 class="role-title">Welcome!</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="role-subtitle">Are you a Teacher or Student?</p>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("👨‍🏫 Teacher", key="teacher_role", use_container_width=True):
+            st.session_state.page = "teacher_login"
+            st.session_state.show_role_selection = False
+            st.rerun()
+    
+    with col2:
+        if st.button("👨‍🎓 Student", key="student_role", use_container_width=True):
+            st.session_state.page = "student"
+            st.session_state.show_role_selection = False
+            st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # إذا كانت الصفحة الرئيسية، إخفاء كل شيء وإظهار واجهة تسجيل الدخول فقط
 if st.session_state.page == "home":
-    show_login_page()
-    
+    if st.session_state.show_role_selection:
+        show_role_selection()
+    else:
+        show_login_page()
+        
 # إذا كانت الصفحة الأخرى، إظهار شريط الأدوات العلوي
-else:
+elif st.session_state.page in ["teacher_login", "teacher_attendance", "student"]:
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -1062,6 +1160,7 @@ if st.session_state.page == "teacher_login":
     with col2:
         if st.button("رجوع", use_container_width=True):
             st.session_state.page = "home"
+            st.session_state.show_role_selection = True
             st.rerun()
 
 elif st.session_state.page == "teacher_attendance":
@@ -1110,6 +1209,7 @@ elif st.session_state.page == "teacher_attendance":
     with col3:
         if st.button("رجوع", use_container_width=True):
             st.session_state.page = "home"
+            st.session_state.show_role_selection = True
             st.rerun()
 
 elif st.session_state.page == "student":
@@ -1138,21 +1238,5 @@ elif st.session_state.page == "student":
             if "student_search" in st.session_state:
                 del st.session_state.student_search
             st.session_state.page = "home"
+            st.session_state.show_role_selection = True
             safe_rerun()
-
-# إضافة أزرار Teacher و Student في نهاية الشاشة للرجوع السريع
-if st.session_state.page != "home":
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("👨‍🏫 تسجيل دخول المعلم", use_container_width=True):
-            st.session_state.page = "teacher_login"
-            st.rerun()
-    with col2:
-        if st.button("📚 دخول كطالب", use_container_width=True):
-            st.session_state.page = "student"
-            st.rerun()
-    with col3:
-        if st.button("🏠 الرجوع للواجهة الرئيسية", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()

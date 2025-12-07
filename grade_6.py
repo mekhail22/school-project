@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.set_page_config(page_title="نظام الغياب", layout="wide", initial_sidebar_state="collapsed")
 
 # ------------------ App settings ------------------
 STUDENTS = [
@@ -224,7 +224,8 @@ def show_login_page():
       <input type="text" placeholder="Name" />
       <input type="email" placeholder="Email" />
       <input type="password" placeholder="Password" />
-      <button type="button">Sign Up</button>
+      <button type="button" onclick="handleRoleSelect('teacher')" style="margin-top: 10px; background: #1e40af;">Sign Up as Teacher</button>
+      <button type="button" onclick="handleRoleSelect('student')" style="margin-top: 5px; background: #10b981;">Sign Up as Student</button>
     </form>
   </div>
   <div class="form-container sign-in-container">
@@ -236,7 +237,8 @@ def show_login_page():
       <input type="email" placeholder="Email" />
       <input type="password" placeholder="Password" />
       <a href="#">Forgot your password?</a>
-      <button type="button" id="loginButton">Sign In</button>
+      <button type="button" onclick="handleRoleSelect('teacher')" style="margin-top: 10px; background: #1e40af; width: 100%;">Login as Teacher</button>
+      <button type="button" onclick="handleRoleSelect('student')" style="margin-top: 5px; background: #10b981; width: 100%;">Login as Student</button>
     </form>
   </div>
   <div class="overlay-container">
@@ -262,15 +264,20 @@ def show_login_page():
 	box-sizing: border-box;
 }
 
+body, html {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
 body {
 	background: #f6f5f7;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	flex-direction: column;
 	font-family: "Montserrat", sans-serif;
-	height: 100vh;
-	margin: -20px 0 50px;
+	overflow: hidden;
 }
 
 h1 {
@@ -353,9 +360,10 @@ input {
 	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
 	position: relative;
 	overflow: hidden;
-	width: 768px;
-	max-width: 100%;
-	min-height: 480px;
+	width: 100%;
+	max-width: 1000px;
+	min-height: 700px;
+	margin: 20px auto;
 }
 
 .form-container {
@@ -485,37 +493,27 @@ input {
 	width: 40px;
 }
 
-footer {
-	background-color: #222;
-	color: #fff;
-	font-size: 14px;
-	bottom: 0;
-	position: fixed;
-	left: 0;
-	right: 0;
-	text-align: center;
-	z-index: 999;
+/* Teacher and Student buttons */
+.teacher-btn {
+	background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+	border-color: #1e40af !important;
 }
 
-footer p {
-	margin: 10px 0;
+.student-btn {
+	background: linear-gradient(135deg, #10b981, #059669) !important;
+	border-color: #10b981 !important;
 }
 
-footer i {
-	color: red;
-}
-
-footer a {
-	color: #3c97bf;
-	text-decoration: none;
-}
+/* Streamlit hiding */
+[data-testid="stHeader"] { display: none !important; }
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
 
 </style>
 
 <script>
 const signUpButton = document.getElementById('signUp');
 const signInButton = document.getElementById('signIn');
-const loginButton = document.getElementById('loginButton');
 const container = document.getElementById('container');
 
 signUpButton.addEventListener('click', () => {
@@ -526,62 +524,49 @@ signInButton.addEventListener('click', () => {
 	container.classList.remove("right-panel-active");
 });
 
-loginButton.addEventListener('click', () => {
+function handleRoleSelect(role) {
     // إرسال البيانات إلى Streamlit
     window.parent.postMessage({
         type: 'streamlit:setComponentValue',
-        value: 'login_clicked'
+        value: role
     }, '*');
-});
+}
 
+// جعل الحاوية تملأ الشاشة كاملة
+window.onload = function() {
+    const container = document.getElementById('container');
+    container.style.width = '95%';
+    container.style.maxWidth = '1200px';
+    container.style.minHeight = window.innerHeight * 0.8 + 'px';
+};
 </script>
 """
     
-    # إضافة زر عربي للاختيار بين المعلم والطالب
-    with st.container():
+    # إخفاء شريط الأدوات العلوي في صفحة تسجيل الدخول
+    st.markdown("""
+    <style>
+    /* إخفاء header و footer */
+    .stApp > header { display: none !important; }
+    footer { visibility: hidden; }
+    #MainMenu { visibility: hidden; }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # إنشاء حاوية مركزية
+    col1, col2, col3 = st.columns([1, 10, 1])
+    with col2:
+        # إضافة زر رجوع صغير في الزاوية
         st.markdown("""
-        <style>
-        .arabic-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .arabic-btn {
-            background: linear-gradient(135deg, #1e40af, #2563eb);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Cairo', sans-serif;
-            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
-        }
-        .arabic-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-        }
-        </style>
+        <div style="position: fixed; top: 20px; left: 20px; z-index: 10000;">
+            <button onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'back_home'}, '*')" 
+                    style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'Cairo', sans-serif;">
+                ↩ رجوع
+            </button>
+        </div>
         """, unsafe_allow_html=True)
         
         # عرض واجهة تسجيل الدخول التفاعلية
-        components.html(html_code, height=500)
-        
-        # أزرار عربية للاختيار بين المعلم والطالب
-        st.markdown('<div class="arabic-buttons">', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🚀 دخول كمعلم", use_container_width=True, type="primary"):
-                st.session_state.page = "teacher_login"
-                st.rerun()
-        with col2:
-            if st.button("📚 دخول كطالب", use_container_width=True, type="secondary"):
-                st.session_state.page = "student"
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        components.html(html_code, height=800)
 
 # Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -845,11 +830,22 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
     
     #MainMenu, header, footer {visibility: hidden !important;}
+    
+    /* Hide Streamlit default elements */
+    [data-testid="stHeader"] { display: none !important; }
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
+    [data-testid="stSidebar"] { display: none !important; }
+    
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
+        padding: 0 !important;
+        margin: 0 !important;
     }
+    
+    /* شريط الأدوات العلوي (يظهر فقط في الصفحات الأخرى) */
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -880,6 +876,7 @@ st.markdown("""
         border-radius: 12px; font-size: 15px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
         backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        font-family: 'Cairo', sans-serif;
     }
     .nav-btn:hover {
         background: white; color: #1e40af;
@@ -977,75 +974,85 @@ def safe_rerun():
     except Exception:
         pass
 
-# إظهار شريط الأدوات العلوي دائمًا
-st.markdown(f"""
-<div class="top-toolbar">
-    <div class="logo-container">
-        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
-            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
-            <p class="school-date">{formatted_date}</p>
-        </div>
-    </div>
-    <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
-        <button class="nav-btn" onclick="window.location.href='?page=home'">رجوع</button>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
-
-# Modals HTML + script
-st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
-    </div>
-</div>
-<script>
-window.onclick = function(event) {
-    var aboutModal = document.getElementById('about-modal');
-    var contactModal = document.getElementById('contact-modal');
-    if (event.target == aboutModal) {
-        aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
-    }
-}
-</script>
-""", unsafe_allow_html=True)
-
 # إدارة حالة الصفحة
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# عرض الصفحة المناسبة بناءً على الحالة
+# الاستماع للرسائل من JavaScript
+try:
+    # هذا الاستماع للرسائل من JavaScript في واجهة تسجيل الدخول
+    # لكن للتبسيط، سنستخدم زر عربي فقط للرجوع
+    pass
+except:
+    pass
+
+# إذا كانت الصفحة الرئيسية، إخفاء كل شيء وإظهار واجهة تسجيل الدخول فقط
 if st.session_state.page == "home":
     show_login_page()
     
-elif st.session_state.page == "teacher_login":
+# إذا كانت الصفحة الأخرى، إظهار شريط الأدوات العلوي
+else:
+    st.markdown(f"""
+    <div class="top-toolbar">
+        <div class="logo-container">
+            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+            <div class="school-info">
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+            <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+            <button class="nav-btn" onclick="window.location.href='?page=home'">رجوع للواجهة</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+    
+    # Modals HTML + script
+    st.markdown("""
+    <div id="about-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+            <h3>عن المدرسة</h3>
+            <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
+            <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
+        </div>
+    </div>
+    <div id="contact-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
+            <h3>اتصل بنا</h3>
+            <p>الهاتف: 02-12345678</p>
+            <p>البريد: alsalam.school@example.com</p>
+            <p>العنوان: حي السلام - القاهرة</p>
+        </div>
+    </div>
+    <script>
+    window.onclick = function(event) {
+        var aboutModal = document.getElementById('about-modal');
+        var contactModal = document.getElementById('contact-modal');
+        if (event.target == aboutModal) {
+            aboutModal.style.display = "none";
+        }
+        if (event.target == contactModal) {
+            contactModal.style.display = "none";
+        }
+    }
+    </script>
+    """, unsafe_allow_html=True)
+
+# عرض الصفحة المناسبة بناءً على الحالة
+if st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
     pwd = st.text_input("كلمة السر:", type="password")
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("تسجيل الدخول", use_container_width=True):
+        if st.button("تسجيل الدخول", use_container_width=True, type="primary"):
             if pwd == PASSWORD:
                 st.session_state.teacher_name = teacher_choice
                 st.session_state.page = "teacher_attendance"
@@ -1132,3 +1139,20 @@ elif st.session_state.page == "student":
                 del st.session_state.student_search
             st.session_state.page = "home"
             safe_rerun()
+
+# إضافة أزرار Teacher و Student في نهاية الشاشة للرجوع السريع
+if st.session_state.page != "home":
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("👨‍🏫 تسجيل دخول المعلم", use_container_width=True):
+            st.session_state.page = "teacher_login"
+            st.rerun()
+    with col2:
+        if st.button("📚 دخول كطالب", use_container_width=True):
+            st.session_state.page = "student"
+            st.rerun()
+    with col3:
+        if st.button("🏠 الرجوع للواجهة الرئيسية", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()

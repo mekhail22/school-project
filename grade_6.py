@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime
 import io
@@ -209,8 +210,379 @@ if "disable_connection_alerts" not in st.session_state:
 _ = connection_status
 _ = connection_details
 
+# ------------------ HTML للواجهة التفاعلية ------------------
+def show_login_page():
+    """عرض صفحة تسجيل الدخول التفاعلية"""
+    html_code = """
+<div class="container" id="container">
+  <div class="form-container sign-up-container">
+    <form action="#">
+      <h1>Create Account</h1>
+      <div class="social-container">
+      </div>
+      <span>or use your email for registration</span>
+      <input type="text" placeholder="Name" />
+      <input type="email" placeholder="Email" />
+      <input type="password" placeholder="Password" />
+      <button type="button">Sign Up</button>
+    </form>
+  </div>
+  <div class="form-container sign-in-container">
+    <form action="#">
+      <h1>Sign in</h1>
+      <div class="social-container">
+      </div>
+      <span>or use your account</span>
+      <input type="email" placeholder="Email" />
+      <input type="password" placeholder="Password" />
+      <a href="#">Forgot your password?</a>
+      <button type="button" id="loginButton">Sign In</button>
+    </form>
+  </div>
+  <div class="overlay-container">
+    <div class="overlay">
+      <div class="overlay-panel overlay-left">
+        <h1>Welcome Back!</h1>
+        <p>To keep connected with us please login with your personal info</p>
+        <button class="ghost" id="signIn">Sign In</button>
+      </div>
+      <div class="overlay-panel overlay-right">
+        <h1>Hello, Friend!</h1>
+        <p>Enter your personal details and start journey with us</p>
+        <button class="ghost" id="signUp">Sign Up</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-# ------------------ باقي الكود يبقى كما هو ------------------
+<style>
+@import url("https://fonts.googleapis.com/css?family=Montserrat:400,800");
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	background: #f6f5f7;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+	font-family: "Montserrat", sans-serif;
+	height: 100vh;
+	margin: -20px 0 50px;
+}
+
+h1 {
+	font-weight: bold;
+	margin: 0;
+}
+
+h2 {
+	text-align: center;
+}
+
+p {
+	font-size: 14px;
+	font-weight: 100;
+	line-height: 20px;
+	letter-spacing: 0.5px;
+	margin: 20px 0 30px;
+}
+
+span {
+	font-size: 12px;
+}
+
+a {
+	color: #333;
+	font-size: 14px;
+	text-decoration: none;
+	margin: 15px 0;
+}
+
+button {
+	border-radius: 20px;
+	border: 1px solid #ff4b2b;
+	background-color: #ff4b2b;
+	color: #ffffff;
+	font-size: 12px;
+	font-weight: bold;
+	padding: 12px 45px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	transition: transform 80ms ease-in;
+    cursor: pointer;
+}
+
+button:active {
+	transform: scale(0.95);
+}
+
+button:focus {
+	outline: none;
+}
+
+button.ghost {
+	background-color: transparent;
+	border-color: #ffffff;
+}
+
+form {
+	background-color: #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	padding: 0 50px;
+	height: 100%;
+	text-align: center;
+}
+
+input {
+	background-color: #eee;
+	border: none;
+	padding: 12px 15px;
+	margin: 8px 0;
+	width: 100%;
+}
+
+.container {
+	background-color: #fff;
+	border-radius: 10px;
+	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+	position: relative;
+	overflow: hidden;
+	width: 768px;
+	max-width: 100%;
+	min-height: 480px;
+}
+
+.form-container {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	transition: all 0.6s ease-in-out;
+}
+
+.sign-in-container {
+	left: 0;
+	width: 50%;
+	z-index: 2;
+}
+
+.container.right-panel-active .sign-in-container {
+	transform: translateX(100%);
+}
+
+.sign-up-container {
+	left: 0;
+	width: 50%;
+	opacity: 0;
+	z-index: 1;
+}
+
+.container.right-panel-active .sign-up-container {
+	transform: translateX(100%);
+	opacity: 1;
+	z-index: 5;
+	animation: show 0.6s;
+}
+
+@keyframes show {
+	0%,
+	49.99% {
+		opacity: 0;
+		z-index: 1;
+	}
+
+	50%,
+	100% {
+		opacity: 1;
+		z-index: 5;
+	}
+}
+
+.overlay-container {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	width: 50%;
+	height: 100%;
+	overflow: hidden;
+	transition: transform 0.6s ease-in-out;
+	z-index: 100;
+}
+
+.container.right-panel-active .overlay-container {
+	transform: translateX(-100%);
+}
+
+.overlay {
+	background: #ff416c;
+	background: -webkit-linear-gradient(to right, #ff4b2b, #ff416c);
+	background: linear-gradient(to right, #ff4b2b, #ff416c);
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: 0 0;
+	color: #ffffff;
+	position: relative;
+	left: -100%;
+	height: 100%;
+	width: 200%;
+	transform: translateX(0);
+	transition: transform 0.6s ease-in-out;
+}
+
+.container.right-panel-active .overlay {
+	transform: translateX(50%);
+}
+
+.overlay-panel {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	padding: 0 40px;
+	text-align: center;
+	top: 0;
+	height: 100%;
+	width: 50%;
+	transform: translateX(0);
+	transition: transform 0.6s ease-in-out;
+}
+
+.overlay-left {
+	transform: translateX(-20%);
+}
+
+.container.right-panel-active .overlay-left {
+	transform: translateX(0);
+}
+
+.overlay-right {
+	right: 0;
+	transform: translateX(0);
+}
+
+.container.right-panel-active .overlay-right {
+	transform: translateX(20%);
+}
+
+.social-container {
+	margin: 20px 0;
+}
+
+.social-container a {
+	border: 1px solid #dddddd;
+	border-radius: 50%;
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	margin: 0 5px;
+	height: 40px;
+	width: 40px;
+}
+
+footer {
+	background-color: #222;
+	color: #fff;
+	font-size: 14px;
+	bottom: 0;
+	position: fixed;
+	left: 0;
+	right: 0;
+	text-align: center;
+	z-index: 999;
+}
+
+footer p {
+	margin: 10px 0;
+}
+
+footer i {
+	color: red;
+}
+
+footer a {
+	color: #3c97bf;
+	text-decoration: none;
+}
+
+</style>
+
+<script>
+const signUpButton = document.getElementById('signUp');
+const signInButton = document.getElementById('signIn');
+const loginButton = document.getElementById('loginButton');
+const container = document.getElementById('container');
+
+signUpButton.addEventListener('click', () => {
+	container.classList.add("right-panel-active");
+});
+
+signInButton.addEventListener('click', () => {
+	container.classList.remove("right-panel-active");
+});
+
+loginButton.addEventListener('click', () => {
+    // إرسال البيانات إلى Streamlit
+    window.parent.postMessage({
+        type: 'streamlit:setComponentValue',
+        value: 'login_clicked'
+    }, '*');
+});
+
+</script>
+"""
+    
+    # إضافة زر عربي للاختيار بين المعلم والطالب
+    with st.container():
+        st.markdown("""
+        <style>
+        .arabic-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .arabic-btn {
+            background: linear-gradient(135deg, #1e40af, #2563eb);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+        }
+        .arabic-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # عرض واجهة تسجيل الدخول التفاعلية
+        components.html(html_code, height=500)
+        
+        # أزرار عربية للاختيار بين المعلم والطالب
+        st.markdown('<div class="arabic-buttons">', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🚀 دخول كمعلم", use_container_width=True, type="primary"):
+                st.session_state.page = "teacher_login"
+                st.rerun()
+        with col2:
+            if st.button("📚 دخول كطالب", use_container_width=True, type="secondary"):
+                st.session_state.page = "student"
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
 # Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
@@ -354,7 +726,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\n"
+    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
     
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
@@ -466,10 +838,12 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar (نفس الكود السابق)
+# ------------------ CSS + Top Toolbar ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+    
     #MainMenu, header, footer {visibility: hidden !important;}
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -589,10 +963,21 @@ st.markdown("""
         background: linear-gradient(to right, #1d4ed8, #1e40af);
         transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
     }
+    /* أنماط للواجهة الإنجليزية */
+    .english-font {
+        font-family: 'Montserrat', sans-serif !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML
+# ------------------ UI / Navigation ------------------
+def safe_rerun():
+    try:
+        st.rerun()
+    except Exception:
+        pass
+
+# إظهار شريط الأدوات العلوي دائمًا
 st.markdown(f"""
 <div class="top-toolbar">
     <div class="logo-container">
@@ -605,6 +990,7 @@ st.markdown(f"""
     <div class="nav-buttons">
         <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
         <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
+        <button class="nav-btn" onclick="window.location.href='?page=home'">رجوع</button>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -644,41 +1030,32 @@ window.onclick = function(event) {
 </script>
 """, unsafe_allow_html=True)
 
-# UI / Navigation
-def safe_rerun():
-    try:
-        st.rerun()
-    except Exception:
-        pass
-
+# إدارة حالة الصفحة
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# عرض الصفحة المناسبة بناءً على الحالة
 if st.session_state.page == "home":
-    st.title("نظام الغياب")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("معلم"):
-            st.session_state.page = "teacher_login"
-            safe_rerun()
-    with col2:
-        if st.button("طالب"):
-            st.session_state.page = "student"
-            safe_rerun()
+    show_login_page()
+    
 elif st.session_state.page == "teacher_login":
     st.header("تسجيل دخول المعلم")
     teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
     pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd == PASSWORD:
-            st.session_state.teacher_name = teacher_choice
-            st.session_state.page = "teacher_attendance"
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("تسجيل الدخول", use_container_width=True):
+            if pwd == PASSWORD:
+                st.session_state.teacher_name = teacher_choice
+                st.session_state.page = "teacher_attendance"
+                st.rerun()
+            else:
+                st.error("كلمة السر غير صحيحة")
+    with col2:
+        if st.button("رجوع", use_container_width=True):
+            st.session_state.page = "home"
             st.rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
 
 elif st.session_state.page == "teacher_attendance":
     st.header("تسجيل الغياب")
@@ -699,33 +1076,34 @@ elif st.session_state.page == "teacher_attendance":
     if excuse and no_excuse:
         st.warning("اختر نوع واحد فقط.")
 
-    if st.button("تسجيل"):
-        if not selected:
-            st.warning("يجب اختيار طالب/طلاب أولا.")
-        elif excuse and no_excuse:
-            st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse):
-            st.warning("من فضلك اختر نوع الغياب.")
-        else:
-            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            
-            # تسجيل الغياب
-            try:
-                failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-            except Exception as e:
-                st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("تسجيل الغياب", type="primary", use_container_width=True):
+            if not selected:
+                st.warning("يجب اختيار طالب/طلاب أولا.")
+            elif excuse and no_excuse:
+                st.warning("اختر نوع واحد فقط.")
+            elif not (excuse or no_excuse):
+                st.warning("من فضلك اختر نوع الغياب.")
             else:
-                # رسالة نجاح مختصرة فقط
-                if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح ")
-                if failed:
-                    st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                
+                # تسجيل الغياب
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                else:
+                    # رسالة نجاح مختصرة فقط
+                    if success_count > 0:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    if failed:
+                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
-
-
+    with col3:
+        if st.button("رجوع", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
 
 elif st.session_state.page == "student":
     st.header("تقارير الغياب")
@@ -747,9 +1125,10 @@ elif st.session_state.page == "student":
                 mime="application/pdf"
             )
 
-    if st.button("رجوع"):
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.session_state.page = "home"
-        safe_rerun()
-
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("رجوع", use_container_width=True):
+            if "student_search" in st.session_state:
+                del st.session_state.student_search
+            st.session_state.page = "home"
+            safe_rerun()

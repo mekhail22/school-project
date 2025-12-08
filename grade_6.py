@@ -95,7 +95,7 @@ USERS = {
     "بيشوي عاطف فايز": {
         "password": "student123",
         "role": "student",
-        "student_name": "بيشوي عاطف فايز"
+        "student_name": "بيشوي عاطف فاز"
     },
     "جورج مينا نجيب": {
         "password": "student123",
@@ -496,69 +496,69 @@ st.markdown("""
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
-        height: 70px;
+        height: 60px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        padding: 0 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         z-index: 999999 !important;
         font-family: 'Cairo', sans-serif;
         color: white;
     }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo-container { display: flex; align-items: center; gap: 10px; }
     .logo-img { 
-        width: 48px; height: 48px; border-radius: 12px; 
+        width: 40px; height: 40px; border-radius: 10px; 
         object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 4px;
+        background: white; padding: 3px;
     }
-    .school-info { line-height: 1.3; }
-    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
-    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-buttons { display: flex; gap: 12px; }
+    .school-info { line-height: 1.2; }
+    .school-name { font-size: 14px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 10px; opacity: 0.9; margin: 0; }
+    .nav-buttons { display: flex; gap: 10px; }
     .nav-btn {
         background: rgba(255, 255, 255, 0.2);
-        color: white; border: none; padding: 10px 22px;
-        border-radius: 12px; font-size: 15px; font-weight: 600;
+        color: white; border: none; padding: 8px 16px;
+        border-radius: 10px; font-size: 13px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
         backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
     }
     .nav-btn:hover {
         background: white; color: #1e40af;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(255,255,255,0.3);
     }
-    .content-padding { height: 90px; }
+    .content-padding { height: 70px; }
     .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
+    .modal-content { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn { position: absolute; top: 8px; left: 12px; font-size: 24px; font-weight: bold; color: #aaa; cursor: pointer; }
     .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; font-size: 18px; }
+    .modal p { text-align: center; color: #475569; line-height: 1.5; font-size: 14px; }
     .login-container {
-        max-width: 400px;
-        margin: 50px auto;
-        padding: 40px;
+        max-width: 350px;
+        margin: 30px auto;
+        padding: 30px;
         background: white;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         text-align: center;
     }
     .login-title {
         color: #1e40af;
-        font-size: 28px;
-        margin-bottom: 30px;
+        font-size: 22px;
+        margin-bottom: 20px;
         font-weight: 700;
     }
     .login-input {
         width: 100%;
-        padding: 15px;
-        margin: 10px 0;
+        padding: 12px;
+        margin: 8px 0;
         border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 16px;
+        border-radius: 10px;
+        font-size: 14px;
         font-family: 'Cairo', sans-serif;
         text-align: right;
         transition: all 0.3s ease;
@@ -570,34 +570,29 @@ st.markdown("""
     }
     .login-button {
         width: 100%;
-        padding: 16px;
+        padding: 14px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 18px;
+        border-radius: 10px;
+        font-size: 16px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
-        margin-top: 20px;
+        margin-top: 15px;
         font-family: 'Cairo', sans-serif;
     }
     .login-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
-    }
-    .login-button:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-        transform: none;
+        box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
     }
     .user-type-badge {
         display: inline-block;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 11px;
         font-weight: 600;
-        margin-left: 10px;
+        margin-left: 8px;
     }
     .badge-teacher {
         background: linear-gradient(135deg, #10b981, #059669);
@@ -607,110 +602,155 @@ st.markdown("""
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
     }
-    .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      margin: 20px 0;
+    /* تصغير الصفحة الرئيسية */
+    .home-page {
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 10px;
     }
-    .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: inline-block;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      cursor: pointer;
+    .home-title {
+        font-size: 22px;
+        margin-bottom: 15px;
+        color: #1e40af !important;
     }
-    .searchButton:hover {
-      color: #fff;
-      background-color: #1A1A1A;
-      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-      transform: translateY(-3px);
+    .main-buttons-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
     }
-    .searchButton:active {
-      box-shadow: none;
-      transform: translateY(0);
-    }
-    .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-    }
-    .student-search label {
-        display: none !important;
-    }
-    .student-search .stTextInput > div > div > input {
-        border: none;
-        background: #2f3640;
-        outline: none;
+    .main-button {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
-        font-size: 15px;
-        padding: 24px 46px 24px 26px;
-        border-radius: 50px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
         font-family: 'Cairo', sans-serif;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
     }
-    .student-search .stTextInput > div {
-        max-width: 230px;
+    .main-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
     }
-    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
+    .main-button.student {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
     }
-    .stButton>button:hover {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    .main-button.teacher {
+        background: linear-gradient(135deg, #10b981, #059669);
     }
-    .error-message {
-        color: #dc2626;
-        background: #fee2e2;
-        padding: 12px;
-        border-radius: 8px;
-        margin: 10px 0;
-        text-align: center;
-        border: 1px solid #fca5a5;
-    }
-    .success-message {
-        color: #059669;
-        background: #d1fae5;
-        padding: 12px;
-        border-radius: 8px;
-        margin: 10px 0;
-        text-align: center;
-        border: 1px solid #86efac;
+    .main-button.logout {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
     }
     .welcome-message {
         text-align: center;
-        padding: 20px;
-        margin: 20px 0;
+        padding: 15px;
+        margin: 10px 0;
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        border-radius: 15px;
+        border-radius: 12px;
         border: 2px solid #bae6fd;
     }
     .welcome-text {
-        font-size: 20px;
+        font-size: 18px;
         color: #0369a1;
         font-weight: 600;
     }
     .user-info {
-        font-size: 16px;
+        font-size: 14px;
         color: #475569;
-        margin-top: 10px;
+        margin-top: 5px;
+    }
+    /* تحسين ألوان المتركس */
+    .stMetric {
+        background: white !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .stMetric label {
+        color: #1e293b !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+    }
+    .stMetric div {
+        color: #1e40af !important;
+        font-weight: 700 !important;
+        font-size: 20px !important;
+    }
+    /* تحسين أزرار الغياب */
+    .attendance-checkbox {
+        background: white !important;
+        border: 2px solid #3b82f6 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin: 5px 0 !important;
+    }
+    .attendance-checkbox label {
+        color: #1e293b !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+    }
+    /* تحسين ألوان الأزرار */
+    .stButton > button {
+        width: 100% !important;
+        height: auto !important;
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+        color: white !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+        transition: all 0.3s ease !important;
+        margin: 8px 0 !important;
+        padding: 14px !important;
+        display: block !important;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(37,99,235,0.3) !important;
+    }
+    /* زر تسجيل الغياب بلون مختلف */
+    .attendance-button {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+    }
+    .attendance-button:hover {
+        background: linear-gradient(135deg, #0da271, #047857) !important;
+    }
+    /* أزرار العودة */
+    .back-button {
+        background: linear-gradient(135deg, #64748b, #475569) !important;
+    }
+    .back-button:hover {
+        background: linear-gradient(135deg, #475569, #334155) !important;
+    }
+    /* تحسين الملتيسيليكت */
+    .stMultiSelect > div > div {
+        background: white !important;
+        border: 2px solid #3b82f6 !important;
+        border-radius: 10px !important;
+    }
+    .stMultiSelect label {
+        color: #1e293b !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+    }
+    /* تحسين الرسائل */
+    .stAlert {
+        border-radius: 10px !important;
+        padding: 15px !important;
+        font-size: 14px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -726,14 +766,13 @@ def show_toolbar():
         <div class="logo-container">
             <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
             <div class="school-info">
-                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-name">مدرسة السلام</p>
                 <p class="school-date">{formatted_date}</p>
             </div>
         </div>
         <div class="nav-buttons">
             <span class="user-type-badge {badge_class}">{badge_text}</span>
             <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-            <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -744,29 +783,16 @@ st.markdown("""
 <div id="about-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
+        <h3>عن النظام</h3>
+        <p>نظام إدارة الغياب للمدرسة</p>
+        <p>نسخة 1.0</p>
     </div>
 </div>
 <script>
 window.onclick = function(event) {
     var aboutModal = document.getElementById('about-modal');
-    var contactModal = document.getElementById('contact-modal');
     if (event.target == aboutModal) {
         aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
     }
 }
 </script>
@@ -804,7 +830,7 @@ if st.session_state.page == "login":
     # حاوية الإدخالات
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 10px"></div>', unsafe_allow_html=True)
         
         # حقل إدخال اسم المستخدم
         username = st.text_input("اسم المستخدم", 
@@ -847,14 +873,14 @@ if st.session_state.page == "login":
         
         # معلومات مساعدة
         st.markdown("""
-        <div style="margin-top: 30px; padding: 15px; background: #f1f5f9; border-radius: 10px; text-align: center;">
-            <p style="margin: 0; color: #64748b; font-size: 14px;">
+        <div style="margin-top: 20px; padding: 12px; background: #f1f5f9; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: #64748b; font-size: 13px;">
                 <strong>المعلمون:</strong> مينا سمير، فادي حبيب
             </p>
-            <p style="margin: 5px 0; color: #64748b; font-size: 14px;">
+            <p style="margin: 3px 0; color: #64748b; font-size: 13px;">
                 كلمة المرور: <strong>teacher123</strong>
             </p>
-            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">
+            <p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px;">
                 <strong>الطلاب:</strong> ادخل اسمك كما هو في القائمة
             </p>
             <p style="margin: 0; color: #64748b; font-size: 12px;">
@@ -878,12 +904,14 @@ elif st.session_state.logged_in:
     
     # صفحة المعلم لتسجيل الغياب
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
+        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        
         st.header("📝 تسجيل الغياب")
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         st.subheader(f"المعلم: {teacher_name}")
 
         # اختيار الطلاب الغائبين
-        selected = st.multiselect("اختر الغائبين", STUDENTS)
+        selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS)
 
         # اختيار نوع الغياب
         st.markdown("**اختر نوع الغياب:**")
@@ -896,37 +924,39 @@ elif st.session_state.logged_in:
         if excuse and no_excuse:
             st.warning("اختر نوع واحد فقط.")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💾 تسجيل الغياب", use_container_width=True):
-                if not selected:
-                    st.warning("يجب اختيار طالب/طلاب أولا.")
-                elif excuse and no_excuse:
-                    st.warning("اختر نوع واحد فقط.")
-                elif not (excuse or no_excuse):
-                    st.warning("من فضلك اختر نوع الغياب.")
+        if st.button("💾 تسجيل الغياب", key="record_attendance", use_container_width=True):
+            if not selected:
+                st.warning("يجب اختيار طالب/طلاب أولا.")
+            elif excuse and no_excuse:
+                st.warning("اختر نوع واحد فقط.")
+            elif not (excuse or no_excuse):
+                st.warning("من فضلك اختر نوع الغياب.")
+            else:
+                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                
+                # تسجيل الغياب
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
                 else:
-                    status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                    
-                    # تسجيل الغياب
-                    try:
-                        failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                    except Exception as e:
-                        st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                    else:
-                        # رسالة نجاح مختصرة فقط
-                        if success_count > 0:
-                            st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-                        if failed:
-                            st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+                    # رسالة نجاح مختصرة فقط
+                    if success_count > 0:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    if failed:
+                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
         
-        with col2:
-            if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-                st.session_state.page = "home"
-                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # زر العودة للصفحة الرئيسية
+        if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
     
     # صفحة الطالب لعرض تقاريره
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
+        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        
         st.header("📊 تقرير الغياب الخاص بي")
         student_name = st.session_state.get('student_name', st.session_state.user_name)
         
@@ -940,14 +970,14 @@ elif st.session_state.logged_in:
             col1, col2, col3 = st.columns(3)
             with col1:
                 absent_count = int((df_student["الحالة"] == "غياب بعذر").sum() + (df_student["الحالة"] == "غياب بدون عذر").sum())
-                st.metric("عدد مرات الغياب", absent_count)
+                st.metric("الغياب", absent_count)
             with col2:
                 present_count = int((df_student["الحالة"] == "حاضر").sum())
-                st.metric("عدد مرات الحضور", present_count)
+                st.metric("الحضور", present_count)
             with col3:
                 total_count = len(df_student)
                 percentage = (present_count / total_count * 100) if total_count > 0 else 0
-                st.metric("نسبة الحضور", f"{percentage:.1f}%")
+                st.metric("النسبة", f"{percentage:.1f}%")
             
             # عرض الجدول
             st.dataframe(df_student, use_container_width=True, hide_index=True)
@@ -962,82 +992,42 @@ elif st.session_state.logged_in:
                 use_container_width=True
             )
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 تحديث البيانات", use_container_width=True):
-                st.rerun()
-        with col2:
-            if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-                st.session_state.page = "home"
-                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # زر العودة للصفحة الرئيسية
+        if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
     
     # الصفحة الرئيسية المشتركة
     elif st.session_state.page == "home":
-        st.title("🏠 الصفحة الرئيسية")
+        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        
+        st.markdown('<p class="home-title">الصفحة الرئيسية</p>', unsafe_allow_html=True)
+        
+        # عرض الأزرار حسب نوع المستخدم
+        st.markdown('<div class="main-buttons-container">', unsafe_allow_html=True)
         
         if st.session_state.user_role == "teacher":
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📝 تسجيل الغياب", use_container_width=True):
-                    st.session_state.page = "teacher_attendance"
-                    st.rerun()
-            with col2:
-                if st.button("👨‍🎓 بحث عن طالب", use_container_width=True):
-                    st.session_state.page = "search_student"
-                    st.rerun()
+            if st.button("👨‍🏫 تسجيل الغياب", key="teacher_attendance_btn", use_container_width=True):
+                st.session_state.page = "teacher_attendance"
+                st.rerun()
         
         elif st.session_state.user_role == "student":
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📊 تقريري", use_container_width=True):
-                    st.session_state.page = "student_dashboard"
-                    st.rerun()
-            with col2:
-                if st.button("🔍 بحث عن طالب", use_container_width=True):
-                    st.session_state.page = "search_student"
-                    st.rerun()
+            if st.button("👨‍🎓 تقريري", key="student_dashboard_btn", use_container_width=True):
+                st.session_state.page = "student_dashboard"
+                st.rerun()
         
         # زر تسجيل الخروج للجميع
-        st.markdown('<div style="height: 40px"></div>', unsafe_allow_html=True)
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+        if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_role = ""
             st.session_state.user_name = ""
             st.session_state.page = "login"
             st.rerun()
-    
-    # صفحة البحث عن طالب (مشتركة)
-    elif st.session_state.page == "search_student":
-        st.header("🔍 بحث عن طالب")
-        st.markdown('<div class="student-search">', unsafe_allow_html=True)
-        search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+        
         st.markdown('</div>', unsafe_allow_html=True)
-
-        if search_query and search_query.strip():
-            df_student = get_student_records(search_query.strip())
-            if df_student.empty:
-                st.info(f"لا يوجد سجلات للطالب: {search_query}")
-            else:
-                st.dataframe(df_student, use_container_width=True, hide_index=True)
-                pdf_buf = generate_student_pdf(search_query, df_student)
-                st.download_button(
-                    "📥 تحميل PDF",
-                    data=pdf_buf,
-                    file_name=f"{search_query}_report.pdf",
-                    mime="application/pdf"
-                )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("رجوع ←"):
-                if "student_search" in st.session_state:
-                    del st.session_state.student_search
-                st.session_state.page = "home"
-                safe_rerun()
-        with col2:
-            if st.button("🏠 الصفحة الرئيسية"):
-                st.session_state.page = "home"
-                safe_rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # إذا حاول الوصول مباشرة بدون تسجيل دخول
 else:

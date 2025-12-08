@@ -12,7 +12,7 @@ import requests
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platytus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -44,6 +44,9 @@ STUDENTS = [
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
+# كلمة السر الافتراضية
+DEFAULT_PASSWORD = "123456"
+
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
     """تحميل الإعدادات من Streamlit Secrets"""
@@ -55,7 +58,8 @@ def load_secrets():
         CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
         # App settings
-        PASSWORD = getattr(secrets.app, 'password', '1234')
+        APP_PASSWORD = getattr(secrets.app, 'password', DEFAULT_PASSWORD)  # كلمة السر الرئيسية
+        TEACHER_PASSWORD = getattr(secrets.app, 'teacher_password', '1234')  # كلمة سر المعلم
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
         # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
@@ -89,7 +93,8 @@ def load_secrets():
         return {
             'BOT_TOKEN': BOT_TOKEN,
             'CHAT_ID': CHAT_ID,
-            'PASSWORD': PASSWORD,
+            'APP_PASSWORD': APP_PASSWORD,
+            'TEACHER_PASSWORD': TEACHER_PASSWORD,
             'SHEET_NAME': SHEET_NAME,
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
@@ -99,7 +104,8 @@ def load_secrets():
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
-            'PASSWORD': '1234',
+            'APP_PASSWORD': DEFAULT_PASSWORD,
+            'TEACHER_PASSWORD': '1234',
             'SHEET_NAME': 'school_attendance',
             'SERVICE_ACCOUNT': None
         }
@@ -109,7 +115,8 @@ secrets_config = load_secrets()
 
 BOT_TOKEN = secrets_config['BOT_TOKEN']
 CHAT_ID = secrets_config['CHAT_ID']
-PASSWORD = secrets_config['PASSWORD']
+APP_PASSWORD = secrets_config['APP_PASSWORD']  # كلمة السر الرئيسية
+TEACHER_PASSWORD = secrets_config['TEACHER_PASSWORD']  # كلمة سر المعلم
 SHEET_NAME = secrets_config['SHEET_NAME']
 SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
@@ -117,50 +124,6 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 worksheet = None
 connection_status = "غير متصل"
 connection_details = ""
-
-def debug_secrets():
-    """وظيفة للمساعدة في تشخيص مشاكل الـ Secrets"""
-    st.subheader("🔍 فحص الإعدادات التفصيلي")
-    
-    secrets_config = load_secrets()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**إعدادات Telegram:**")
-        st.write(f"- BOT_TOKEN: {'✅ موجود' if secrets_config['BOT_TOKEN'] else '❌ مفقود'}")
-        st.write(f"- CHAT_ID: {'✅ موجود' if secrets_config['CHAT_ID'] else '❌ مفقود'}")
-        
-        st.write("**إعدادات التطبيق:**")
-        st.write(f"- PASSWORD: {'✅ موجود' if secrets_config['PASSWORD'] else '❌ مفقود'}")
-        st.write(f"- SHEET_NAME: {secrets_config['SHEET_NAME']}")
-    
-    with col2:
-        st.write("**Service Account:**")
-        if secrets_config['SERVICE_ACCOUNT']:
-            sa = secrets_config['SERVICE_ACCOUNT']
-            st.write(f"- type: {sa.get('type', '❌ مفقود')}")
-            st.write(f"- project_id: {sa.get('project_id', '❌ مفقود')}")
-            st.write(f"- private_key_id: {sa.get('private_key_id', '❌ مفقود')}")
-            st.write(f"- client_email: {sa.get('client_email', '❌ مفقود')}")
-            st.write(f"- private_key: {'✅ موجود' if sa.get('private_key') else '❌ مفقود'}")
-            
-            if sa.get('private_key'):
-                pk = sa['private_key']
-                st.write(f"  - الطول: {len(pk)} حرف")
-                st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
-                st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
-        else:
-            st.write("❌ Service Account غير متوفر")
-            
-        # فحص وجود SERVICE_ACCOUNT_JSON
-        try:
-            if hasattr(st.secrets, 'SERVICE_ACCOUNT_JSON'):
-                st.write("✅ SERVICE_ACCOUNT_JSON موجود")
-            else:
-                st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
-        except:
-            st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
@@ -205,12 +168,7 @@ else:
 if "disable_connection_alerts" not in st.session_state:
     st.session_state.disable_connection_alerts = True
 
-# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
-_ = connection_status
-_ = connection_details
-
-
-# ------------------ باقي الكود يبقى كما هو ------------------
+# ------------------ باقي الكود ------------------
 # Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
 FONT_NAME = "ArabicCustom"
@@ -466,7 +424,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar (نفس الكود السابق)
+# CSS + top toolbar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -520,6 +478,60 @@ st.markdown("""
     .close-btn:hover { color: #e11d48; }
     .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
     .modal p { text-align: center; color: #475569; line-height: 1.6; }
+    .login-container {
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .login-title {
+        color: #1e40af;
+        font-size: 28px;
+        margin-bottom: 30px;
+        font-weight: 700;
+    }
+    .login-input {
+        width: 100%;
+        padding: 15px;
+        margin: 15px 0;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 16px;
+        font-family: 'Cairo', sans-serif;
+        text-align: right;
+        transition: all 0.3s ease;
+    }
+    .login-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .login-button {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 20px;
+        font-family: 'Cairo', sans-serif;
+    }
+    .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+    .login-button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+    }
     .searchBox {
       display: flex;
       max-width: 230px;
@@ -589,27 +601,45 @@ st.markdown("""
         background: linear-gradient(to right, #1d4ed8, #1e40af);
         transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
     }
+    .error-message {
+        color: #dc2626;
+        background: #fee2e2;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        text-align: center;
+        border: 1px solid #fca5a5;
+    }
+    .success-message {
+        color: #059669;
+        background: #d1fae5;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        text-align: center;
+        border: 1px solid #86efac;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML
-st.markdown(f"""
-<div class="top-toolbar">
-    <div class="logo-container">
-        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
-            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
-            <p class="school-date">{formatted_date}</p>
+# Top toolbar HTML (يظهر فقط بعد تسجيل الدخول)
+def show_toolbar():
+    st.markdown(f"""
+    <div class="top-toolbar">
+        <div class="logo-container">
+            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+            <div class="school-info">
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+            <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
         </div>
     </div>
-    <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # Modals HTML + script
 st.markdown("""
@@ -651,106 +681,188 @@ def safe_rerun():
     except Exception:
         pass
 
+# إدارة حالة تسجيل الدخول
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 if "page" not in st.session_state:
-    st.session_state.page = "home"
+    st.session_state.page = "login"
 
-if st.session_state.page == "home":
-    st.title("نظام الغياب")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("معلم"):
-            st.session_state.page = "teacher_login"
-            safe_rerun()
+# صفحة تسجيل الدخول الرئيسية
+if st.session_state.page == "login":
+    # إخفاء الـ toolbar في صفحة تسجيل الدخول
+    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+    
+    # تصميم صفحة تسجيل الدخول
+    st.markdown("""
+    <div class="login-container">
+        <div class="login-title">🚪 تسجيل الدخول</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # حاوية الإدخالات
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("طالب"):
-            st.session_state.page = "student"
-            safe_rerun()
-elif st.session_state.page == "teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
-    if st.button("تسجيل الدخول"):
-        if pwd == PASSWORD:
-            st.session_state.teacher_name = teacher_choice
-            st.session_state.page = "teacher_attendance"
-            st.rerun()
-        else:
-            st.error("كلمة السر غير صحيحة")
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
-
-elif st.session_state.page == "teacher_attendance":
-    st.header("تسجيل الغياب")
-    teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
-
-    # اختيار الطلاب الغائبين
-    selected = st.multiselect("اختر الغائبين", STUDENTS)
-
-    # اختيار نوع الغياب
-    st.markdown("**اختر نوع الغياب:**")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        excuse = st.checkbox("غياب بعذر", key="excuse")
-    with col_b:
-        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-
-    if excuse and no_excuse:
-        st.warning("اختر نوع واحد فقط.")
-
-    if st.button("تسجيل"):
-        if not selected:
-            st.warning("يجب اختيار طالب/طلاب أولا.")
-        elif excuse and no_excuse:
-            st.warning("اختر نوع واحد فقط.")
-        elif not (excuse or no_excuse):
-            st.warning("من فضلك اختر نوع الغياب.")
-        else:
-            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-            
-            # تسجيل الغياب
-            try:
-                failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-            except Exception as e:
-                st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+        st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
+        
+        # حقل إدخال كلمة السر
+        password = st.text_input("كلمة المرور", type="password", 
+                                placeholder="أدخل كلمة المرور",
+                                label_visibility="collapsed")
+        
+        # زر تسجيل الدخول
+        login_button = st.button("تسجيل الدخول", use_container_width=True)
+        
+        # معالجة تسجيل الدخول
+        if login_button:
+            if password == APP_PASSWORD:
+                st.session_state.logged_in = True
+                st.session_state.page = "home"
+                st.success("✅ تم تسجيل الدخول بنجاح!")
+                st.rerun()
             else:
-                # رسالة نجاح مختصرة فقط
-                if success_count > 0:
-                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-                if failed:
-                    st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+                st.error("❌ كلمة المرور غير صحيحة")
+        
+        # معلومات مساعدة
+        st.markdown("""
+        <div style="margin-top: 30px; padding: 15px; background: #f1f5f9; border-radius: 10px; text-align: center;">
+            <p style="margin: 0; color: #64748b; font-size: 14px;">
+                كلمة المرور الافتراضية: <strong>123456</strong>
+            </p>
+            <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px;">
+                يمكن تغييرها في إعدادات التطبيق
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    if st.button("رجوع"):
-        st.session_state.page = "home"
-        st.rerun()
+# إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
+elif st.session_state.logged_in:
+    show_toolbar()
+    
+    if st.session_state.page == "home":
+        st.title("🏠 الصفحة الرئيسية")
+        st.markdown("""
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 18px; color: #475569;">
+                مرحباً بك في نظام إدارة الغياب
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👨‍🏫 معلم", use_container_width=True):
+                st.session_state.page = "teacher_login"
+                safe_rerun()
+        with col2:
+            if st.button("👨‍🎓 طالب", use_container_width=True):
+                st.session_state.page = "student"
+                safe_rerun()
+        
+        # زر تسجيل الخروج
+        st.markdown('<div style="height: 40px"></div>', unsafe_allow_html=True)
+        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.page = "login"
+            st.rerun()
+    
+    elif st.session_state.page == "teacher_login":
+        st.header("👨‍🏫 تسجيل دخول المعلم")
+        teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+        pwd = st.text_input("كلمة السر:", type="password")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("تسجيل الدخول"):
+                if pwd == TEACHER_PASSWORD:
+                    st.session_state.teacher_name = teacher_choice
+                    st.session_state.page = "teacher_attendance"
+                    st.rerun()
+                else:
+                    st.error("كلمة السر غير صحيحة")
+        with col2:
+            if st.button("رجوع ←"):
+                st.session_state.page = "home"
+                st.rerun()
+    
+    elif st.session_state.page == "teacher_attendance":
+        st.header("📝 تسجيل الغياب")
+        teacher_name = st.session_state.get("teacher_name", "غير معروف")
+        st.subheader(f"المعلم: {teacher_name}")
 
+        # اختيار الطلاب الغائبين
+        selected = st.multiselect("اختر الغائبين", STUDENTS)
 
+        # اختيار نوع الغياب
+        st.markdown("**اختر نوع الغياب:**")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            excuse = st.checkbox("غياب بعذر", key="excuse")
+        with col_b:
+            no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
 
-elif st.session_state.page == "student":
-    st.header("تقارير الغياب")
-    st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
-    st.markdown('</div>', unsafe_allow_html=True)
+        if excuse and no_excuse:
+            st.warning("اختر نوع واحد فقط.")
 
-    if search_query and search_query.strip():
-        df_student = get_student_records(search_query.strip())
-        if df_student.empty:
-            st.info(f"لا يوجد سجلات للطالب: {search_query}")
-        else:
-            st.dataframe(df_student, use_container_width=True, hide_index=True)
-            pdf_buf = generate_student_pdf(search_query, df_student)
-            st.download_button(
-                "تحميل PDF",
-                data=pdf_buf,
-                file_name=f"{search_query}_report.pdf",
-                mime="application/pdf"
-            )
+        if st.button("💾 تسجيل"):
+            if not selected:
+                st.warning("يجب اختيار طالب/طلاب أولا.")
+            elif excuse and no_excuse:
+                st.warning("اختر نوع واحد فقط.")
+            elif not (excuse or no_excuse):
+                st.warning("من فضلك اختر نوع الغياب.")
+            else:
+                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                
+                # تسجيل الغياب
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                else:
+                    # رسالة نجاح مختصرة فقط
+                    if success_count > 0:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    if failed:
+                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
 
-    if st.button("رجوع"):
-        if "student_search" in st.session_state:
-            del st.session_state.student_search
-        st.session_state.page = "home"
-        safe_rerun()
+        if st.button("رجوع ←"):
+            st.session_state.page = "home"
+            st.rerun()
 
+    elif st.session_state.page == "student":
+        st.header("📊 تقارير الغياب")
+        st.markdown('<div class="student-search">', unsafe_allow_html=True)
+        search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+        if search_query and search_query.strip():
+            df_student = get_student_records(search_query.strip())
+            if df_student.empty:
+                st.info(f"لا يوجد سجلات للطالب: {search_query}")
+            else:
+                st.dataframe(df_student, use_container_width=True, hide_index=True)
+                pdf_buf = generate_student_pdf(search_query, df_student)
+                st.download_button(
+                    "📥 تحميل PDF",
+                    data=pdf_buf,
+                    file_name=f"{search_query}_report.pdf",
+                    mime="application/pdf"
+                )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("رجوع ←"):
+                if "student_search" in st.session_state:
+                    del st.session_state.student_search
+                st.session_state.page = "home"
+                safe_rerun()
+        with col2:
+            if st.button("🏠 الصفحة الرئيسية"):
+                st.session_state.page = "home"
+                safe_rerun()
+
+# إذا حاول الوصول مباشرة بدون تسجيل دخول
+else:
+    st.session_state.page = "login"
+    st.rerun()

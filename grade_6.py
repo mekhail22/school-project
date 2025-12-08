@@ -8,6 +8,7 @@ import json
 import logging
 import base64
 import requests
+import hashlib
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -34,7 +35,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.set_page_config(page_title="نظام الغياب", layout="wide", initial_sidebar_state="collapsed")
 
 # ------------------ App settings ------------------
 STUDENTS = [
@@ -44,6 +45,98 @@ STUDENTS = [
     "يوستينا مجدي فادي"
 ]
 TEACHERS = ["مينا سمير", "فادي حبيب"]
+
+# ------------------ قاعدة بيانات المستخدمين ------------------
+USERS_DB_FILE = "users_db.json"
+
+def init_users_db():
+    """إنشاء قاعدة بيانات المستخدمين"""
+    if not os.path.exists(USERS_DB_FILE):
+        default_password = "123456"
+        
+        default_data = {
+            "users": [
+                {
+                    "id": "teacher_001",
+                    "name": "مينا سمير",
+                    "email": "mina@school.com",
+                    "password_hash": hashlib.sha256(default_password.encode()).hexdigest(),
+                    "user_type": "teacher",
+                    "teacher_name": "مينا سمير",
+                    "created_at": datetime.now().isoformat(),
+                    "last_login": None,
+                    "login_count": 0
+                },
+                {
+                    "id": "teacher_002",
+                    "name": "فادي حبيب",
+                    "email": "fady@school.com",
+                    "password_hash": hashlib.sha256(default_password.encode()).hexdigest(),
+                    "user_type": "teacher",
+                    "teacher_name": "فادي حبيب",
+                    "created_at": datetime.now().isoformat(),
+                    "last_login": None,
+                    "login_count": 0
+                }
+            ],
+            "login_history": []
+        }
+        
+        with open(USERS_DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(default_data, f, ensure_ascii=False, indent=2)
+    
+    return load_users_db()
+
+def load_users_db():
+    """تحميل قاعدة بيانات المستخدمين"""
+    try:
+        with open(USERS_DB_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return init_users_db()
+
+def save_users_db(data):
+    """حفظ قاعدة بيانات المستخدمين"""
+    try:
+        with open(USERS_DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"❌ خطأ في حفظ قاعدة البيانات: {e}")
+        return False
+
+def hash_password(password):
+    """تشفير كلمة المرور"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def authenticate_user(email, password):
+    """المصادقة على المستخدم"""
+    db = load_users_db()
+    
+    password_hash = hash_password(password)
+    
+    for user in db["users"]:
+        if user["email"] == email and user["password_hash"] == password_hash:
+            # تحديث معلومات تسجيل الدخول
+            user["last_login"] = datetime.now().isoformat()
+            user["login_count"] = user.get("login_count", 0) + 1
+            
+            # تسجيل في سجل الدخول
+            login_record = {
+                "user_id": user["id"],
+                "login_time": datetime.now().isoformat(),
+                "user_type": user["user_type"]
+            }
+            db["login_history"].append(login_record)
+            
+            save_users_db(db)
+            
+            return True, user
+    
+    return False, None
+
+# تهيئة قاعدة البيانات عند بدء التشغيل
+init_users_db()
 
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
@@ -56,51 +149,28 @@ def load_secrets():
         CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
         # App settings
-        PASSWORD = getattr(secrets.app, 'password', '1234')
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
-        # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
+        # Service Account
         SERVICE_ACCOUNT = None
         
-        # الطريقة 1: SERVICE_ACCOUNT_JSON
         if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
             try:
                 SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
             except Exception as e:
                 st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
         
-        # الطريقة 2: SERVICE_ACCOUNT كقسم (للتوافق مع الإصدارات القديمة)
-        if not SERVICE_ACCOUNT and hasattr(secrets, 'SERVICE_ACCOUNT'):
-            try:
-                SERVICE_ACCOUNT = {
-                    'type': getattr(secrets.SERVICE_ACCOUNT, 'type', ''),
-                    'project_id': getattr(secrets.SERVICE_ACCOUNT, 'project_id', ''),
-                    'private_key_id': getattr(secrets.SERVICE_ACCOUNT, 'private_key_id', ''),
-                    'private_key': getattr(secrets.SERVICE_ACCOUNT, 'private_key', ''),
-                    'client_email': getattr(secrets.SERVICE_ACCOUNT, 'client_email', ''),
-                    'client_id': getattr(secrets.SERVICE_ACCOUNT, 'client_id', ''),
-                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
-                }
-            except Exception as e:
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
-        
         return {
             'BOT_TOKEN': BOT_TOKEN,
             'CHAT_ID': CHAT_ID,
-            'PASSWORD': PASSWORD,
             'SHEET_NAME': SHEET_NAME,
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
         
     except Exception as e:
-        st.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
-            'PASSWORD': '1234',
             'SHEET_NAME': 'school_attendance',
             'SERVICE_ACCOUNT': None
         }
@@ -110,105 +180,26 @@ secrets_config = load_secrets()
 
 BOT_TOKEN = secrets_config['BOT_TOKEN']
 CHAT_ID = secrets_config['CHAT_ID']
-PASSWORD = secrets_config['PASSWORD']
 SHEET_NAME = secrets_config['SHEET_NAME']
 SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
 # ------------------ الاتصال بـ Google Sheets ------------------
 worksheet = None
-connection_status = "غير متصل"
-connection_details = ""
-
-def debug_secrets():
-    """وظيفة للمساعدة في تشخيص مشاكل الـ Secrets"""
-    st.subheader("🔍 فحص الإعدادات التفصيلي")
-    
-    secrets_config = load_secrets()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**إعدادات Telegram:**")
-        st.write(f"- BOT_TOKEN: {'✅ موجود' if secrets_config['BOT_TOKEN'] else '❌ مفقود'}")
-        st.write(f"- CHAT_ID: {'✅ موجود' if secrets_config['CHAT_ID'] else '❌ مفقود'}")
-        
-        st.write("**إعدادات التطبيق:**")
-        st.write(f"- PASSWORD: {'✅ موجود' if secrets_config['PASSWORD'] else '❌ مفقود'}")
-        st.write(f"- SHEET_NAME: {secrets_config['SHEET_NAME']}")
-    
-    with col2:
-        st.write("**Service Account:**")
-        if secrets_config['SERVICE_ACCOUNT']:
-            sa = secrets_config['SERVICE_ACCOUNT']
-            st.write(f"- type: {sa.get('type', '❌ مفقود')}")
-            st.write(f"- project_id: {sa.get('project_id', '❌ مفقود')}")
-            st.write(f"- private_key_id: {sa.get('private_key_id', '❌ مفقود')}")
-            st.write(f"- client_email: {sa.get('client_email', '❌ مفقود')}")
-            st.write(f"- private_key: {'✅ موجود' if sa.get('private_key') else '❌ مفقود'}")
-            
-            if sa.get('private_key'):
-                pk = sa['private_key']
-                st.write(f"  - الطول: {len(pk)} حرف")
-                st.write(f"  - يبدأ بشكل صحيح: {'✅' if pk.startswith('-----BEGIN PRIVATE KEY-----') else '❌'}")
-                st.write(f"  - ينتهي بشكل صحيح: {'✅' if pk.endswith('-----END PRIVATE KEY-----') else '❌'}")
-        else:
-            st.write("❌ Service Account غير متوفر")
-            
-        # فحص وجود SERVICE_ACCOUNT_JSON
-        try:
-            if hasattr(st.secrets, 'SERVICE_ACCOUNT_JSON'):
-                st.write("✅ SERVICE_ACCOUNT_JSON موجود")
-            else:
-                st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
-        except:
-            st.write("❌ SERVICE_ACCOUNT_JSON غير موجود")
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     try:
         SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        
-        # استخدام JSON مباشرة
         creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
         gc = gspread.authorize(creds)
         
-        # محاولة فتح الـ Sheet
         try:
             sh = gc.open(SHEET_NAME)
             worksheet = sh.sheet1
-            
-            # اختبار الاتصال
-            try:
-                current_data = worksheet.get_all_records()
-                connection_status = "✅ متصل بـ Google Sheets"
-                connection_details = f"تم تحميل {len(current_data)} سجل"
-                
-                # إذا كانت الورقة جديدة، أضف العناوين
-                if not current_data:
-                    headers = ["student", "teacher", "status", "date"]
-                    worksheet.append_row(headers)
-                    connection_details += " - تم إنشاء جدول جديد"
-                
-            except Exception as e:
-                connection_status = f"✅ متصل ولكن خطأ في القراءة: {str(e)}"
-                
-        except gspread.exceptions.SpreadsheetNotFound:
-            connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
         except Exception as e:
-            connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
-            
+            st.warning(f"⚠️ لا يمكن الاتصال بـ Google Sheets: {str(e)}")
     except Exception as e:
-        connection_status = f"❌ فشل في المصادقة: {str(e)}"
-else:
-    connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
-
-# إخفاء رسائل الاتصال بالكامل
-if "disable_connection_alerts" not in st.session_state:
-    st.session_state.disable_connection_alerts = True
-
-# بدل عرض حالة الاتصال… نخزنها فقط من غير عرض
-_ = connection_status
-_ = connection_details
+        st.warning(f"⚠️ فشل في المصادقة: {str(e)}")
 
 # ------------------ HTML للواجهة التفاعلية ------------------
 def show_login_page():
@@ -216,27 +207,27 @@ def show_login_page():
     html_code = """
 <div class="container" id="container">
   <div class="form-container sign-up-container">
-    <form action="#">
+    <form action="#" id="signupForm">
       <h1>Create Account</h1>
       <div class="social-container">
       </div>
       <span>or use your email for registration</span>
-      <input type="text" placeholder="Name" />
-      <input type="email" placeholder="Email" />
-      <input type="password" placeholder="Password" />
-      <button type="button">Sign Up</button>
+      <input type="text" placeholder="Name" id="signupName" />
+      <input type="email" placeholder="Email" id="signupEmail" />
+      <input type="password" placeholder="Password" id="signupPassword" />
+      <input type="password" placeholder="Confirm Password" id="signupConfirmPassword" />
+      <button type="button" onclick="handleSignUp()">Sign Up</button>
     </form>
   </div>
   <div class="form-container sign-in-container">
-    <form action="#">
+    <form action="#" id="signinForm">
       <h1>Sign in</h1>
       <div class="social-container">
       </div>
       <span>or use your account</span>
-      <input type="email" placeholder="Email" />
-      <input type="password" placeholder="Password" />
-      <a href="#">Forgot your password?</a>
-      <button type="button" id="loginButton">Sign In</button>
+      <input type="email" placeholder="Email" id="signinEmail" />
+      <input type="password" placeholder="Password" id="signinPassword" />
+      <button type="button" onclick="handleSignIn()">Sign In</button>
     </form>
   </div>
   <div class="overlay-container">
@@ -262,24 +253,25 @@ def show_login_page():
 	box-sizing: border-box;
 }
 
+body, html {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
 body {
 	background: #f6f5f7;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	flex-direction: column;
 	font-family: "Montserrat", sans-serif;
-	height: 100vh;
-	margin: -20px 0 50px;
+	overflow: hidden;
 }
 
 h1 {
 	font-weight: bold;
 	margin: 0;
-}
-
-h2 {
-	text-align: center;
 }
 
 p {
@@ -292,13 +284,6 @@ p {
 
 span {
 	font-size: 12px;
-}
-
-a {
-	color: #333;
-	font-size: 14px;
-	text-decoration: none;
-	margin: 15px 0;
 }
 
 button {
@@ -353,9 +338,10 @@ input {
 	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
 	position: relative;
 	overflow: hidden;
-	width: 768px;
-	max-width: 100%;
-	min-height: 480px;
+	width: 100%;
+	max-width: 1000px;
+	min-height: 700px;
+	margin: 20px auto;
 }
 
 .form-container {
@@ -470,52 +456,11 @@ input {
 	transform: translateX(20%);
 }
 
-.social-container {
-	margin: 20px 0;
-}
-
-.social-container a {
-	border: 1px solid #dddddd;
-	border-radius: 50%;
-	display: inline-flex;
-	justify-content: center;
-	align-items: center;
-	margin: 0 5px;
-	height: 40px;
-	width: 40px;
-}
-
-footer {
-	background-color: #222;
-	color: #fff;
-	font-size: 14px;
-	bottom: 0;
-	position: fixed;
-	left: 0;
-	right: 0;
-	text-align: center;
-	z-index: 999;
-}
-
-footer p {
-	margin: 10px 0;
-}
-
-footer i {
-	color: red;
-}
-
-footer a {
-	color: #3c97bf;
-	text-decoration: none;
-}
-
 </style>
 
 <script>
 const signUpButton = document.getElementById('signUp');
 const signInButton = document.getElementById('signIn');
-const loginButton = document.getElementById('loginButton');
 const container = document.getElementById('container');
 
 signUpButton.addEventListener('click', () => {
@@ -526,62 +471,65 @@ signInButton.addEventListener('click', () => {
 	container.classList.remove("right-panel-active");
 });
 
-loginButton.addEventListener('click', () => {
-    // إرسال البيانات إلى Streamlit
+function handleSignIn() {
+    const email = document.getElementById('signinEmail').value;
+    const password = document.getElementById('signinPassword').value;
+    
+    if (!email || !password) {
+        alert('Please fill in both email and password.');
+        return;
+    }
+    
     window.parent.postMessage({
         type: 'streamlit:setComponentValue',
-        value: 'login_clicked'
+        value: 'signin',
+        data: {
+            email: email,
+            password: password
+        }
     }, '*');
-});
+}
 
+function handleSignUp() {
+    const name = document.getElementById('signupName').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
+    
+    if (!name || !email || !password || !confirmPassword) {
+        alert('Please fill in all fields.');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        alert('Passwords do not match.');
+        return;
+    }
+    
+    window.parent.postMessage({
+        type: 'streamlit:setComponentValue',
+        value: 'signup',
+        data: {
+            name: name,
+            email: email,
+            password: password
+        }
+    }, '*');
+}
 </script>
 """
     
-    # إضافة زر عربي للاختيار بين المعلم والطالب
-    with st.container():
-        st.markdown("""
-        <style>
-        .arabic-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .arabic-btn {
-            background: linear-gradient(135deg, #1e40af, #2563eb);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Cairo', sans-serif;
-            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
-        }
-        .arabic-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        # عرض واجهة تسجيل الدخول التفاعلية
-        components.html(html_code, height=500)
-        
-        # أزرار عربية للاختيار بين المعلم والطالب
-        st.markdown('<div class="arabic-buttons">', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🚀 دخول كمعلم", use_container_width=True, type="primary"):
-                st.session_state.page = "teacher_login"
-                st.rerun()
-        with col2:
-            if st.button("📚 دخول كطالب", use_container_width=True, type="secondary"):
-                st.session_state.page = "student"
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+    # إخفاء شريط الأدوات العلوي في صفحة تسجيل الدخول
+    st.markdown("""
+    <style>
+    .stApp > header { display: none !important; }
+    footer { visibility: hidden; }
+    #MainMenu { visibility: hidden; }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # عرض واجهة تسجيل الدخول التفاعلية
+    components.html(html_code, height=700)
 
 # Arabic font for PDF
 FONT_PATH = "NotoNaskhArabic-Regular.ttf"
@@ -838,19 +786,19 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# ------------------ CSS + Top Toolbar ------------------
-st.markdown("""
+# ------------------ CSS ------------------
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
     @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
     
-    #MainMenu, header, footer {visibility: hidden !important;}
-    .stApp {
+    .stApp {{
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
-    }
-    .top-toolbar {
+    }}
+    
+    .top-toolbar {{
         position: fixed;
         top: 0; left: 0; right: 0;
         height: 70px;
@@ -860,275 +808,392 @@ st.markdown("""
         align-items: center;
         padding: 0 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 999999 !important;
+        z-index: 999999;
         font-family: 'Cairo', sans-serif;
         color: white;
-    }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-img { 
+    }}
+    
+    .logo-container {{ display: flex; align-items: center; gap: 12px; }}
+    .logo-img {{ 
         width: 48px; height: 48px; border-radius: 12px; 
         object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
         background: white; padding: 4px;
-    }
-    .school-info { line-height: 1.3; }
-    .school-name { font-size: 17px; font-weight: bold; margin: 0; }
-    .school-date { font-size: 12px; opacity: 0.9; margin: 0; }
-    .nav-buttons { display: flex; gap: 12px; }
-    .nav-btn {
+    }}
+    
+    .school-info {{ line-height: 1.3; }}
+    .school-name {{ font-size: 17px; font-weight: bold; margin: 0; }}
+    .school-date {{ font-size: 12px; opacity: 0.9; margin: 0; }}
+    
+    .nav-buttons {{ display: flex; gap: 12px; }}
+    .nav-btn {{
         background: rgba(255, 255, 255, 0.2);
         color: white; border: none; padding: 10px 22px;
         border-radius: 12px; font-size: 15px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
         backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
-    }
-    .nav-btn:hover {
+        font-family: 'Cairo', sans-serif;
+    }}
+    
+    .nav-btn:hover {{
         background: white; color: #1e40af;
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(255,255,255,0.4);
-    }
-    .content-padding { height: 90px; }
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 10px; left: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-    .close-btn:hover { color: #e11d48; }
-    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; }
-    .modal p { text-align: center; color: #475569; line-height: 1.6; }
-    .searchBox {
-      display: flex;
-      max-width: 230px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: #2f3640;
-      border-radius: 50px;
-      position: relative;
-      margin: 20px 0;
-    }
-    .searchButton {
-      color: white;
-      position: absolute;
-      right: 8px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--gradient-2, linear-gradient(90deg, #2AF598 0%, #009EFD 100%));
-      border: 0;
-      display: inline-block;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
-      cursor: pointer;
-    }
-    .searchButton:hover {
-      color: #fff;
-      background-color: #1A1A1A;
-      box-shadow: rgba(0, 0, 0, 0.5) 0 10px 20px;
-      transform: translateY(-3px);
-    }
-    .searchButton:active {
-      box-shadow: none;
-      transform: translateY(0);
-    }
-    .searchInput {
-      border: none;
-      background: none;
-      outline: none;
-      color: white;
-      font-size: 15px;
-      padding: 24px 46px 24px 26px;
-      width: 100%;
-    }
-    .student-search label {
-        display: none !important;
-    }
-    .student-search .stTextInput > div > div > input {
-        border: none;
-        background: #2f3640;
-        outline: none;
-        color: white;
-        font-size: 15px;
-        padding: 24px 46px 24px 26px;
-        border-radius: 50px;
-        font-family: 'Cairo', sans-serif;
-    }
-    .student-search .stTextInput > div {
-        max-width: 230px;
-    }
-    h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    .stButton>button {
-        width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
-    }
-    .stButton>button:hover {
+    }}
+    
+    .content-padding {{ height: 90px; }}
+    
+    h1,h2,h3 {{ color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }}
+    
+    .stButton>button {{
+        background: linear-gradient(to right, #2563eb, #1d4ed8);
+        color: white; font-size: 16px; font-weight: bold;
+        border-radius: 12px; border: none;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+        transition: all 0.3s ease;
+    }}
+    
+    .stButton>button:hover {{
         background: linear-gradient(to right, #1d4ed8, #1e40af);
-        transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-    }
-    /* أنماط للواجهة الإنجليزية */
-    .english-font {
-        font-family: 'Montserrat', sans-serif !important;
-    }
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }}
+    
+    .login-options {{
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        max-width: 600px;
+        margin: 50px auto;
+        text-align: center;
+    }}
+    
+    .login-title {{
+        color: #1e40af;
+        font-size: 28px;
+        margin-bottom: 10px;
+    }}
+    
+    .login-subtitle {{
+        color: #6b7280;
+        margin-bottom: 40px;
+        font-size: 18px;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ UI / Navigation ------------------
+# ------------------ إدارة حالة التطبيق ------------------
 def safe_rerun():
     try:
         st.rerun()
     except Exception:
         pass
 
-# إظهار شريط الأدوات العلوي دائمًا
-st.markdown(f"""
-<div class="top-toolbar">
-    <div class="logo-container">
-        <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-        <div class="school-info">
-            <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
-            <p class="school-date">{formatted_date}</p>
-        </div>
-    </div>
-    <div class="nav-buttons">
-        <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
-        <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
-        <button class="nav-btn" onclick="window.location.href='?page=home'">رجوع</button>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
-
-# Modals HTML + script
-st.markdown("""
-<div id="about-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
-        <h3>عن المدرسة</h3>
-        <p>مدرسة السلام الإعدادية الثانوية المشتركة تُعد من أعرق المدارس الحكومية في المنطقة.</p>
-        <p>تهدف إلى تقديم تعليم متميز يجمع بين العلم والأخلاق.</p>
-    </div>
-</div>
-<div id="contact-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="document.getElementById('contact-modal').style.display='none'">×</span>
-        <h3>اتصل بنا</h3>
-        <p>الهاتف: 02-12345678</p>
-        <p>البريد: alsalam.school@example.com</p>
-        <p>العنوان: حي السلام - القاهرة</p>
-    </div>
-</div>
-<script>
-window.onclick = function(event) {
-    var aboutModal = document.getElementById('about-modal');
-    var contactModal = document.getElementById('contact-modal');
-    if (event.target == aboutModal) {
-        aboutModal.style.display = "none";
-    }
-    if (event.target == contactModal) {
-        contactModal.style.display = "none";
-    }
-}
-</script>
-""", unsafe_allow_html=True)
-
 # إدارة حالة الصفحة
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# عرض الصفحة المناسبة بناءً على الحالة
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+
+# ------------------ الواجهة الرئيسية ------------------
 if st.session_state.page == "home":
-    show_login_page()
-    
-elif st.session_state.page == "teacher_login":
-    st.header("تسجيل دخول المعلم")
-    teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
-    pwd = st.text_input("كلمة السر:", type="password")
+    # صفحة البداية - مباشرة عرض خيارات الدخول
+    st.markdown("""
+    <div class="login-options">
+        <h1 class="login-title">🏫 نظام الغياب المدرسي</h1>
+        <p class="login-subtitle">اختر طريقة الدخول المناسبة لك</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
+    
     with col1:
-        if st.button("تسجيل الدخول", use_container_width=True):
-            if pwd == PASSWORD:
-                st.session_state.teacher_name = teacher_choice
-                st.session_state.page = "teacher_attendance"
-                st.rerun()
-            else:
-                st.error("كلمة السر غير صحيحة")
+        st.markdown("""
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <h2 style="color: #1e40af;">👨‍🏫 معلم</h2>
+            <p style="color: #6b7280;">لتسجيل حضور وغياب الطلاب</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚪 دخول المعلمين", key="teacher_main", use_container_width=True, type="primary"):
+            st.session_state.page = "teacher_login"
+            safe_rerun()
+    
     with col2:
-        if st.button("رجوع", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
+        st.markdown("""
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <h2 style="color: #10b981;">👨‍🎓 طالب</h2>
+            <p style="color: #6b7280;">للعرض والبحث في سجلات الغياب</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔍 دخول الطلاب", key="student_main", use_container_width=True, type="secondary"):
+            st.session_state.page = "student"
+            safe_rerun()
+    
+    # أزرار الدخول السريع للمعلمين
+    st.markdown("---")
+    st.subheader("🔧 دخول سريع للمعلمين")
+    
+    st.info("استخدم هذه الأزرار للدخول السريع (كلمة المرور: 123456)")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("مينا سمير", use_container_width=True):
+            success, user = authenticate_user("mina@school.com", "123456")
+            if success:
+                st.session_state.current_user = user
+                st.session_state.teacher_name = "مينا سمير"
+                st.session_state.page = "teacher_attendance"
+                st.success("✅ تم تسجيل الدخول بنجاح")
+                safe_rerun()
+            else:
+                st.error("❌ فشل تسجيل الدخول")
+    
+    with col2:
+        if st.button("فادي حبيب", use_container_width=True):
+            success, user = authenticate_user("fady@school.com", "123456")
+            if success:
+                st.session_state.current_user = user
+                st.session_state.teacher_name = "فادي حبيب"
+                st.session_state.page = "teacher_attendance"
+                st.success("✅ تم تسجيل الدخول بنجاح")
+                safe_rerun()
+            else:
+                st.error("❌ فشل تسجيل الدخول")
+
+elif st.session_state.page == "teacher_login":
+    # شريط الأدوات العلوي
+    st.markdown(f"""
+    <div class="top-toolbar">
+        <div class="logo-container">
+            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+            <div class="school-info">
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="window.location.href='?page=home'">🏠 الرئيسية</button>
+        </div>
+    </div>
+    <div class="content-padding"></div>
+    """, unsafe_allow_html=True)
+    
+    st.header("👨‍🏫 تسجيل دخول المعلم")
+    
+    # قسم تسجيل الدخول
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("الدخول بالنظام الجديد")
+        
+        email = st.text_input("البريد الإلكتروني:", key="teacher_email", placeholder="mina@school.com")
+        password = st.text_input("كلمة المرور:", type="password", key="teacher_password", placeholder="123456")
+        
+        if st.button("تسجيل الدخول", use_container_width=True, type="primary"):
+            if email and password:
+                success, user = authenticate_user(email, password)
+                if success:
+                    st.session_state.current_user = user
+                    st.session_state.teacher_name = user["teacher_name"] if user["user_type"] == "teacher" else user["name"]
+                    st.session_state.page = "teacher_attendance"
+                    st.success(f"✅ مرحباً أستاذ {user['name']}")
+                    safe_rerun()
+                else:
+                    st.error("❌ البريد الإلكتروني أو كلمة المرور غير صحيحة")
+            else:
+                st.warning("⚠️ الرجاء إدخال البريد الإلكتروني وكلمة المرور")
+    
+    with col2:
+        st.subheader("المعلمون المسجلون")
+        st.info("""
+        **مينا سمير**
+        - الإيميل: mina@school.com
+        - كلمة المرور: 123456
+        
+        **فادي حبيب**
+        - الإيميل: fady@school.com  
+        - كلمة المرور: 123456
+        """)
+    
+    # زر الرجوع
+    if st.button("🏠 الرجوع للصفحة الرئيسية", use_container_width=True):
+        st.session_state.page = "home"
+        safe_rerun()
 
 elif st.session_state.page == "teacher_attendance":
-    st.header("تسجيل الغياب")
+    # شريط الأدوات العلوي
     teacher_name = st.session_state.get("teacher_name", "غير معروف")
-    st.subheader(f"المعلم: {teacher_name}")
-
-    # اختيار الطلاب الغائبين
-    selected = st.multiselect("اختر الغائبين", STUDENTS)
-
-    # اختيار نوع الغياب
-    st.markdown("**اختر نوع الغياب:**")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        excuse = st.checkbox("غياب بعذر", key="excuse")
-    with col_b:
-        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-
-    if excuse and no_excuse:
-        st.warning("اختر نوع واحد فقط.")
-
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("تسجيل الغياب", type="primary", use_container_width=True):
-            if not selected:
-                st.warning("يجب اختيار طالب/طلاب أولا.")
-            elif excuse and no_excuse:
-                st.warning("اختر نوع واحد فقط.")
-            elif not (excuse or no_excuse):
-                st.warning("من فضلك اختر نوع الغياب.")
-            else:
-                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                
-                # تسجيل الغياب
-                try:
-                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                else:
-                    # رسالة نجاح مختصرة فقط
-                    if success_count > 0:
-                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-                    if failed:
-                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
-
-    with col3:
-        if st.button("رجوع", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-
-elif st.session_state.page == "student":
-    st.header("تقارير الغياب")
-    st.markdown('<div class="student-search">', unsafe_allow_html=True)
-    search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if search_query and search_query.strip():
-        df_student = get_student_records(search_query.strip())
-        if df_student.empty:
-            st.info(f"لا يوجد سجلات للطالب: {search_query}")
-        else:
-            st.dataframe(df_student, use_container_width=True, hide_index=True)
-            pdf_buf = generate_student_pdf(search_query, df_student)
-            st.download_button(
-                "تحميل PDF",
-                data=pdf_buf,
-                file_name=f"{search_query}_report.pdf",
-                mime="application/pdf"
-            )
-
+    
+    st.markdown(f"""
+    <div class="top-toolbar">
+        <div class="logo-container">
+            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+            <div class="school-info">
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <div style="color: white; font-weight: bold;">👨‍🏫 {teacher_name}</div>
+            <button class="nav-btn" onclick="window.location.href='?page=home'">🏠 الرئيسية</button>
+            <button class="nav-btn" onclick="window.location.href='?page=teacher_login'">🚪 الخروج</button>
+        </div>
+    </div>
+    <div class="content-padding"></div>
+    """, unsafe_allow_html=True)
+    
+    st.header(f"📝 تسجيل الغياب")
+    
+    # معلومات المعلم
+    if st.session_state.current_user:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.info(f"👤 **المعلم:** {st.session_state.current_user.get('name', 'غير معروف')}")
+        with col2:
+            st.info(f"📧 **البريد:** {st.session_state.current_user.get('email', 'غير معروف')}")
+        with col3:
+            st.info(f"📅 **التاريخ:** {datetime.now().strftime('%Y-%m-%d')}")
+    
+    st.markdown("---")
+    
+    # قسم تسجيل الغياب
+    st.subheader("اختر الطلاب الغائبين")
+    
+    selected = st.multiselect("الطلاب الغائبين:", STUDENTS, help="اختر الطلاب الذين سيتم تسجيلهم كغائبين")
+    
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("رجوع", use_container_width=True):
-            if "student_search" in st.session_state:
-                del st.session_state.student_search
+        excuse = st.checkbox("غياب بعذر", key="excuse")
+    with col2:
+        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+    
+    if excuse and no_excuse:
+        st.warning("⚠️ اختر نوع واحد فقط من الغياب.")
+    
+    # زر الحفظ
+    if st.button("💾 حفظ وتسجيل الغياب", type="primary", use_container_width=True):
+        if not selected:
+            st.warning("⚠️ الرجاء اختيار طالب واحد على الأقل.")
+        elif excuse and no_excuse:
+            st.warning("⚠️ اختر نوع واحد فقط من الغياب.")
+        elif not (excuse or no_excuse):
+            st.warning("⚠️ الرجاء تحديد نوع الغياب.")
+        else:
+            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+            
+            try:
+                failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                
+                if success_count > 0:
+                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    st.balloons()
+                
+                if failed:
+                    for error in failed:
+                        st.error(f"❌ {error}")
+                        
+            except Exception as e:
+                st.error(f"❌ حدث خطأ أثناء التسجيل: {str(e)}")
+    
+    # زر الرجوع
+    if st.button("🏠 الرجوع للصفحة الرئيسية", use_container_width=True):
+        st.session_state.page = "home"
+        st.session_state.current_user = None
+        safe_rerun()
+
+elif st.session_state.page == "student":
+    # شريط الأدوات العلوي
+    st.markdown(f"""
+    <div class="top-toolbar">
+        <div class="logo-container">
+            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
+            <div class="school-info">
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
+                <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="window.location.href='?page=home'">🏠 الرئيسية</button>
+        </div>
+    </div>
+    <div class="content-padding"></div>
+    """, unsafe_allow_html=True)
+    
+    st.header("📊 تقارير الغياب للطلاب")
+    
+    st.info("يمكنك البحث عن سجلات غياب أي طالب من خلال إدخال اسمه في الحقل أدناه.")
+    
+    search_query = st.text_input("🔍 ابحث عن اسم الطالب:", placeholder="أدخل اسم الطالب هنا...")
+    
+    if search_query and search_query.strip():
+        df_student = get_student_records(search_query.strip())
+        
+        if df_student.empty:
+            st.warning(f"⚠️ لا توجد سجلات للطالب: {search_query}")
+        else:
+            st.success(f"✅ تم العثور على {len(df_student)} سجل للطالب: {search_query}")
+            
+            # عرض البيانات
+            st.dataframe(df_student, use_container_width=True, hide_index=True)
+            
+            # إحصائيات
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                absent_count = ((df_student["الحالة"] == "غياب بعذر").sum() + 
+                               (df_student["الحالة"] == "غياب بدون عذر").sum())
+                st.metric("عدد مرات الغياب", absent_count)
+            
+            with col2:
+                present_count = (df_student["الحالة"] == "حاضر").sum()
+                st.metric("عدد مرات الحضور", present_count)
+            
+            with col3:
+                total_count = len(df_student)
+                attendance_rate = (present_count / total_count * 100) if total_count > 0 else 0
+                st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+            
+            # زر تحميل PDF
+            pdf_buf = generate_student_pdf(search_query, df_student)
+            st.download_button(
+                "📥 تحميل التقرير كـ PDF",
+                data=pdf_buf,
+                file_name=f"تقرير_غياب_{search_query}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+    
+    # زر الرجوع
+    if st.button("🏠 الرجوع للصفحة الرئيسية", use_container_width=True):
+        st.session_state.page = "home"
+        safe_rerun()
+
+# ------------------ معلومات إضافية في الشريط الجانبي ------------------
+with st.sidebar:
+    st.header("ℹ️ معلومات النظام")
+    
+    if st.session_state.current_user:
+        st.markdown("---")
+        st.subheader("👤 معلومات المستخدم")
+        st.write(f"**الاسم:** {st.session_state.current_user.get('name', 'غير معروف')}")
+        st.write(f"**الدور:** {st.session_state.current_user.get('user_type', 'غير معروف')}")
+        
+        if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.page = "home"
+            st.session_state.current_user = None
             safe_rerun()
+    
+    st.markdown("---")
+    st.subheader("📋 قائمة الطلاب")
+    for i, student in enumerate(STUDENTS, 1):
+        st.write(f"{i}. {student}")
+    
+    # معلومات الاتصال
+    st.markdown("---")
+    if worksheet:
+        st.success("✅ متصل بـ Google Sheets")
+    else:
+        st.warning("⚠️ غير متصل بـ Google Sheets")

@@ -566,7 +566,7 @@ st.markdown("""
         text-align: right;
         transition: all 0.3s ease;
         background: #0f172a;
-        color: white;
+        color: #808080;
     }
     .login-input:focus {
         outline: none;
@@ -1081,4 +1081,5 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 

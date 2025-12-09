@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", layout="centered")
+st.set_page_config(page_title="نظام الغياب", layout="wide")
 
 # ------------------ App settings ------------------
 # قائمة الطلاب
@@ -483,160 +483,220 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS + top toolbar
+# CSS مع برجر منيو
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
     #MainMenu, header, footer {visibility: hidden !important;}
     .stApp {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
-        color: white;
+        color: #1e293b;
     }
+    /* برجر منيو */
+    .burger-menu {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000001;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        padding: 12px;
+        background: rgba(37, 99, 235, 0.9);
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+    .burger-menu:hover {
+        background: rgba(37, 99, 235, 1);
+        transform: scale(1.05);
+    }
+    .burger-line {
+        width: 25px;
+        height: 3px;
+        background: white;
+        border-radius: 2px;
+        transition: all 0.3s ease;
+    }
+    .burger-menu.active .burger-line:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+    }
+    .burger-menu.active .burger-line:nth-child(2) {
+        opacity: 0;
+    }
+    .burger-menu.active .burger-line:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px);
+    }
+    /* قائمة التنقل */
+    .nav-menu {
+        position: fixed;
+        top: 0;
+        right: -300px;
+        width: 280px;
+        height: 100vh;
+        background: white;
+        box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+        z-index: 1000000;
+        transition: right 0.3s ease;
+        padding-top: 80px;
+        overflow-y: auto;
+    }
+    .nav-menu.active {
+        right: 0;
+    }
+    .nav-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999999;
+        display: none;
+        backdrop-filter: blur(3px);
+    }
+    .nav-overlay.active {
+        display: block;
+    }
+    .nav-item {
+        padding: 18px 25px;
+        color: #1e293b;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        border-bottom: 1px solid #f1f5f9;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .nav-item:hover {
+        background: #f0f9ff;
+        color: #1e40af;
+        padding-right: 30px;
+    }
+    .nav-item i {
+        font-size: 22px;
+        width: 30px;
+        text-align: center;
+    }
+    .nav-header {
+        padding: 25px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        color: white;
+        text-align: center;
+        border-bottom: 3px solid rgba(255,255,255,0.2);
+    }
+    .nav-header h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+    }
+    .nav-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+    .user-info-nav {
+        padding: 20px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: center;
+    }
+    .user-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1e40af;
+        margin-bottom: 5px;
+    }
+    .user-role {
+        font-size: 14px;
+        color: #64748b;
+        background: #e2e8f0;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    /* الشريط العلوي */
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
-        height: 60px;
-        background: linear-gradient(135deg, #0f172a, #1e293b);
+        height: 80px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 15px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.3);
-        z-index: 999999 !important;
+        padding: 0 30px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        z-index: 99999 !important;
         font-family: 'Cairo', sans-serif;
         color: white;
-        border-bottom: 2px solid #3b82f6;
     }
-    .logo-container { display: flex; align-items: center; gap: 10px; }
+    .logo-container { display: flex; align-items: center; gap: 15px; }
     .logo-img { 
-        width: 40px; height: 40px; border-radius: 10px; 
+        width: 50px; height: 50px; border-radius: 12px; 
         object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 3px;
+        background: white; padding: 4px;
     }
-    .school-info { line-height: 1.2; }
-    .school-name { font-size: 14px; font-weight: bold; margin: 0; color: #f1f5f9; }
-    .school-date { font-size: 10px; opacity: 0.9; margin: 0; color: #cbd5e1; }
-    .nav-buttons { display: flex; gap: 10px; }
-    .nav-btn {
-        background: rgba(59, 130, 246, 0.3);
-        color: white; border: none; padding: 8px 16px;
-        border-radius: 10px; font-size: 13px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(10px); border: 1px solid rgba(59, 130, 246, 0.5);
-    }
-    .nav-btn:hover {
-        background: rgba(59, 130, 246, 0.7);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-    }
-    .content-padding { height: 70px; }
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: #1e293b; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; animation: modalPop 0.3s ease; border: 1px solid #475569; }
-    @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 8px; left: 12px; font-size: 24px; font-weight: bold; color: #94a3b8; cursor: pointer; }
-    .close-btn:hover { color: #f87171; }
-    .modal h3 { text-align: center; color: #60a5fa; margin-top: 0; font-size: 18px; }
-    .modal p { text-align: center; color: #cbd5e1; line-height: 1.5; font-size: 14px; }
+    .school-info { line-height: 1.3; }
+    .school-name { font-size: 20px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 14px; opacity: 0.9; margin: 0; }
+    .content-padding { height: 90px; }
+    /* صفحة تسجيل الدخول */
     .login-container {
-        max-width: 350px;
-        margin: 30px auto;
-        padding: 30px;
-        background: #1e293b;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        max-width: 500px;
+        margin: 60px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         text-align: center;
-        border: 1px solid #475569;
     }
     .login-title {
-        color: #60a5fa;
-        font-size: 24px;
-        margin-bottom: 20px;
+        color: #1e40af;
+        font-size: 32px;
+        margin-bottom: 30px;
         font-weight: 700;
     }
-    .login-input::placeholder {
-        color: #64748b !important;  /* لون رمادي داكن بدلاً من الفاتح */
-        font-size: 16px !important;
-        opacity: 0.9 !important;
+    .input-label {
+        display: block;
+        text-align: right;
+        margin: 15px 0 8px 0;
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 16px;
     }
     .login-input {
         width: 100%;
-        padding: 12px;
-        margin: 8px 0;
-        border: 2px solid #475569;
-        border-radius: 10px;
-        font-size: 14px;
+        padding: 18px;
+        margin: 5px 0 15px 0;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 18px;
         font-family: 'Cairo', sans-serif;
         text-align: right;
         transition: all 0.3s ease;
-        background: #0f172a;
-        color: white;
+        background: white;
+        color: #1e293b;
     }
     .login-input:focus {
         outline: none;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-        background: #1e293b;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    .login-input::placeholder {
+        color: #64748b !important;
+        font-size: 16px !important;
+        opacity: 0.9 !important;
     }
     .login-button {
         width: 100%;
-        padding: 14px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 15px;
-        font-family: 'Cairo', sans-serif;
-    }
-    .login-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    }
-    .user-type-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 15px;
-        font-size: 11px;
-        font-weight: 600;
-        margin-left: 8px;
-    }
-    .badge-teacher {
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-    }
-    .badge-student {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
-    }
-    /* صفحة رئيسية أكبر */
-    .home-page {
-        max-width: 500px;
-        margin: 0 auto;
-        padding: 15px;
-    }
-    .home-title {
-        font-size: 28px;
-        margin-bottom: 20px;
-        color: #60a5fa !important;
-        text-align: center;
-        font-weight: 700;
-    }
-    .main-buttons-container {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        margin-top: 25px;
-    }
-    .main-button {
-        width: 100%;
-        padding: 20px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        padding: 18px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         border: none;
         border-radius: 12px;
@@ -644,211 +704,351 @@ st.markdown("""
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
-        text-align: center;
+        margin-top: 25px;
         font-family: 'Cairo', sans-serif;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        border: 2px solid rgba(59, 130, 246, 0.3);
     }
-    .main-button:hover {
+    .login-button:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+    /* الصفحة الرئيسية */
+    .home-page {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .home-title {
+        font-size: 36px;
+        margin-bottom: 30px;
+        color: #1e40af !important;
+        text-align: center;
+        font-weight: 700;
+    }
+    /* بطاقات الصفحة الرئيسية */
+    .dashboard-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-top: 40px;
+    }
+    .dashboard-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s ease;
+        text-align: center;
+        cursor: pointer;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
         border-color: #3b82f6;
     }
-    .main-button.student {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    .card-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
     }
-    .main-button.teacher {
-        background: linear-gradient(135deg, #10b981, #059669);
+    .card-title {
+        font-size: 24px;
+        color: #1e40af;
+        font-weight: 700;
+        margin-bottom: 15px;
     }
-    .main-button.logout {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
+    .card-desc {
+        color: #64748b;
+        font-size: 16px;
+        line-height: 1.6;
     }
+    /* رسالة ترحيب */
     .welcome-message {
         text-align: center;
-        padding: 15px;
-        margin: 10px 0;
-        background: linear-gradient(135deg, #1e293b, #0f172a);
-        border-radius: 12px;
-        border: 2px solid #475569;
+        padding: 25px;
+        margin: 20px 0;
+        background: linear-gradient(135deg, #f0f9ff, #e2e8f0);
+        border-radius: 15px;
+        border: 3px solid #bae6fd;
     }
     .welcome-text {
-        font-size: 18px;
-        color: #60a5fa;
-        font-weight: 600;
+        font-size: 24px;
+        color: #0369a1;
+        font-weight: 700;
     }
     .user-info {
-        font-size: 14px;
-        color: #cbd5e1;
-        margin-top: 5px;
+        font-size: 18px;
+        color: #475569;
+        margin-top: 10px;
     }
-    /* تحسين ألوان المتركس - ألوان داكنة */
+    /* صفحات المعلم والطالب */
+    .teacher-page, .student-page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    /* تحسينات عامة */
     .stMetric {
-        background: #1e293b !important;
-        border-radius: 10px !important;
-        padding: 15px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-        border: 1px solid #475569 !important;
+        background: white !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
+        border: 2px solid #e2e8f0 !important;
     }
     .stMetric label {
-        color: #cbd5e1 !important;
+        color: #1e293b !important;
         font-weight: 600 !important;
-        font-size: 14px !important;
+        font-size: 18px !important;
     }
     .stMetric div {
-        color: #60a5fa !important;
+        color: #1e40af !important;
         font-weight: 700 !important;
-        font-size: 22px !important;
+        font-size: 28px !important;
     }
-    /* تحسين أزرار الغياب - ألوان داكنة */
-    .attendance-checkbox {
-        background: #1e293b !important;
-        border: 2px solid #475569 !important;
-        border-radius: 8px !important;
-        padding: 12px !important;
-        margin: 5px 0 !important;
-    }
-    .attendance-checkbox label {
-        color: #f1f5f9 !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
-    }
-    /* تحسين ألوان الأزرار */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
-        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
-        font-size: 16px !important;
+        font-size: 18px !important;
         font-weight: 600 !important;
-        border-radius: 10px !important;
-        border: 2px solid rgba(59, 130, 246, 0.3) !important;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+        border-radius: 12px !important;
+        border: 2px solid rgba(59, 130, 246, 0.2) !important;
+        box-shadow: 0 5px 15px rgba(37,99,235,0.2) !important;
         transition: all 0.3s ease !important;
-        margin: 8px 0 !important;
-        padding: 14px !important;
+        margin: 15px 0 !important;
+        padding: 16px !important;
         display: block !important;
     }
     .stButton > button:hover {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4) !important;
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 10px 25px rgba(37,99,235,0.3) !important;
         border-color: #3b82f6 !important;
     }
-    /* زر تسجيل الغياب بلون مختلف */
-    .attendance-button {
-        background: linear-gradient(135deg, #10b981, #059669) !important;
-    }
-    .attendance-button:hover {
-        background: linear-gradient(135deg, #059669, #047857) !important;
-    }
-    /* أزرار العودة */
-    .back-button {
-        background: linear-gradient(135deg, #475569, #334155) !important;
-    }
-    .back-button:hover {
-        background: linear-gradient(135deg, #334155, #1e293b) !important;
-    }
-    /* تحسين الملتيسيليكت - داكن */
-    .stMultiSelect > div > div {
-        background: #1e293b !important;
-        border: 2px solid #475569 !important;
-        border-radius: 10px !important;
-        color: white !important;
-    }
-    .stMultiSelect > div > div:hover {
-        border-color: #3b82f6 !important;
-    }
-    .stMultiSelect label {
-        color: #cbd5e1 !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
-    }
-    /* تحسين الرسائل */
     .stAlert {
-        border-radius: 10px !important;
-        padding: 15px !important;
-        font-size: 14px !important;
-        background: #1e293b !important;
-        border: 1px solid #475569 !important;
-        color: white !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        font-size: 16px !important;
+        border: 2px solid !important;
     }
-    /* تحسين الأقسام */
     .stHeader {
-        color: #60a5fa !important;
-        border-bottom: 2px solid #475569 !important;
-        padding-bottom: 10px !important;
+        color: #1e40af !important;
+        border-bottom: 3px solid #e2e8f0 !important;
+        padding-bottom: 15px !important;
+        font-size: 32px !important;
+        margin-bottom: 20px !important;
     }
     .stSubheader {
-        color: #94a3b8 !important;
+        color: #475569 !important;
+        font-size: 24px !important;
     }
-    /* تحسين الجداول */
     .dataframe {
-        background: #1e293b !important;
-        color: white !important;
-        border: 1px solid #475569 !important;
+        background: white !important;
+        color: #1e293b !important;
+        border: 2px solid #e2e8f0 !important;
+        font-size: 16px !important;
     }
-    .dataframe th {
-        background: #0f172a !important;
-        color: #60a5fa !important;
-        border: 1px solid #475569 !important;
-    }
-    .dataframe td {
-        border: 1px solid #475569 !important;
-        color: #cbd5e1 !important;
-    }
-    /* تحسين حقول الإدخال */
     .stTextInput > div > div > input {
-        background: #1e293b !important;
-        color: white !important;
-        border: 2px solid #475569 !important;
+        background: white !important;
+        color: #1e293b !important;
+        border: 3px solid #e2e8f0 !important;
+        font-size: 18px !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
     }
-    .stTextInput > div > div > input:focus {
-        border-color: #3b82f6 !important;
+    .stTextInput > div > div > input::placeholder {
+        color: #64748b !important;
+        opacity: 0.9 !important;
+        font-size: 16px !important;
     }
-    /* تحسين السيلكت بوكس */
-    .stSelectbox > div > div {
-        background: #1e293b !important;
-        color: white !important;
-        border: 2px solid #475569 !important;
-    }
-    /* تحسين الشيك بوكس */
-    .stCheckbox > label {
-        color: #cbd5e1 !important;
-    }
-    /* تحسين محتوى الصفحة */
-    .main-content {
-        color: #f1f5f9 !important;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #60a5fa !important;
-    }
-    p, span, div {
-        color: #cbd5e1 !important;
+    /* إخفاء زر الهامبرغر في صفحة تسجيل الدخول */
+    .login-screen .burger-menu {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML (يظهر فقط بعد تسجيل الدخول)
+# برجر منيو HTML و JavaScript
+st.markdown("""
+<div id="burgerBtn" class="burger-menu">
+    <div class="burger-line"></div>
+    <div class="burger-line"></div>
+    <div class="burger-line"></div>
+</div>
+
+<div id="navOverlay" class="nav-overlay"></div>
+
+<div id="navMenu" class="nav-menu">
+    <div class="nav-header">
+        <h3>🌙 قائمة التنقل</h3>
+        <p>اختر الصفحة التي تريد الذهاب إليها</p>
+    </div>
+    <div id="userNavInfo" class="user-info-nav">
+        <div class="user-name" id="navUserName"></div>
+        <div class="user-role" id="navUserRole"></div>
+    </div>
+    <div id="navItems"></div>
+</div>
+
+<script>
+// عناصر DOM
+const burgerBtn = document.getElementById('burgerBtn');
+const navMenu = document.getElementById('navMenu');
+const navOverlay = document.getElementById('navOverlay');
+const navItems = document.getElementById('navItems');
+const navUserName = document.getElementById('navUserName');
+const navUserRole = document.getElementById('navUserRole');
+
+// حالة المستخدم (سيتم تحديثها من بايثون)
+let currentUser = {
+    name: '',
+    role: '',
+    isLoggedIn: false
+};
+
+// عناصر القائمة
+const menuItems = {
+    home: { icon: '🏠', text: 'الصفحة الرئيسية', page: 'home' },
+    teacherAttendance: { icon: '📝', text: 'تسجيل الغياب', page: 'teacher_attendance', role: 'teacher' },
+    studentReport: { icon: '📊', text: 'تقريري', page: 'student_dashboard', role: 'student' },
+    logout: { icon: '🚪', text: 'تسجيل الخروج', page: 'logout' }
+};
+
+// فتح/إغلاق القائمة
+burgerBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    burgerBtn.classList.toggle('active');
+    navMenu.classList.toggle('active');
+    navOverlay.classList.toggle('active');
+});
+
+navOverlay.addEventListener('click', function() {
+    closeMenu();
+});
+
+// إغلاق القائمة
+function closeMenu() {
+    burgerBtn.classList.remove('active');
+    navMenu.classList.remove('active');
+    navOverlay.classList.remove('active');
+}
+
+// تحديث معلومات المستخدم
+function updateUserInfo(userName, userRole, isLoggedIn) {
+    currentUser.name = userName;
+    currentUser.role = userRole;
+    currentUser.isLoggedIn = isLoggedIn;
+    
+    if (isLoggedIn) {
+        navUserName.textContent = userName;
+        navUserRole.textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
+        renderMenu();
+    }
+}
+
+// عرض القائمة حسب دور المستخدم
+function renderMenu() {
+    navItems.innerHTML = '';
+    
+    // إضافة العناصر المشتركة
+    addMenuItem(menuItems.home);
+    
+    // إضافة عناصر حسب الدور
+    if (currentUser.role === 'teacher') {
+        addMenuItem(menuItems.teacherAttendance);
+    } else if (currentUser.role === 'student') {
+        addMenuItem(menuItems.studentReport);
+    }
+    
+    // إضافة تسجيل الخروج
+    addMenuItem(menuItems.logout);
+}
+
+// إضافة عنصر للقائمة
+function addMenuItem(item) {
+    const div = document.createElement('div');
+    div.className = 'nav-item';
+    div.innerHTML = `
+        <i>${item.icon}</i>
+        <span>${item.text}</span>
+    `;
+    
+    div.addEventListener('click', function() {
+        if (item.page === 'logout') {
+            // إرسال طلب تسجيل الخروج
+            fetch('/logout', { method: 'POST' })
+                .then(() => window.location.reload());
+        } else {
+            // تغيير الصفحة
+            window.location.href = `?page=${item.page}`;
+        }
+        closeMenu();
+    });
+    
+    navItems.appendChild(div);
+}
+
+// إغلاق القائمة عند النقر خارجها
+document.addEventListener('click', function(e) {
+    if (!navMenu.contains(e.target) && !burgerBtn.contains(e.target)) {
+        closeMenu();
+    }
+});
+
+// التعامل مع مفاتيح لوحة المفاتيح
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMenu();
+    }
+});
+
+// تحديث معلومات المستخدم عند التحميل
+window.addEventListener('load', function() {
+    // سيتم استدعاء هذه الدالة من بايثون
+    if (window.updateUserFromPython) {
+        window.updateUserFromPython();
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# Top toolbar HTML
 def show_toolbar():
     user_role = st.session_state.get('user_role', '')
-    badge_class = "badge-teacher" if user_role == "teacher" else "badge-student"
-    badge_text = "معلم" if user_role == "teacher" else "طالب"
+    user_role_display = "معلم" if user_role == "teacher" else "طالب"
     
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
             <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
             <div class="school-info">
-                <p class="school-name">مدرسة السلام</p>
+                <p class="school-name">مدرسة السلام الإعدادية</p>
                 <p class="school-date">{formatted_date}</p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="color: white; font-size: 16px; font-weight: 600;">{st.session_state.user_name}</div>
+            <div style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px;">
+                {user_role_display}
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # إضافة JavaScript لتحديث البرجر منيو
+    st.markdown(f"""
+    <script>
+    // تحديث معلومات المستخدم في البرجر منيو
+    updateUserInfo('{st.session_state.user_name}', '{user_role}', true);
+    
+    // دالة للانتقال للصفحات
+    function navigateTo(page) {{
+        window.location.href = '?page=' + page;
+    }}
+    </script>
+    """, unsafe_allow_html=True)
+    
     st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # UI / Navigation
@@ -875,28 +1075,30 @@ if st.session_state.page == "login":
     
     # تصميم صفحة تسجيل الدخول
     st.markdown("""
-    <div class="login-container">
-        <div class="login-title">🚪 تسجيل الدخول</div>
-    </div>
+    <div class="login-screen">
+        <div class="login-container">
+            <div class="login-title">🚪 تسجيل الدخول</div>
     """, unsafe_allow_html=True)
     
     # حاوية الإدخالات
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
-        st.markdown('<div style="height: 10px"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
         
         # حقل إدخال اسم المستخدم
+        st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
-                                placeholder="أدخل اسمك (مثال: مينا سمير)",
+                                placeholder="مثال: مينا سمير أو اسم الطالب",
                                 label_visibility="collapsed")
         
         # حقل إدخال كلمة السر
+        st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
         password = st.text_input("كلمة المرور", type="password", 
-                                placeholder="أدخل كلمة المرور",
+                                placeholder="أدخل كلمة المرور هنا",
                                 label_visibility="collapsed")
         
         # زر تسجيل الدخول
-        login_button = st.button("تسجيل الدخول", use_container_width=True)
+        login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
         
         # معالجة تسجيل الدخول
         if login_button:
@@ -926,21 +1128,23 @@ if st.session_state.page == "login":
         
         # معلومات مساعدة
         st.markdown("""
-        <div style="margin-top: 20px; padding: 12px; background: #1e293b; border-radius: 8px; text-align: center; border: 1px solid #475569;">
-            <p style="margin: 0; color: #cbd5e1; font-size: 13px;">
+        <div style="margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #64748b; font-size: 13px;">
                 <strong>المعلمون:</strong> مينا سمير، فادي حبيب
             </p>
-            <p style="margin: 3px 0; color: #cbd5e1; font-size: 13px;">
+            <p style="margin: 3px 0; color: #64748b; font-size: 13px;">
                 كلمة المرور: <strong>teacher123</strong>
             </p>
-            <p style="margin: 3px 0 0 0; color: #cbd5e1; font-size: 12px;">
+            <p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px;">
                 <strong>الطلاب:</strong> ادخل اسمك كما هو في القائمة
             </p>
-            <p style="margin: 0; color: #cbd5e1; font-size: 12px;">
+            <p style="margin: 0; color: #64748b; font-size: 12px;">
                 كلمة المرور: <strong>student123</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
@@ -957,14 +1161,15 @@ elif st.session_state.logged_in:
     
     # صفحة المعلم لتسجيل الغياب
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
-        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">تسجيل الغياب</div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        st.markdown(f'<h3 style="text-align: center; color: #94a3b8;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
+        st.markdown(f'<h3 style="text-align: center; color: #475569;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
 
         # اختيار الطلاب الغائبين
-        selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS)
+        st.markdown("**اختر الطلاب الغائبين:**")
+        selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS, label_visibility="collapsed")
 
         # اختيار نوع الغياب
         st.markdown("**اختر نوع الغياب:**")
@@ -975,15 +1180,15 @@ elif st.session_state.logged_in:
             no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
 
         if excuse and no_excuse:
-            st.warning("اختر نوع واحد فقط.")
+            st.warning("⚠️ اختر نوع واحد فقط.")
 
-        if st.button("💾 تسجيل الغياب", key="record_attendance", use_container_width=True):
+        if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
             if not selected:
-                st.warning("يجب اختيار طالب/طلاب أولا.")
+                st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
             elif excuse and no_excuse:
-                st.warning("اختر نوع واحد فقط.")
+                st.warning("⚠️ اختر نوع واحد فقط.")
             elif not (excuse or no_excuse):
-                st.warning("من فضلك اختر نوع الغياب.")
+                st.warning("⚠️ من فضلك اختر نوع الغياب.")
             else:
                 status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
                 
@@ -991,48 +1196,44 @@ elif st.session_state.logged_in:
                 try:
                     failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
                 except Exception as e:
-                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                    st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
                 else:
                     # رسالة نجاح مختصرة فقط
                     if success_count > 0:
                         st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
                     if failed:
-                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+                        st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
     
     # صفحة الطالب لعرض تقاريره
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
-        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        st.markdown('<div class="student-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
         student_name = st.session_state.get('student_name', st.session_state.user_name)
         
         # عرض بيانات الطالب مباشرة
         df_student = get_student_records(student_name)
         
         if df_student.empty:
-            st.info(f"لا يوجد سجلات غياب لك يا {student_name}")
+            st.info(f"ℹ️ لا يوجد سجلات غياب لك يا {student_name}")
         else:
             # عرض الإحصاءات
             col1, col2, col3 = st.columns(3)
             with col1:
                 absent_count = int((df_student["الحالة"] == "غياب بعذر").sum() + (df_student["الحالة"] == "غياب بدون عذر").sum())
-                st.metric("الغياب", absent_count)
+                st.metric("عدد مرات الغياب", absent_count)
             with col2:
                 present_count = int((df_student["الحالة"] == "حاضر").sum())
-                st.metric("الحضور", present_count)
+                st.metric("عدد مرات الحضور", present_count)
             with col3:
                 total_count = len(df_student)
                 percentage = (present_count / total_count * 100) if total_count > 0 else 0
-                st.metric("النسبة", f"{percentage:.1f}%")
+                st.metric("نسبة الحضور", f"{percentage:.1f}%")
             
             # عرض الجدول
+            st.markdown("**تفاصيل السجلات:**")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
             # زر تحميل PDF
@@ -1046,51 +1247,60 @@ elif st.session_state.logged_in:
             )
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
     
     # الصفحة الرئيسية المشتركة
     elif st.session_state.page == "home":
         st.markdown('<div class="home-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">الصفحة الرئيسية</div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
         
-        # عرض الأزرار حسب نوع المستخدم
-        st.markdown('<div class="main-buttons-container">', unsafe_allow_html=True)
+        # عرض البطاقات حسب نوع المستخدم
+        st.markdown('<div class="dashboard-cards">', unsafe_allow_html=True)
         
         if st.session_state.user_role == "teacher":
-            if st.button("👨‍🏫 تسجيل الغياب", key="teacher_attendance_btn", use_container_width=True):
-                st.session_state.page = "teacher_attendance"
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("""
+                <div class="dashboard-card" onclick="navigateTo('teacher_attendance')">
+                    <div class="card-icon">📝</div>
+                    <div class="card-title">تسجيل الغياب</div>
+                    <div class="card-desc">تسجيل غياب الطلاب وتحديد نوع الغياب</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("""
+                <div class="dashboard-card" onclick="navigateTo('student_dashboard')">
+                    <div class="card-icon">👨‍🎓</div>
+                    <div class="card-title">عرض تقارير</div>
+                    <div class="card-desc">عرض تقارير الحضور والغياب للطلاب</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         elif st.session_state.user_role == "student":
-            if st.button("👨‍🎓 تقريري", key="student_dashboard_btn", use_container_width=True):
-                st.session_state.page = "student_dashboard"
-                st.rerun()
+            st.markdown("""
+            <div class="dashboard-card" onclick="navigateTo('student_dashboard')">
+                <div class="card-icon">📊</div>
+                <div class="card-title">تقرير الغياب الخاص بي</div>
+                <div class="card-desc">عرض تقرير الغياب والحضور الخاص بك</div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # زر تسجيل الخروج للجميع
-        if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # زر تسجيل الخروج
+        st.markdown('<div style="margin-top: 40px;">', unsafe_allow_html=True)
+        if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_role = ""
             st.session_state.user_name = ""
             st.session_state.page = "login"
             st.rerun()
-        
         st.markdown('</div>', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
 # إذا حاول الوصول مباشرة بدون تسجيل دخول
 else:
     st.session_state.page = "login"
     st.rerun()
-
-
-
-
-
-
-
-

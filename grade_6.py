@@ -555,6 +555,11 @@ st.markdown("""
         margin-bottom: 20px;
         font-weight: 700;
     }
+    .login-input::placeholder {
+        color: #64748b !important;  /* لون رمادي داكن بدلاً من الفاتح */
+        font-size: 16px !important;
+        opacity: 0.9 !important;
+    }
     .login-input {
         width: 100%;
         padding: 12px;
@@ -607,7 +612,7 @@ st.markdown("""
     }
     .badge-student {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: red;
+        color: white;
     }
     /* صفحة رئيسية أكبر */
     .home-page {
@@ -1081,6 +1086,7 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 
 
 

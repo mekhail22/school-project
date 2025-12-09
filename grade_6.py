@@ -607,7 +607,7 @@ st.markdown("""
     }
     .badge-student {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
+        color: red;
     }
     /* صفحة رئيسية أكبر */
     .home-page {
@@ -1081,6 +1081,7 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 
 
 

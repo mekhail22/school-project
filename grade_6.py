@@ -621,31 +621,14 @@ st.markdown("""
         border-radius: 20px;
         display: inline-block;
     }
-    /* الشريط العلوي */
+    /* الشريط العلوي (مخفى) */
     .top-toolbar {
-        position: fixed;
-        top: 0; left: 0; right: 0;
-        height: 80px;
-        background: linear-gradient(135deg, #1e40af, #2563eb);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 30px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        z-index: 99999 !important;
-        font-family: 'Cairo', sans-serif;
-        color: white;
+        display: none !important;
     }
-    .logo-container { display: flex; align-items: center; gap: 15px; }
-    .logo-img { 
-        width: 50px; height: 50px; border-radius: 12px; 
-        object-fit: contain; border: 2px solid rgba(255,255,255,0.3); 
-        background: white; padding: 4px;
+    .content-padding { 
+        height: 20px; 
+        margin-top: 20px;
     }
-    .school-info { line-height: 1.3; }
-    .school-name { font-size: 20px; font-weight: bold; margin: 0; }
-    .school-date { font-size: 14px; opacity: 0.9; margin: 0; }
-    .content-padding { height: 90px; }
     /* صفحة تسجيل الدخول */
     .login-container {
         max-width: 500px;
@@ -715,7 +698,7 @@ st.markdown("""
     /* الصفحة الرئيسية */
     .home-page {
         max-width: 800px;
-        margin: 0 auto;
+        margin: 40px auto 20px auto;
         padding: 20px;
     }
     .home-title {
@@ -765,27 +748,34 @@ st.markdown("""
     /* رسالة ترحيب */
     .welcome-message {
         text-align: center;
-        padding: 25px;
-        margin: 20px 0;
+        padding: 20px;
+        margin: 10px 0 30px 0;
         background: linear-gradient(135deg, #f0f9ff, #e2e8f0);
         border-radius: 15px;
         border: 3px solid #bae6fd;
     }
     .welcome-text {
-        font-size: 24px;
+        font-size: 22px;
         color: #0369a1;
         font-weight: 700;
     }
     .user-info {
-        font-size: 18px;
+        font-size: 16px;
         color: #475569;
-        margin-top: 10px;
+        margin-top: 8px;
     }
     /* صفحات المعلم والطالب */
     .teacher-page, .student-page {
         max-width: 900px;
-        margin: 0 auto;
+        margin: 40px auto 20px auto;
         padding: 20px;
+    }
+    .page-title {
+        font-size: 32px;
+        margin-bottom: 25px;
+        color: #1e40af !important;
+        text-align: center;
+        font-weight: 700;
     }
     /* تحسينات عامة */
     .stMetric {
@@ -841,7 +831,9 @@ st.markdown("""
     }
     .stSubheader {
         color: #475569 !important;
-        font-size: 24px !important;
+        font-size: 20px !important;
+        text-align: center !important;
+        margin-bottom: 30px !important;
     }
     .dataframe {
         background: white !important;
@@ -865,6 +857,19 @@ st.markdown("""
     /* إخفاء زر الهامبرغر في صفحة تسجيل الدخول */
     .login-screen .burger-menu {
         display: none !important;
+    }
+    /* تعديل صفحة تسجيل الدخول */
+    .login-screen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    }
+    /* إضافة مسافة للعناصر */
+    .spacer {
+        height: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -900,7 +905,7 @@ const navItems = document.getElementById('navItems');
 const navUserName = document.getElementById('navUserName');
 const navUserRole = document.getElementById('navUserRole');
 
-// حالة المستخدم (سيتم تحديثها من بايثون)
+// حالة المستخدم
 let currentUser = {
     name: '',
     role: '',
@@ -977,11 +982,10 @@ function addMenuItem(item) {
     div.addEventListener('click', function() {
         if (item.page === 'logout') {
             // إرسال طلب تسجيل الخروج
-            fetch('/logout', { method: 'POST' })
-                .then(() => window.location.reload());
+            window.location.href = '?action=logout';
         } else {
             // تغيير الصفحة
-            window.location.href = `?page=${item.page}`;
+            window.location.href = '?page=' + item.page;
         }
         closeMenu();
     });
@@ -1013,43 +1017,10 @@ window.addEventListener('load', function() {
 </script>
 """, unsafe_allow_html=True)
 
-# Top toolbar HTML
+# Top toolbar HTML (مخفى الآن)
 def show_toolbar():
-    user_role = st.session_state.get('user_role', '')
-    user_role_display = "معلم" if user_role == "teacher" else "طالب"
-    
-    st.markdown(f"""
-    <div class="top-toolbar">
-        <div class="logo-container">
-            <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
-            <div class="school-info">
-                <p class="school-name">مدرسة السلام الإعدادية</p>
-                <p class="school-date">{formatted_date}</p>
-            </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="color: white; font-size: 16px; font-weight: 600;">{st.session_state.user_name}</div>
-            <div style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px;">
-                {user_role_display}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # إضافة JavaScript لتحديث البرجر منيو
-    st.markdown(f"""
-    <script>
-    // تحديث معلومات المستخدم في البرجر منيو
-    updateUserInfo('{st.session_state.user_name}', '{user_role}', true);
-    
-    // دالة للانتقال للصفحات
-    function navigateTo(page) {{
-        window.location.href = '?page=' + page;
-    }}
-    </script>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+    # إخفاء الشريط العلوي تماماً
+    pass
 
 # UI / Navigation
 def safe_rerun():
@@ -1068,11 +1039,25 @@ if "user_name" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
+# التحقق من طلبات URL
+query_params = st.query_params
+if "action" in query_params and query_params["action"] == "logout":
+    st.session_state.logged_in = False
+    st.session_state.user_role = ""
+    st.session_state.user_name = ""
+    st.session_state.page = "login"
+    st.query_params.clear()
+    st.rerun()
+
+if "page" in query_params:
+    page = query_params["page"]
+    if page in ["home", "teacher_attendance", "student_dashboard"]:
+        st.session_state.page = page
+        st.query_params.clear()
+        st.rerun()
+
 # صفحة تسجيل الدخول الرئيسية
 if st.session_state.page == "login":
-    # إخفاء الـ toolbar في صفحة تسجيل الدخول
-    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
-    
     # تصميم صفحة تسجيل الدخول
     st.markdown("""
     <div class="login-screen">
@@ -1148,10 +1133,17 @@ if st.session_state.page == "login":
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
-    show_toolbar()
+    # تحديث البرجر منيو بمعلومات المستخدم
+    user_role = st.session_state.get('user_role', '')
+    user_role_display = "معلم" if user_role == "teacher" else "طالب"
+    
+    st.markdown(f"""
+    <script>
+    updateUserInfo('{st.session_state.user_name}', '{user_role}', true);
+    </script>
+    """, unsafe_allow_html=True)
     
     # عرض رسالة ترحيب
-    user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
     st.markdown(f"""
     <div class="welcome-message">
         <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
@@ -1163,10 +1155,9 @@ elif st.session_state.logged_in:
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
+        st.markdown('<div class="page-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        st.markdown(f'<h3 style="text-align: center; color: #475569;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
-
+        
         # اختيار الطلاب الغائبين
         st.markdown("**اختر الطلاب الغائبين:**")
         selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS, label_visibility="collapsed")
@@ -1210,7 +1201,7 @@ elif st.session_state.logged_in:
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
         st.markdown('<div class="student-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
+        st.markdown('<div class="page-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
         student_name = st.session_state.get('student_name', st.session_state.user_name)
         
         # عرض بيانات الطالب مباشرة
@@ -1260,29 +1251,35 @@ elif st.session_state.logged_in:
         if st.session_state.user_role == "teacher":
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("""
-                <div class="dashboard-card" onclick="navigateTo('teacher_attendance')">
-                    <div class="card-icon">📝</div>
-                    <div class="card-title">تسجيل الغياب</div>
-                    <div class="card-desc">تسجيل غياب الطلاب وتحديد نوع الغياب</div>
+                st.markdown(f"""
+                <div onclick="window.location.href='?page=teacher_attendance'" style="cursor: pointer;">
+                    <div class="dashboard-card">
+                        <div class="card-icon">📝</div>
+                        <div class="card-title">تسجيل الغياب</div>
+                        <div class="card-desc">تسجيل غياب الطلاب وتحديد نوع الغياب</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col2:
-                st.markdown("""
-                <div class="dashboard-card" onclick="navigateTo('student_dashboard')">
-                    <div class="card-icon">👨‍🎓</div>
-                    <div class="card-title">عرض تقارير</div>
-                    <div class="card-desc">عرض تقارير الحضور والغياب للطلاب</div>
+                st.markdown(f"""
+                <div onclick="window.location.href='?page=student_dashboard'" style="cursor: pointer;">
+                    <div class="dashboard-card">
+                        <div class="card-icon">👨‍🎓</div>
+                        <div class="card-title">عرض تقارير</div>
+                        <div class="card-desc">عرض تقارير الحضور والغياب للطلاب</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
         
         elif st.session_state.user_role == "student":
-            st.markdown("""
-            <div class="dashboard-card" onclick="navigateTo('student_dashboard')">
-                <div class="card-icon">📊</div>
-                <div class="card-title">تقرير الغياب الخاص بي</div>
-                <div class="card-desc">عرض تقرير الغياب والحضور الخاص بك</div>
+            st.markdown(f"""
+            <div onclick="window.location.href='?page=student_dashboard'" style="cursor: pointer;">
+                <div class="dashboard-card">
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">تقرير الغياب الخاص بي</div>
+                    <div class="card-desc">عرض تقرير الغياب والحضور الخاص بك</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1299,6 +1296,9 @@ elif st.session_state.logged_in:
         st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
+    
+    # إضافة مسافة في الأسفل
+    st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
 
 # إذا حاول الوصول مباشرة بدون تسجيل دخول
 else:

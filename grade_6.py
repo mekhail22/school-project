@@ -33,7 +33,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("attendance_app")
 
 # ------------------ Page config ------------------
-st.set_page_config(page_title="نظام الغياب", layout="wide")
+st.set_page_config(
+    page_title="نظام الغياب",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # ------------------ App settings ------------------
 # قائمة الطلاب
@@ -95,7 +100,7 @@ USERS = {
     "بيشوي عاطف فايز": {
         "password": "student123",
         "role": "student",
-        "student_name": "بيشوي عاطف فاز"
+        "student_name": "بيشوي عاطف فايز"  # تم التصحيح هنا
     },
     "جورج مينا نجيب": {
         "password": "student123",
@@ -483,241 +488,73 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS مع برجر منيو محسن
+# ------------------ CSS محسن (بدون برجر منيو معقد) ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    
+    /* إخفاء الشريط العلوي والأزرار الافتراضية */
     #MainMenu, header, footer {visibility: hidden !important;}
+    header {display: none !important;}
+    
+    /* الخلفية العامة */
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
         color: #1e293b;
     }
-    /* برجر منيو - حل أبسط */
-    .burger-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1000001;
-    }
-    .burger-btn {
+    
+    /* تحسين أزرار التنقل */
+    .nav-buttons {
         display: flex;
-        flex-direction: column;
-        gap: 5px;
-        cursor: pointer;
-        padding: 12px;
-        background: rgba(37, 99, 235, 0.9);
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        transition: all 0.3s ease;
-        border: none;
-        width: 50px;
-        height: 50px;
+        gap: 10px;
         justify-content: center;
-        align-items: center;
+        margin: 20px 0;
+        flex-wrap: wrap;
     }
-    .burger-btn:hover {
-        background: rgba(37, 99, 235, 1);
-        transform: scale(1.05);
-    }
-    .burger-line {
-        width: 25px;
-        height: 3px;
-        background: white;
-        border-radius: 2px;
-        transition: all 0.3s ease;
-    }
-    .burger-btn.active .burger-line:nth-child(1) {
-        transform: rotate(45deg) translate(5px, 5px);
-    }
-    .burger-btn.active .burger-line:nth-child(2) {
-        opacity: 0;
-    }
-    .burger-btn.active .burger-line:nth-child(3) {
-        transform: rotate(-45deg) translate(7px, -6px);
-    }
-    /* قائمة التنقل مبسطة */
-    .nav-sidebar {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 0;
-        height: 100vh;
-        background: white;
-        box-shadow: -5px 0 25px rgba(0,0,0,0.15);
-        z-index: 1000000;
-        transition: width 0.3s ease;
-        overflow: hidden;
-        padding-top: 80px;
-    }
-    .nav-sidebar.open {
-        width: 280px;
-    }
-    .nav-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 999999;
-        display: none;
-        backdrop-filter: blur(3px);
-    }
-    .nav-overlay.open {
-        display: block;
-    }
-    .nav-item {
-        padding: 15px 20px;
-        color: #1e293b;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        font-size: 16px;
-        font-weight: 600;
-        border-bottom: 1px solid #f1f5f9;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        width: 100%;
-        background: none;
-        border: none;
-        text-align: right;
-        font-family: 'Cairo', sans-serif;
-    }
-    .nav-item:hover {
-        background: #f0f9ff;
-        color: #1e40af;
-    }
-    .nav-item i {
-        font-size: 20px;
-        width: 30px;
-        text-align: center;
-    }
-    .nav-header {
-        padding: 20px;
+    
+    .nav-button {
+        padding: 12px 24px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
-        text-align: center;
-        border-bottom: 3px solid rgba(255,255,255,0.2);
-        position: absolute;
-        top: 0;
-        width: 100%;
-    }
-    .nav-header h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 700;
-    }
-    .user-info-nav {
-        padding: 15px 20px;
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-        text-align: center;
-        margin-top: 60px;
-    }
-    .user-name {
+        border: none;
+        border-radius: 12px;
         font-size: 16px;
-        font-weight: 700;
-        color: #1e40af;
-        margin-bottom: 5px;
-    }
-    .user-role {
-        font-size: 12px;
-        color: #64748b;
-        background: #e2e8f0;
-        padding: 3px 10px;
-        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        min-width: 180px;
         display: inline-block;
     }
-    .content-padding { 
-        height: 20px; 
-        margin-top: 20px;
+    
+    .nav-button:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(37,99,235,0.3);
     }
-    /* صفحة تسجيل الدخول */
-    .login-container {
-        max-width: 500px;
-        margin: 60px auto;
-        padding: 40px;
+    
+    /* تصميم الصفحات */
+    .page-container {
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 25px;
         background: white;
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        text-align: center;
     }
-    .login-title {
-        color: #1e40af;
+    
+    .page-title {
         font-size: 32px;
-        margin-bottom: 30px;
-        font-weight: 700;
-    }
-    .input-label {
-        display: block;
-        text-align: right;
-        margin: 15px 0 8px 0;
-        color: #1e293b;
-        font-weight: 600;
-        font-size: 16px;
-    }
-    .login-input {
-        width: 100%;
-        padding: 18px;
-        margin: 5px 0 15px 0;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 18px;
-        font-family: 'Cairo', sans-serif;
-        text-align: right;
-        transition: all 0.3s ease;
-        background: white;
-        color: #1e293b;
-    }
-    .login-input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-    }
-    .login-input::placeholder {
-        color: #64748b !important;
-        font-size: 16px !important;
-        opacity: 0.9 !important;
-    }
-    .login-button {
-        width: 100%;
-        padding: 18px;
-        background: linear-gradient(135deg, #1e40af, #2563eb);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 20px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 25px;
-        font-family: 'Cairo', sans-serif;
-    }
-    .login-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    }
-    /* إخفاء البرجر منيو في صفحة تسجيل الدخول */
-    .login-screen .burger-container {
-        display: none !important;
-    }
-    /* بقية الأنماط تبقى كما هي */
-    .home-page {
-        max-width: 800px;
-        margin: 40px auto 20px auto;
-        padding: 20px;
-    }
-    .home-title {
-        font-size: 36px;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
         color: #1e40af !important;
         text-align: center;
         font-weight: 700;
     }
+    
+    /* رسالة ترحيب */
     .welcome-message {
         text-align: center;
         padding: 20px;
@@ -726,28 +563,20 @@ st.markdown("""
         border-radius: 15px;
         border: 3px solid #bae6fd;
     }
+    
     .welcome-text {
         font-size: 22px;
         color: #0369a1;
         font-weight: 700;
     }
+    
     .user-info {
         font-size: 16px;
         color: #475569;
         margin-top: 8px;
     }
-    .teacher-page, .student-page {
-        max-width: 900px;
-        margin: 40px auto 20px auto;
-        padding: 20px;
-    }
-    .page-title {
-        font-size: 32px;
-        margin-bottom: 25px;
-        color: #1e40af !important;
-        text-align: center;
-        font-weight: 700;
-    }
+    
+    /* تحسين أزرار Streamlit */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
@@ -763,118 +592,144 @@ st.markdown("""
         padding: 16px !important;
         display: block !important;
     }
+    
     .stButton > button:hover {
         background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
         transform: translateY(-3px) !important;
         box-shadow: 0 10px 25px rgba(37,99,235,0.3) !important;
         border-color: #3b82f6 !important;
     }
+    
+    /* تصميم صفحة تسجيل الدخول */
+    .login-container {
+        max-width: 500px;
+        margin: 60px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .login-title {
+        color: #1e40af;
+        font-size: 32px;
+        margin-bottom: 30px;
+        font-weight: 700;
+    }
+    
+    .input-label {
+        display: block;
+        text-align: right;
+        margin: 15px 0 8px 0;
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .login-input {
+        width: 100%;
+        padding: 18px;
+        margin: 5px 0 15px 0;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 18px;
+        font-family: 'Cairo', sans-serif;
+        text-align: right;
+        transition: all 0.3s ease;
+        background: white;
+        color: #1e293b;
+    }
+    
+    .login-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* شريط التنقل البسيط */
+    .simple-nav {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+    
+    .simple-nav button {
+        padding: 10px 20px;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    
+    .simple-nav button:hover {
+        background: #1d4ed8;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# إضافة HTML للبرجر منيو (طريقة مباشرة)
-st.markdown("""
-<div class="burger-container">
-    <button class="burger-btn" onclick="toggleMenu()">
-        <div class="burger-line"></div>
-        <div class="burger-line"></div>
-        <div class="burger-line"></div>
-    </button>
-</div>
-
-<div class="nav-overlay" onclick="toggleMenu()"></div>
-
-<div class="nav-sidebar" id="navSidebar">
-    <div class="nav-header">
-        <h3>🌙 قائمة التنقل</h3>
-    </div>
-    <div id="userNavInfo" class="user-info-nav">
-        <div class="user-name" id="navUserName">...</div>
-        <div class="user-role" id="navUserRole">...</div>
-    </div>
-    <div id="navItems"></div>
-</div>
-
-<script>
-let menuOpen = false;
-
-function toggleMenu() {
-    const sidebar = document.getElementById('navSidebar');
-    const overlay = document.querySelector('.nav-overlay');
-    const burgerBtn = document.querySelector('.burger-btn');
+# ------------------ دالة لإنشاء قائمة التنقل ------------------
+def create_navigation():
+    """إنشاء قائمة تنقل بسيطة باستخدام أزرار Streamlit"""
     
-    menuOpen = !menuOpen;
-    
-    if (menuOpen) {
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-        burgerBtn.classList.add('active');
-    } else {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-        burgerBtn.classList.remove('active');
-    }
-}
+    # عرض معلومات المستخدم
+    if st.session_state.get('logged_in'):
+        user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
+        
+        st.markdown(f"""
+        <div class="welcome-message">
+            <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
+            <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # أزرار التنقل البسيطة
+        st.markdown('<div class="simple-nav">', unsafe_allow_html=True)
+        
+        # أزرار حسب نوع المستخدم
+        if st.session_state.user_role == "teacher":
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("🏠 الرئيسية", use_container_width=True):
+                    st.session_state.page = "home"
+                    st.rerun()
+            with col2:
+                if st.button("📝 تسجيل الغياب", use_container_width=True):
+                    st.session_state.page = "teacher_attendance"
+                    st.rerun()
+            with col3:
+                if st.button("🚪 تسجيل الخروج", use_container_width=True, type="secondary"):
+                    st.session_state.logged_in = False
+                    st.session_state.user_role = ""
+                    st.session_state.user_name = ""
+                    st.session_state.page = "login"
+                    st.rerun()
+        
+        elif st.session_state.user_role == "student":
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("🏠 الرئيسية", use_container_width=True):
+                    st.session_state.page = "home"
+                    st.rerun()
+            with col2:
+                if st.button("📊 تقريري", use_container_width=True):
+                    st.session_state.page = "student_dashboard"
+                    st.rerun()
+            with col3:
+                if st.button("🚪 تسجيل الخروج", use_container_width=True, type="secondary"):
+                    st.session_state.logged_in = False
+                    st.session_state.user_role = ""
+                    st.session_state.user_name = ""
+                    st.session_state.page = "login"
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
-function updateNavInfo(userName, userRole) {
-    document.getElementById('navUserName').textContent = userName;
-    document.getElementById('navUserRole').textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
-    updateNavItems(userRole);
-}
-
-function updateNavItems(userRole) {
-    const navItems = document.getElementById('navItems');
-    navItems.innerHTML = '';
-    
-    // الصفحة الرئيسية
-    addNavItem('🏠', 'الصفحة الرئيسية', 'home');
-    
-    // حسب الدور
-    if (userRole === 'teacher') {
-        addNavItem('📝', 'تسجيل الغياب', 'teacher_attendance');
-    } else if (userRole === 'student') {
-        addNavItem('📊', 'تقريري', 'student_dashboard');
-    }
-    
-    // تسجيل الخروج
-    addNavItem('🚪', 'تسجيل الخروج', 'logout');
-}
-
-function addNavItem(icon, text, page) {
-    const navItems = document.getElementById('navItems');
-    const button = document.createElement('button');
-    button.className = 'nav-item';
-    button.innerHTML = `<i>${icon}</i><span>${text}</span>`;
-    
-    button.onclick = function() {
-        if (page === 'logout') {
-            window.location.href = window.location.pathname + '?action=logout';
-        } else {
-            window.location.href = window.location.pathname + '?page=' + page;
-        }
-        toggleMenu();
-    };
-    
-    navItems.appendChild(button);
-}
-
-// إغلاق القائمة عند الضغط على ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && menuOpen) {
-        toggleMenu();
-    }
-});
-</script>
-""", unsafe_allow_html=True)
-
-# UI / Navigation
-def safe_rerun():
-    try:
-        st.rerun()
-    except Exception:
-        pass
-
-# إدارة حالة تسجيل الدخول
+# ------------------ إدارة الحالة ------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_role" not in st.session_state:
@@ -884,58 +739,41 @@ if "user_name" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# التحقق من طلبات URL
-query_params = st.query_params
-if "action" in query_params and query_params["action"] == "logout":
-    st.session_state.logged_in = False
-    st.session_state.user_role = ""
-    st.session_state.user_name = ""
-    st.session_state.page = "login"
-    st.query_params.clear()
-    st.rerun()
-
-if "page" in query_params:
-    page = query_params["page"]
-    if page in ["home", "teacher_attendance", "student_dashboard"]:
-        st.session_state.page = page
-        st.query_params.clear()
-        st.rerun()
-
-# صفحة تسجيل الدخول الرئيسية
-if st.session_state.page == "login":
-    # إخفاء البرجر منيو في صفحة تسجيل الدخول
+# ------------------ صفحة تسجيل الدخول ------------------
+if not st.session_state.logged_in:
+    # إخفاء أي أزرار أخرى
     st.markdown("""
     <style>
-    .burger-container { display: none !important; }
+    .simple-nav { display: none !important; }
+    .welcome-message { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
     
     # تصميم صفحة تسجيل الدخول
     st.markdown("""
-    <div class="login-screen">
-        <div class="login-container">
-            <div class="login-title">🚪 تسجيل الدخول</div>
+    <div class="login-container">
+        <div class="login-title">🚪 تسجيل الدخول</div>
     """, unsafe_allow_html=True)
     
     # حاوية الإدخالات
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
-        st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
-        
         # حقل إدخال اسم المستخدم
         st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
                                 placeholder="مثال: مينا سمير أو اسم الطالب",
-                                label_visibility="collapsed")
+                                label_visibility="collapsed",
+                                key="login_username")
         
         # حقل إدخال كلمة السر
         st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
         password = st.text_input("كلمة المرور", type="password", 
                                 placeholder="أدخل كلمة المرور هنا",
-                                label_visibility="collapsed")
+                                label_visibility="collapsed",
+                                key="login_password")
         
         # زر تسجيل الدخول
-        login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
+        login_button = st.button("✅ تسجيل الدخول", use_container_width=True, key="login_button")
         
         # معالجة تسجيل الدخول
         if login_button:
@@ -981,32 +819,44 @@ if st.session_state.page == "login":
         </div>
         """, unsafe_allow_html=True)
     
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
-elif st.session_state.logged_in:
-    # تحديث البرجر منيو بمعلومات المستخدم
-    user_role = st.session_state.get('user_role', '')
-    user_role_display = "معلم" if user_role == "teacher" else "طالب"
+# ------------------ الصفحات بعد تسجيل الدخول ------------------
+else:
+    # عرض قائمة التنقل
+    create_navigation()
     
-    # إضافة JavaScript لتحديث البرجر منيو
-    st.markdown(f"""
-    <script>
-    updateNavInfo('{st.session_state.user_name}', '{user_role}');
-    </script>
-    """, unsafe_allow_html=True)
-    
-    # عرض رسالة ترحيب
-    st.markdown(f"""
-    <div class="welcome-message">
-        <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
-        <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # الصفحة الرئيسية
+    if st.session_state.page == "home":
+        st.markdown('<div class="page-container">', unsafe_allow_html=True)
+        st.markdown('<div class="page-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
+        
+        # عرض الأزرار حسب نوع المستخدم
+        if st.session_state.user_role == "teacher":
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📝 تسجيل الغياب", use_container_width=True):
+                    st.session_state.page = "teacher_attendance"
+                    st.rerun()
+            with col2:
+                if st.button("👨‍🎓 عرض تقارير", use_container_width=True):
+                    st.session_state.page = "student_dashboard"
+                    st.rerun()
+        
+        elif st.session_state.user_role == "student":
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📊 تقرير الغياب الخاص بي", use_container_width=True):
+                    st.session_state.page = "student_dashboard"
+                    st.rerun()
+            with col2:
+                st.info("👈 اختر من الأزرار أعلاه")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # صفحة المعلم لتسجيل الغياب
-    if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
-        st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
+    elif st.session_state.page == "teacher_attendance" and st.session_state.user_role == "teacher":
+        st.markdown('<div class="page-container">', unsafe_allow_html=True)
         
         st.markdown('<div class="page-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
@@ -1051,8 +901,8 @@ elif st.session_state.logged_in:
         st.markdown('</div>', unsafe_allow_html=True)
     
     # صفحة الطالب لعرض تقاريره
-    elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
-        st.markdown('<div class="student-page">', unsafe_allow_html=True)
+    elif st.session_state.page == "student_dashboard" and st.session_state.user_role == "student":
+        st.markdown('<div class="page-container">', unsafe_allow_html=True)
         
         st.markdown('<div class="page-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
         student_name = st.session_state.get('student_name', st.session_state.user_name)
@@ -1091,52 +941,11 @@ elif st.session_state.logged_in:
             )
         
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # الصفحة الرئيسية المشتركة
-    elif st.session_state.page == "home":
-        st.markdown('<div class="home-page">', unsafe_allow_html=True)
-        
-        st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
-        
-        # عرض الأزرار حسب نوع المستخدم
-        col1, col2 = st.columns(2)
-        
-        if st.session_state.user_role == "teacher":
-            with col1:
-                if st.button("📝 تسجيل الغياب", use_container_width=True):
-                    st.session_state.page = "teacher_attendance"
-                    st.rerun()
-            
-            with col2:
-                if st.button("👨‍🎓 عرض تقارير", use_container_width=True):
-                    st.session_state.page = "student_dashboard"
-                    st.rerun()
-        
-        elif st.session_state.user_role == "student":
-            with col1:
-                if st.button("📊 تقرير الغياب الخاص بي", use_container_width=True):
-                    st.session_state.page = "student_dashboard"
-                    st.rerun()
-            
-            with col2:
-                st.info("👈 استخدم البرجر منيو للتنقل")
-        
-        # زر تسجيل الخروج
-        st.markdown('<div style="margin-top: 40px;">', unsafe_allow_html=True)
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user_role = ""
-            st.session_state.user_name = ""
-            st.session_state.page = "login"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # إضافة مسافة في الأسفل
-    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
-# إذا حاول الوصول مباشرة بدون تسجيل دخول
-else:
-    st.session_state.page = "login"
-    st.rerun()
+# ------------------ تذييل الصفحة ------------------
+st.markdown("""
+<div style="text-align: center; margin-top: 40px; padding: 20px; color: #64748b; font-size: 14px;">
+    <hr style="border: 1px solid #e2e8f0;">
+    نظام إدارة الغياب © 2024
+</div>
+""", unsafe_allow_html=True)

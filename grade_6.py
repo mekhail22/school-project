@@ -66,9 +66,9 @@ for class_name, students in CLASSES.items():
     ALL_STUDENTS.extend(students)
 
 # قائمة المعلمين والفصول التي يدرسونها
-TEACHERS = {
-    "مينا سمير": ["فصل C", "فصل B"],
-    "فادي حبيب": ["فصل D", "فصل E"]
+TEACHER_CLASSES = {
+    "مينا سمير": ["فصل B", "فصل C"],  # مينا سمير يدرس فصل B و C
+    "فادي حبيب": ["فصل D", "فصل E"]   # فادي حبيب يدرس فصل D و E
 }
 
 # مستخدمون وكلمات مرورهم
@@ -78,13 +78,13 @@ USERS = {
         "password": "teacher123",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["فصل C", "فصل B"]
+        "classes": ["فصل B", "فصل C"]  # الفصول التي يدرسها
     },
     "فادي حبيب": {
         "password": "teacher123",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["فصل D", "فصل E"]
+        "classes": ["فصل D", "فصل E"]  # الفصول التي يدرسها
     },
     
     # طلاب - لهم صلاحية عرض تقاريرهم فقط
@@ -923,6 +923,12 @@ st.markdown("""
         border: 3px solid #059669;
     }
     
+    .class-button.disabled {
+        background: linear-gradient(135deg, #94a3b8, #64748b);
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
     .student-list-container {
         max-height: 400px;
         overflow-y: auto;
@@ -1142,6 +1148,7 @@ if st.session_state.page == "login":
                         if USERS[username]["role"] == "teacher":
                             st.session_state.page = "teacher_attendance"
                             st.session_state.teacher_name = USERS[username]["teacher_name"]
+                            st.session_state.teacher_classes = USERS[username]["classes"]
                         else:  # student
                             st.session_state.page = "student_dashboard"
                             st.session_state.student_name = USERS[username]["student_name"]
@@ -1179,24 +1186,24 @@ elif st.session_state.logged_in:
         st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
         
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        teacher_classes = USERS.get(teacher_name, {}).get("classes", [])
+        teacher_classes = st.session_state.get('teacher_classes', [])
         
-        # اختيار الفصل أولاً
-        st.markdown("### 👇 اختر الفصل")
+        # عرض اسم المعلم والفصول التي يدرسها
+        st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
+        st.markdown(f"### 📚 الفصول الموكلة إليك:")
         
-        # عرض أزرار الفصول
-        col1, col2, col3, col4 = st.columns(4)
-        cols = [col1, col2, col3, col4]
-        
-        for idx, class_name in enumerate(["فصل C", "فصل B", "فصل D", "فصل E"]):
-            with cols[idx]:
-                # التحقق إذا كان المعلم مسؤول عن هذا الفصل
-                if class_name in teacher_classes:
-                    if st.button(f"🎯 {class_name}", key=f"class_{idx}", use_container_width=True):
+        # عرض أزرار الفصول التي يدرسها المعلم فقط
+        if teacher_classes:
+            col1, col2 = st.columns(2)
+            cols = [col1, col2]
+            
+            for idx, class_name in enumerate(teacher_classes):
+                with cols[idx % 2]:
+                    if st.button(f"🎯 {class_name}", key=f"class_{class_name}", use_container_width=True):
                         st.session_state.selected_class = class_name
                         st.rerun()
-                else:
-                    st.button(f"🔒 {class_name}", key=f"class_{idx}", use_container_width=True, disabled=True)
+        else:
+            st.warning("⚠️ لا يوجد فصول موكلة إليك. الرجاء التواصل مع الإدارة.")
         
         # إذا تم اختيار فصل
         if st.session_state.selected_class:
@@ -1207,6 +1214,9 @@ elif st.session_state.logged_in:
             class_students = CLASSES.get(selected_class, [])
             
             if class_students:
+                # عرض عدد الطلاب
+                st.info(f"عدد طلاب الفصل: **{len(class_students)}** طالب")
+                
                 # اختيار الطلاب الغائبين
                 st.markdown("**اختر الطلاب الغائبين:**")
                 selected = st.multiselect(
@@ -1250,13 +1260,17 @@ elif st.session_state.logged_in:
                                 # رسالة نجاح مختصرة فقط
                                 if success_count > 0:
                                     st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في {selected_class}")
+                                    # عرض ملخص
+                                    st.info(f"**ملخص التسجيل:**\n- الفصل: {selected_class}\n- المعلم: {teacher_name}\n- عدد الطلاب: {len(class_students)}\n- عدد الغائبين: {len(selected)}\n- الحالة: {status_label}")
                                 if failed:
                                     st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
                 
                 # زر تغيير الفصل
-                if st.button("🔄 تغيير الفصل", key="change_class", use_container_width=True):
+                if st.button("🔄 اختيار فصل آخر", key="change_class", use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
+            else:
+                st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -1338,6 +1352,7 @@ elif st.session_state.logged_in:
             st.session_state.user_role = ""
             st.session_state.user_name = ""
             st.session_state.selected_class = None
+            st.session_state.teacher_classes = None
             st.session_state.page = "login"
             st.rerun()
         

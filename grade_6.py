@@ -1075,7 +1075,7 @@ def show_toolbar():
         <div class="logo-container">
             <img src="{logo_src}" class="logo-img" alt="شعار المدرسة">
             <div class="school-info">
-                <p class="school-name">مدرسة السلام الإعدادية</p>
+                <p class="school-name">مدرسة السلام الإعدادية الثانويه المشتركه</p>
                 <p class="school-date">{formatted_date}</p>
             </div>
         </div>
@@ -1393,3 +1393,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

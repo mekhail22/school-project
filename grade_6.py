@@ -77,29 +77,89 @@ TEACHER_CLASSES = {
     "فادي حبيب": ["فصل D", "فصل E"]   # فادي حبيب يدرس فصل D و E
 }
 
-# مستخدمون وكلمات مرورهم
+# مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
 USERS = {
     # معلمون - لهم صلاحية تسجيل الغياب
     "مينا سمير": {
-        "password": "teacher123",
+        "password": "mina1234",  # كلمة مرور مختلفة
         "role": "teacher",
         "teacher_name": "مينا سمير",
         "classes": ["فصل B", "فصل C"]  # الفصول التي يدرسها
     },
     "فادي حبيب": {
-        "password": "teacher123",
+        "password": "fady5678",  # كلمة مرور مختلفة
         "role": "teacher",
         "teacher_name": "فادي حبيب",
         "classes": ["فصل D", "فصل E"]  # الفصول التي يدرسها
     },
-    
-    # طلاب - لهم صلاحية عرض تقاريرهم فقط
-    **{student: {
-        "password": "student123",
-        "role": "student",
-        "student_name": student
-    } for student in ALL_STUDENTS}
 }
+
+# إضافة الطلاب مع كلمات مرور مختلفة لكل طالب
+student_passwords = {
+    # فصل C
+    "أحمد محمد أحمد": "c1001",
+    "محمود سعيد حسين": "c1002",
+    "علي كمال علي": "c1003",
+    "يوسف خالد يوسف": "c1004",
+    "خالد أمين خالد": "c1005",
+    "سامي رفعت سامي": "c1006",
+    "طارق وليد طارق": "c1007",
+    "مصطفى حامد مصطفى": "c1008",
+    "هشام نبيل هشام": "c1009",
+    "وليد جمال وليد": "c1010",
+    
+    # فصل B
+    "محمد علي محمد": "b1001",
+    "حسن أحمد حسن": "b1002",
+    "محمود حسين محمود": "b1003",
+    "كريم سعيد كريم": "b1004",
+    "أمين خالد أمين": "b1005",
+    "ياسين رفعت ياسين": "b1006",
+    "عمر وليد عمر": "b1007",
+    "سعيد حامد سعيد": "b1008",
+    "نبيل جمال نبيل": "b1009",
+    "جمال هشام جمال": "b1010",
+    
+    # فصل D
+    "فؤاد محمد فؤاد": "d1001",
+    "رشاد أحمد رشاد": "d1002",
+    "صابر حسين صابر": "d1003",
+    "عادل سعيد عادل": "d1004",
+    "فكري خالد فكري": "d1005",
+    "رأفت رفعت رأفت": "d1006",
+    "حسام وليد حسام": "d1007",
+    "عاطف حامد عاطف": "d1008",
+    "مجدي جمال مجدي": "d1009",
+    "سليمان هشام سليمان": "d1010",
+    
+    # فصل E
+    "نبيل محمد نبيل": "e1001",
+    "رامي أحمد رامي": "e1002",
+    "عماد حسين عماد": "e1003",
+    "صلاح سعيد صلاح": "e1004",
+    "مجد خالد مجد": "e1005",
+    "رافت رفعت رافت": "e1006",
+    "بسام وليد بسام": "e1007",
+    "كمال حامد كمال": "e1008",
+    "فاروق جمال فاروق": "e1009",
+    "أنور هشام أنور": "e1010",
+}
+
+# إضافة الطلاب إلى USERS
+for student in ALL_STUDENTS:
+    if student in student_passwords:
+        USERS[student] = {
+            "password": student_passwords[student],
+            "role": "student",
+            "student_name": student
+        }
+    else:
+        # إذا لم يكن هناك كلمة مرور محددة، نستخدم كلمة مرور افتراضية
+        USERS[student] = {
+            "password": f"stu{hash(student) % 10000:04d}",  # كلمة مرور فريدة بناءً على الاسم
+            "role": "student",
+            "student_name": student
+        }
 
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
@@ -260,45 +320,15 @@ def read_sheet():
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
-        # قراءة البيانات مع الحفاظ على جميع الصفوف
-        data = worksheet.get_all_values()
-        
-        if not data:
-            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-        
-        # التأكد من أن العناوين موجودة
-        if len(data) < 1:
-            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-        
-        headers = data[0]
-        if len(headers) < 5:
-            # إذا كانت العناوين غير مكتملة، نضيف الأعمدة المفقودة
-            while len(headers) < 5:
-                headers.append(f"column_{len(headers)}")
-        
-        # إنشاء DataFrame مع معالجة البيانات الفارغة
-        rows = []
-        for i, row in enumerate(data[1:], 1):  # تخطي العناوين
-            if len(row) < 5:
-                # إذا كان الصف غير مكتمل، نكمله بالقيم الفارغة
-                row = row + [""] * (5 - len(row))
-            rows.append(row[:5])  # نأخذ أول 5 أعمدة فقط
-        
-        df = pd.DataFrame(rows, columns=headers[:5])
-        
-        # إعادة تسمية الأعمدة للتأكد من الأسماء الصحيحة
-        expected_columns = ["student", "teacher", "class", "status", "date"]
-        for i, col in enumerate(expected_columns):
-            if i < len(df.columns):
-                df = df.rename(columns={df.columns[i]: col})
-            else:
-                df[col] = ""
-        
-        return df
-        
-    except Exception as e:
-        st.error(f"❌ خطأ في قراءة البيانات: {str(e)}")
+        data = worksheet.get_all_records()
+    except Exception:
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+    
+    df = pd.DataFrame(data)
+    for c in ["student", "teacher", "class", "status", "date"]:
+        if c not in df.columns:
+            df[c] = ""
+    return df
 
 def normalize_date_for_pdf(src_date_str):
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
@@ -379,62 +409,6 @@ def get_student_class(student_name):
     """الحصول على فصل الطالب تلقائياً"""
     return STUDENT_TO_CLASS.get(student_name, "")
 
-def clean_sheet_data():
-    """تنظيف البيانات في Google Sheets - إصلاح الخانات المختلطة"""
-    if worksheet is None:
-        return False, "لا يوجد اتصال بـ Google Sheets"
-    
-    try:
-        # قراءة البيانات الحالية
-        data = worksheet.get_all_values()
-        
-        if len(data) <= 1:  # فقط العناوين أو لا يوجد بيانات
-            return True, "لا توجد بيانات تحتاج للتنظيف"
-        
-        headers = data[0]
-        rows_to_update = []
-        
-        # تصحيح البيانات
-        for i, row in enumerate(data[1:], start=2):  # start=2 لأن الصفوف تبدأ من 2 في Google Sheets
-            if len(row) >= 5:
-                # تحليل الصف الحالي
-                student = row[0] if len(row) > 0 else ""
-                teacher = row[1] if len(row) > 1 else ""
-                class_field = row[2] if len(row) > 2 else ""
-                status = row[3] if len(row) > 3 else ""
-                date_field = row[4] if len(row) > 4 else ""
-                
-                # إذا كان التاريخ في خانة الفصل والحالة في خانة التاريخ
-                if "/" in class_field and "غياب" not in class_field and "حاضر" not in class_field:
-                    # احتمال أن التاريخ في خانة الفصل
-                    date_field = class_field
-                    class_field = get_student_class(student)  # الحصول على الفصل من اسم الطالب
-                
-                if "غياب" in date_field or "حاضر" in date_field:
-                    # احتمال أن الحالة في خانة التاريخ
-                    status = date_field
-                    date_field = ""
-                
-                # إذا كان التاريخ فارغاً، نضيف التاريخ الحالي
-                if not date_field or date_field.strip() == "":
-                    date_field = datetime.now().strftime("%d / %m / %Y")
-                
-                # إذا كان الفصل فارغاً، نضيفه من اسم الطالب
-                if not class_field or class_field.strip() == "":
-                    class_field = get_student_class(student)
-                
-                # تحديث الصف
-                worksheet.update(f'A{i}:E{i}', [[student, teacher, class_field, status, date_field]])
-                rows_to_update.append(i)
-        
-        if rows_to_update:
-            return True, f"تم تنظيف {len(rows_to_update)} صف"
-        else:
-            return True, "البيانات نظيفة بالفعل"
-            
-    except Exception as e:
-        return False, f"خطأ في تنظيف البيانات: {str(e)}"
-
 # Telegram functions
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
@@ -514,18 +488,17 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     return failed, telegram_status, telegram_details, success_count
 
 def get_student_records(student_name):
-    """الحصول على سجلات الطالب مع معالجة البيانات المختلطة"""
     df = read_sheet()
-    
-    if df.empty or "student" not in df.columns:
+    if "student" not in df.columns or df.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     try:
-        # البحث عن سجلات الطالب
-        df_matches = df[df["student"].astype(str).str.strip().str.contains(student_name.strip(), na=False)].copy()
+        # البحث بدقة أكبر - مطابقة كاملة للاسم
+        df_matches = df[df["student"].astype(str).str.strip() == student_name.strip()].copy()
     except Exception:
+        # إذا فشلت، حاول البحث الجزئي
         try:
-            df_matches = df[df["student"].astype(str).str.strip() == student_name.strip()].copy()
+            df_matches = df[df["student"].astype(str).str.contains(student_name.strip(), case=False, na=False)].copy()
         except Exception:
             df_matches = pd.DataFrame(columns=df.columns)
     
@@ -536,7 +509,7 @@ def get_student_records(student_name):
     df_matches = df_matches.copy()
     
     # التأكد من وجود جميع الأعمدة
-    for col in ["student", "teacher", "class", "status", "date"]:
+    for col in ["teacher", "class", "date", "status"]:
         if col not in df_matches.columns:
             df_matches[col] = ""
     
@@ -557,10 +530,6 @@ def get_student_records(student_name):
         # إذا كان الفصل فارغاً، نضيفه من اسم الطالب
         if pd.isna(row.get("class")) or str(row.get("class")).strip() == "":
             row["class"] = get_student_class(row["student"])
-        
-        # إذا كان التاريخ فارغاً، نضيف تاريخ افتراضي
-        if pd.isna(row.get("date")) or str(row.get("date")).strip() == "":
-            row["date"] = datetime.now().strftime("%d / %m / %Y")
         
         return row
     
@@ -1333,13 +1302,13 @@ if st.session_state.page == "login":
         # حقل إدخال اسم المستخدم مع تسمية واضحة
         st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
-                                placeholder="أدخل اسمك (مثال: مينا سمير)",
+                                placeholder="أدخل اسمك (مثال: مينا سمير أو أحمد محمد أحمد)",
                                 label_visibility="collapsed")
         
         # حقل إدخال كلمة السر مع تسمية واضحة
         st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
         password = st.text_input("كلمة المرور", type="password", 
-                                placeholder="أدخل كلمة المرور",
+                                placeholder="أدخل كلمة المرور الخاصة بك",
                                 label_visibility="collapsed")
         
         # زر تسجيل الدخول
@@ -1377,10 +1346,16 @@ if st.session_state.page == "login":
         <div class="help-info">
             <div class="help-title">معلومات تسجيل الدخول</div>
             <div class="help-text">
-                <p><strong>المعلمون:</strong> مينا سمير، فادي حبيب</p>
-                <p>كلمة المرور: <strong>teacher123</strong></p>
-                <p><strong>الطلاب:</strong> ادخل اسمك كما هو في القائمة</p>
-                <p>كلمة المرور: <strong>student123</strong></p>
+                <p><strong>المعلمون:</strong></p>
+                <p>• مينا سمير - كلمة المرور: <strong>mina1234</strong></p>
+                <p>• فادي حبيب - كلمة المرور: <strong>fady5678</strong></p>
+                <br>
+                <p><strong>الطلاب:</strong></p>
+                <p>• كلمة المرور لكل طالب فريدة</p>
+                <p>• الطلاب من فصل C: c1001 إلى c1010</p>
+                <p>• الطلاب من فصل B: b1001 إلى b1010</p>
+                <p>• الطلاب من فصل D: d1001 إلى d1010</p>
+                <p>• الطلاب من فصل E: e1001 إلى e1010</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1395,16 +1370,6 @@ elif st.session_state.logged_in:
         
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
-        
-        # زر تنظيف البيانات (للمعلمين فقط)
-        with st.expander("🔧 أدوات إدارية", expanded=False):
-            if st.button("🧹 تنظيف وتصحيح البيانات في Google Sheets"):
-                with st.spinner("جاري تنظيف البيانات..."):
-                    success, message = clean_sheet_data()
-                    if success:
-                        st.success(f"✅ {message}")
-                    else:
-                        st.error(f"❌ {message}")
         
         # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
         if not st.session_state.selected_class:
@@ -1580,7 +1545,7 @@ elif st.session_state.logged_in:
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
             # زر تحميل PDF
-            pdf_buf = generate_student_pdf(student_name, df_student)
+            pdf_buf = generate_student_pdf(student_name, df_records)
             st.download_button(
                 "📥 تحميل تقرير PDF",
                 data=pdf_buf,

@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
@@ -752,7 +752,7 @@ st.markdown("""
         background: #1e293b !important;
         border: 2px solid #475569 !important;
         border-radius: 10px !important;
-        color: white !important;
+        color: black !important;
     }
     .stMultiSelect > div > div:hover {
         border-color: #3b82f6 !important;
@@ -1081,5 +1081,6 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 
 

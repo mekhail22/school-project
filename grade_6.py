@@ -515,7 +515,7 @@ st.markdown("""
         background: white; padding: 4px;
     }
     .school-info { line-height: 1.3; }
-    .school-name { font-size: 20px; font-weight: bold; margin: 0; }
+    .school-name { color: #FFFFFF;font-size: 20px; font-weight: bold; margin: 0; }
     .school-date { font-size: 14px; opacity: 0.9; margin: 0; }
     .content-padding { height: 90px; }
     .login-container {
@@ -1025,12 +1025,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Top toolbar HTML (يظهر فقط بعد تسجيل الدخول)
-def show_toolbar():
-    user_role = st.session_state.get('user_role', '')
-    badge_class = "badge-teacher" if user_role == "teacher" else "badge-student"
-    badge_text = "معلم" if user_role == "teacher" else "طالب"
     
     st.markdown(f"""
     <div class="top-toolbar">
@@ -1283,3 +1277,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

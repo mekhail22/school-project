@@ -489,25 +489,23 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
     #MainMenu, header, footer {visibility: hidden !important;}
     .stApp {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Cairo', sans-serif;
-        color: white;
     }
     .top-toolbar {
         position: fixed;
         top: 0; left: 0; right: 0;
         height: 60px;
-        background: linear-gradient(135deg, #0f172a, #1e293b);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 0 15px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         z-index: 999999 !important;
         font-family: 'Cairo', sans-serif;
         color: white;
-        border-bottom: 2px solid #3b82f6;
     }
     .logo-container { display: flex; align-items: center; gap: 10px; }
     .logo-img { 
@@ -516,42 +514,41 @@ st.markdown("""
         background: white; padding: 3px;
     }
     .school-info { line-height: 1.2; }
-    .school-name { font-size: 14px; font-weight: bold; margin: 0; color: #f1f5f9; }
-    .school-date { font-size: 10px; opacity: 0.9; margin: 0; color: #cbd5e1; }
+    .school-name { font-size: 14px; font-weight: bold; margin: 0; }
+    .school-date { font-size: 10px; opacity: 0.9; margin: 0; }
     .nav-buttons { display: flex; gap: 10px; }
     .nav-btn {
-        background: rgba(59, 130, 246, 0.3);
+        background: rgba(255, 255, 255, 0.2);
         color: white; border: none; padding: 8px 16px;
         border-radius: 10px; font-size: 13px; font-weight: 600;
         cursor: pointer; transition: all 0.3s ease;
-        backdrop-filter: blur(10px); border: 1px solid rgba(59, 130, 246, 0.5);
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
     }
     .nav-btn:hover {
-        background: rgba(59, 130, 246, 0.7);
+        background: white; color: #1e40af;
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 4px 10px rgba(255,255,255,0.3);
     }
     .content-padding { height: 70px; }
-    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background: #1e293b; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; animation: modalPop 0.3s ease; border: 1px solid #475569; }
+    .modal { display: none; position: fixed; z-index: 1000000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); position: relative; animation: modalPop 0.3s ease; }
     @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .close-btn { position: absolute; top: 8px; left: 12px; font-size: 24px; font-weight: bold; color: #94a3b8; cursor: pointer; }
-    .close-btn:hover { color: #f87171; }
-    .modal h3 { text-align: center; color: #60a5fa; margin-top: 0; font-size: 18px; }
-    .modal p { text-align: center; color: #cbd5e1; line-height: 1.5; font-size: 14px; }
+    .close-btn { position: absolute; top: 8px; left: 12px; font-size: 24px; font-weight: bold; color: #aaa; cursor: pointer; }
+    .close-btn:hover { color: #e11d48; }
+    .modal h3 { text-align: center; color: #1e40af; margin-top: 0; font-size: 18px; }
+    .modal p { text-align: center; color: #475569; line-height: 1.5; font-size: 14px; }
     .login-container {
         max-width: 350px;
         margin: 30px auto;
         padding: 30px;
-        background: #1e293b;
+        background: white;
         border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         text-align: center;
-        border: 1px solid #475569;
     }
     .login-title {
-        color: #60a5fa;
-        font-size: 24px;
+        color: #1e40af;
+        font-size: 22px;
         margin-bottom: 20px;
         font-weight: 700;
     }
@@ -559,25 +556,22 @@ st.markdown("""
         width: 100%;
         padding: 12px;
         margin: 8px 0;
-        border: 2px solid #475569;
+        border: 2px solid #e2e8f0;
         border-radius: 10px;
         font-size: 14px;
         font-family: 'Cairo', sans-serif;
         text-align: right;
         transition: all 0.3s ease;
-        background: #0f172a;
-        color: white;
     }
     .login-input:focus {
         outline: none;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-        background: #1e293b;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
     .login-button {
         width: 100%;
         padding: 14px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         border: none;
         border-radius: 10px;
@@ -590,8 +584,7 @@ st.markdown("""
     }
     .login-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
     }
     .user-type-badge {
         display: inline-block;
@@ -609,33 +602,31 @@ st.markdown("""
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
     }
-    /* صفحة رئيسية أكبر */
+    /* تصغير الصفحة الرئيسية */
     .home-page {
         max-width: 500px;
         margin: 0 auto;
-        padding: 15px;
+        padding: 10px;
     }
     .home-title {
-        font-size: 28px;
-        margin-bottom: 20px;
-        color: #60a5fa !important;
-        text-align: center;
-        font-weight: 700;
+        font-size: 22px;
+        margin-bottom: 15px;
+        color: #1e40af !important;
     }
     .main-buttons-container {
         display: flex;
         flex-direction: column;
         gap: 15px;
-        margin-top: 25px;
+        margin-top: 20px;
     }
     .main-button {
         width: 100%;
-        padding: 20px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        padding: 18px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         border: none;
         border-radius: 12px;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -646,12 +637,10 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         gap: 10px;
-        border: 2px solid rgba(59, 130, 246, 0.3);
     }
     .main-button:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
-        border-color: #3b82f6;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
     }
     .main-button.student {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
@@ -666,48 +655,48 @@ st.markdown("""
         text-align: center;
         padding: 15px;
         margin: 10px 0;
-        background: linear-gradient(135deg, #1e293b, #0f172a);
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
         border-radius: 12px;
-        border: 2px solid #475569;
+        border: 2px solid #bae6fd;
     }
     .welcome-text {
         font-size: 18px;
-        color: #60a5fa;
+        color: #0369a1;
         font-weight: 600;
     }
     .user-info {
         font-size: 14px;
-        color: #cbd5e1;
+        color: #475569;
         margin-top: 5px;
     }
-    /* تحسين ألوان المتركس - ألوان داكنة */
+    /* تحسين ألوان المتركس */
     .stMetric {
-        background: #1e293b !important;
+        background: white !important;
         border-radius: 10px !important;
         padding: 15px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-        border: 1px solid #475569 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border: 1px solid #e2e8f0 !important;
     }
     .stMetric label {
-        color: #cbd5e1 !important;
+        color: #1e293b !important;
         font-weight: 600 !important;
         font-size: 14px !important;
     }
     .stMetric div {
-        color: #60a5fa !important;
+        color: #1e40af !important;
         font-weight: 700 !important;
-        font-size: 22px !important;
+        font-size: 20px !important;
     }
-    /* تحسين أزرار الغياب - ألوان داكنة */
+    /* تحسين أزرار الغياب */
     .attendance-checkbox {
-        background: #1e293b !important;
-        border: 2px solid #475569 !important;
+        background: white !important;
+        border: 2px solid #3b82f6 !important;
         border-radius: 8px !important;
         padding: 12px !important;
         margin: 5px 0 !important;
     }
     .attendance-checkbox label {
-        color: #f1f5f9 !important;
+        color: #1e293b !important;
         font-weight: 600 !important;
         font-size: 16px !important;
     }
@@ -715,50 +704,45 @@ st.markdown("""
     .stButton > button {
         width: 100% !important;
         height: auto !important;
-        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
         font-size: 16px !important;
         font-weight: 600 !important;
         border-radius: 10px !important;
-        border: 2px solid rgba(59, 130, 246, 0.3) !important;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
         transition: all 0.3s ease !important;
         margin: 8px 0 !important;
         padding: 14px !important;
         display: block !important;
     }
     .stButton > button:hover {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4) !important;
-        border-color: #3b82f6 !important;
+        box-shadow: 0 6px 16px rgba(37,99,235,0.3) !important;
     }
     /* زر تسجيل الغياب بلون مختلف */
     .attendance-button {
         background: linear-gradient(135deg, #10b981, #059669) !important;
     }
     .attendance-button:hover {
-        background: linear-gradient(135deg, #059669, #047857) !important;
+        background: linear-gradient(135deg, #0da271, #047857) !important;
     }
     /* أزرار العودة */
     .back-button {
-        background: linear-gradient(135deg, #475569, #334155) !important;
+        background: linear-gradient(135deg, #64748b, #475569) !important;
     }
     .back-button:hover {
-        background: linear-gradient(135deg, #334155, #1e293b) !important;
+        background: linear-gradient(135deg, #475569, #334155) !important;
     }
-    /* تحسين الملتيسيليكت - داكن */
+    /* تحسين الملتيسيليكت */
     .stMultiSelect > div > div {
-        background: #1e293b !important;
-        border: 2px solid #475569 !important;
+        background: white !important;
+        border: 2px solid #3b82f6 !important;
         border-radius: 10px !important;
-        color: white !important;
-    }
-    .stMultiSelect > div > div:hover {
-        border-color: #3b82f6 !important;
     }
     .stMultiSelect label {
-        color: #cbd5e1 !important;
+        color: #1e293b !important;
         font-weight: 600 !important;
         font-size: 16px !important;
     }
@@ -767,62 +751,6 @@ st.markdown("""
         border-radius: 10px !important;
         padding: 15px !important;
         font-size: 14px !important;
-        background: #1e293b !important;
-        border: 1px solid #475569 !important;
-        color: white !important;
-    }
-    /* تحسين الأقسام */
-    .stHeader {
-        color: #60a5fa !important;
-        border-bottom: 2px solid #475569 !important;
-        padding-bottom: 10px !important;
-    }
-    .stSubheader {
-        color: #94a3b8 !important;
-    }
-    /* تحسين الجداول */
-    .dataframe {
-        background: #1e293b !important;
-        color: white !important;
-        border: 1px solid #475569 !important;
-    }
-    .dataframe th {
-        background: #0f172a !important;
-        color: #60a5fa !important;
-        border: 1px solid #475569 !important;
-    }
-    .dataframe td {
-        border: 1px solid #475569 !important;
-        color: #cbd5e1 !important;
-    }
-    /* تحسين حقول الإدخال */
-    .stTextInput > div > div > input {
-        background: #1e293b !important;
-        color: white !important;
-        border: 2px solid #475569 !important;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #3b82f6 !important;
-    }
-    /* تحسين السيلكت بوكس */
-    .stSelectbox > div > div {
-        background: #1e293b !important;
-        color: white !important;
-        border: 2px solid #475569 !important;
-    }
-    /* تحسين الشيك بوكس */
-    .stCheckbox > label {
-        color: #cbd5e1 !important;
-    }
-    /* تحسين محتوى الصفحة */
-    .main-content {
-        color: #f1f5f9 !important;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #60a5fa !important;
-    }
-    p, span, div {
-        color: #cbd5e1 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -842,9 +770,33 @@ def show_toolbar():
                 <p class="school-date">{formatted_date}</p>
             </div>
         </div>
+        <div class="nav-buttons">
+            <span class="user-type-badge {badge_class}">{badge_text}</span>
+            <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
+
+# Modals HTML + script
+st.markdown("""
+<div id="about-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('about-modal').style.display='none'">×</span>
+        <h3>عن النظام</h3>
+        <p>نظام إدارة الغياب للمدرسة</p>
+        <p>نسخة 1.0</p>
+    </div>
+</div>
+<script>
+window.onclick = function(event) {
+    var aboutModal = document.getElementById('about-modal');
+    if (event.target == aboutModal) {
+        aboutModal.style.display = "none";
+    }
+}
+</script>
+""", unsafe_allow_html=True)
 
 # UI / Navigation
 def safe_rerun():
@@ -921,17 +873,17 @@ if st.session_state.page == "login":
         
         # معلومات مساعدة
         st.markdown("""
-        <div style="margin-top: 20px; padding: 12px; background: #1e293b; border-radius: 8px; text-align: center; border: 1px solid #475569;">
-            <p style="margin: 0; color: #cbd5e1; font-size: 13px;">
+        <div style="margin-top: 20px; padding: 12px; background: #f1f5f9; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: #64748b; font-size: 13px;">
                 <strong>المعلمون:</strong> مينا سمير، فادي حبيب
             </p>
-            <p style="margin: 3px 0; color: #cbd5e1; font-size: 13px;">
+            <p style="margin: 3px 0; color: #64748b; font-size: 13px;">
                 كلمة المرور: <strong>teacher123</strong>
             </p>
-            <p style="margin: 3px 0 0 0; color: #cbd5e1; font-size: 12px;">
+            <p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px;">
                 <strong>الطلاب:</strong> ادخل اسمك كما هو في القائمة
             </p>
-            <p style="margin: 0; color: #cbd5e1; font-size: 12px;">
+            <p style="margin: 0; color: #64748b; font-size: 12px;">
                 كلمة المرور: <strong>student123</strong>
             </p>
         </div>
@@ -954,9 +906,9 @@ elif st.session_state.logged_in:
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="home-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">تسجيل الغياب</div>', unsafe_allow_html=True)
+        st.header("📝 تسجيل الغياب")
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        st.markdown(f'<h3 style="text-align: center; color: #94a3b8;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
+        st.subheader(f"المعلم: {teacher_name}")
 
         # اختيار الطلاب الغائبين
         selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS)
@@ -1005,7 +957,7 @@ elif st.session_state.logged_in:
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
         st.markdown('<div class="home-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
+        st.header("📊 تقرير الغياب الخاص بي")
         student_name = st.session_state.get('student_name', st.session_state.user_name)
         
         # عرض بيانات الطالب مباشرة
@@ -1051,7 +1003,7 @@ elif st.session_state.logged_in:
     elif st.session_state.page == "home":
         st.markdown('<div class="home-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">الصفحة الرئيسية</div>', unsafe_allow_html=True)
+        st.markdown('<p class="home-title">الصفحة الرئيسية</p>', unsafe_allow_html=True)
         
         # عرض الأزرار حسب نوع المستخدم
         st.markdown('<div class="main-buttons-container">', unsafe_allow_html=True)

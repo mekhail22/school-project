@@ -483,7 +483,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS مع برجر منيو
+# CSS مع برجر منيو محسن
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -494,12 +494,14 @@ st.markdown("""
         font-family: 'Cairo', sans-serif;
         color: #1e293b;
     }
-    /* برجر منيو */
-    .burger-menu {
+    /* برجر منيو - حل أبسط */
+    .burger-container {
         position: fixed;
         top: 20px;
         right: 20px;
         z-index: 1000001;
+    }
+    .burger-btn {
         display: flex;
         flex-direction: column;
         gap: 5px;
@@ -509,8 +511,13 @@ st.markdown("""
         border-radius: 10px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         transition: all 0.3s ease;
+        border: none;
+        width: 50px;
+        height: 50px;
+        justify-content: center;
+        align-items: center;
     }
-    .burger-menu:hover {
+    .burger-btn:hover {
         background: rgba(37, 99, 235, 1);
         transform: scale(1.05);
     }
@@ -521,31 +528,31 @@ st.markdown("""
         border-radius: 2px;
         transition: all 0.3s ease;
     }
-    .burger-menu.active .burger-line:nth-child(1) {
+    .burger-btn.active .burger-line:nth-child(1) {
         transform: rotate(45deg) translate(5px, 5px);
     }
-    .burger-menu.active .burger-line:nth-child(2) {
+    .burger-btn.active .burger-line:nth-child(2) {
         opacity: 0;
     }
-    .burger-menu.active .burger-line:nth-child(3) {
+    .burger-btn.active .burger-line:nth-child(3) {
         transform: rotate(-45deg) translate(7px, -6px);
     }
-    /* قائمة التنقل */
-    .nav-menu {
+    /* قائمة التنقل مبسطة */
+    .nav-sidebar {
         position: fixed;
         top: 0;
-        right: -300px;
-        width: 280px;
+        right: 0;
+        width: 0;
         height: 100vh;
         background: white;
         box-shadow: -5px 0 25px rgba(0,0,0,0.15);
         z-index: 1000000;
-        transition: right 0.3s ease;
+        transition: width 0.3s ease;
+        overflow: hidden;
         padding-top: 80px;
-        overflow-y: auto;
     }
-    .nav-menu.active {
-        right: 0;
+    .nav-sidebar.open {
+        width: 280px;
     }
     .nav-overlay {
         position: fixed;
@@ -558,72 +565,71 @@ st.markdown("""
         display: none;
         backdrop-filter: blur(3px);
     }
-    .nav-overlay.active {
+    .nav-overlay.open {
         display: block;
     }
     .nav-item {
-        padding: 18px 25px;
+        padding: 15px 20px;
         color: #1e293b;
         text-decoration: none;
         display: flex;
         align-items: center;
         gap: 15px;
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 600;
         border-bottom: 1px solid #f1f5f9;
         transition: all 0.3s ease;
         cursor: pointer;
+        width: 100%;
+        background: none;
+        border: none;
+        text-align: right;
+        font-family: 'Cairo', sans-serif;
     }
     .nav-item:hover {
         background: #f0f9ff;
         color: #1e40af;
-        padding-right: 30px;
     }
     .nav-item i {
-        font-size: 22px;
+        font-size: 20px;
         width: 30px;
         text-align: center;
     }
     .nav-header {
-        padding: 25px;
+        padding: 20px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         text-align: center;
         border-bottom: 3px solid rgba(255,255,255,0.2);
+        position: absolute;
+        top: 0;
+        width: 100%;
     }
     .nav-header h3 {
         margin: 0;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
     }
-    .nav-header p {
-        margin: 5px 0 0 0;
-        opacity: 0.9;
-        font-size: 14px;
-    }
     .user-info-nav {
-        padding: 20px;
+        padding: 15px 20px;
         background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
         text-align: center;
+        margin-top: 60px;
     }
     .user-name {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 700;
         color: #1e40af;
         margin-bottom: 5px;
     }
     .user-role {
-        font-size: 14px;
+        font-size: 12px;
         color: #64748b;
         background: #e2e8f0;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
         display: inline-block;
-    }
-    /* الشريط العلوي (مخفى) */
-    .top-toolbar {
-        display: none !important;
     }
     .content-padding { 
         height: 20px; 
@@ -695,7 +701,11 @@ st.markdown("""
         box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
     }
-    /* الصفحة الرئيسية */
+    /* إخفاء البرجر منيو في صفحة تسجيل الدخول */
+    .login-screen .burger-container {
+        display: none !important;
+    }
+    /* بقية الأنماط تبقى كما هي */
     .home-page {
         max-width: 800px;
         margin: 40px auto 20px auto;
@@ -708,44 +718,6 @@ st.markdown("""
         text-align: center;
         font-weight: 700;
     }
-    /* بطاقات الصفحة الرئيسية */
-    .dashboard-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 25px;
-        margin-top: 40px;
-    }
-    .dashboard-card {
-        background: white;
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-        transition: all 0.3s ease;
-        text-align: center;
-        cursor: pointer;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-        border-color: #3b82f6;
-    }
-    .card-icon {
-        font-size: 48px;
-        margin-bottom: 20px;
-    }
-    .card-title {
-        font-size: 24px;
-        color: #1e40af;
-        font-weight: 700;
-        margin-bottom: 15px;
-    }
-    .card-desc {
-        color: #64748b;
-        font-size: 16px;
-        line-height: 1.6;
-    }
-    /* رسالة ترحيب */
     .welcome-message {
         text-align: center;
         padding: 20px;
@@ -764,7 +736,6 @@ st.markdown("""
         color: #475569;
         margin-top: 8px;
     }
-    /* صفحات المعلم والطالب */
     .teacher-page, .student-page {
         max-width: 900px;
         margin: 40px auto 20px auto;
@@ -776,24 +747,6 @@ st.markdown("""
         color: #1e40af !important;
         text-align: center;
         font-weight: 700;
-    }
-    /* تحسينات عامة */
-    .stMetric {
-        background: white !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
-        border: 2px solid #e2e8f0 !important;
-    }
-    .stMetric label {
-        color: #1e293b !important;
-        font-weight: 600 !important;
-        font-size: 18px !important;
-    }
-    .stMetric div {
-        color: #1e40af !important;
-        font-weight: 700 !important;
-        font-size: 28px !important;
     }
     .stButton > button {
         width: 100% !important;
@@ -816,211 +769,103 @@ st.markdown("""
         box-shadow: 0 10px 25px rgba(37,99,235,0.3) !important;
         border-color: #3b82f6 !important;
     }
-    .stAlert {
-        border-radius: 12px !important;
-        padding: 20px !important;
-        font-size: 16px !important;
-        border: 2px solid !important;
-    }
-    .stHeader {
-        color: #1e40af !important;
-        border-bottom: 3px solid #e2e8f0 !important;
-        padding-bottom: 15px !important;
-        font-size: 32px !important;
-        margin-bottom: 20px !important;
-    }
-    .stSubheader {
-        color: #475569 !important;
-        font-size: 20px !important;
-        text-align: center !important;
-        margin-bottom: 30px !important;
-    }
-    .dataframe {
-        background: white !important;
-        color: #1e293b !important;
-        border: 2px solid #e2e8f0 !important;
-        font-size: 16px !important;
-    }
-    .stTextInput > div > div > input {
-        background: white !important;
-        color: #1e293b !important;
-        border: 3px solid #e2e8f0 !important;
-        font-size: 18px !important;
-        padding: 15px !important;
-        border-radius: 10px !important;
-    }
-    .stTextInput > div > div > input::placeholder {
-        color: #64748b !important;
-        opacity: 0.9 !important;
-        font-size: 16px !important;
-    }
-    /* إخفاء زر الهامبرغر في صفحة تسجيل الدخول */
-    .login-screen .burger-menu {
-        display: none !important;
-    }
-    /* تعديل صفحة تسجيل الدخول */
-    .login-screen {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    }
-    /* إضافة مسافة للعناصر */
-    .spacer {
-        height: 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# برجر منيو HTML و JavaScript
+# إضافة HTML للبرجر منيو (طريقة مباشرة)
 st.markdown("""
-<div id="burgerBtn" class="burger-menu">
-    <div class="burger-line"></div>
-    <div class="burger-line"></div>
-    <div class="burger-line"></div>
+<div class="burger-container">
+    <button class="burger-btn" onclick="toggleMenu()">
+        <div class="burger-line"></div>
+        <div class="burger-line"></div>
+        <div class="burger-line"></div>
+    </button>
 </div>
 
-<div id="navOverlay" class="nav-overlay"></div>
+<div class="nav-overlay" onclick="toggleMenu()"></div>
 
-<div id="navMenu" class="nav-menu">
+<div class="nav-sidebar" id="navSidebar">
     <div class="nav-header">
         <h3>🌙 قائمة التنقل</h3>
-        <p>اختر الصفحة التي تريد الذهاب إليها</p>
     </div>
     <div id="userNavInfo" class="user-info-nav">
-        <div class="user-name" id="navUserName"></div>
-        <div class="user-role" id="navUserRole"></div>
+        <div class="user-name" id="navUserName">...</div>
+        <div class="user-role" id="navUserRole">...</div>
     </div>
     <div id="navItems"></div>
 </div>
 
 <script>
-// عناصر DOM
-const burgerBtn = document.getElementById('burgerBtn');
-const navMenu = document.getElementById('navMenu');
-const navOverlay = document.getElementById('navOverlay');
-const navItems = document.getElementById('navItems');
-const navUserName = document.getElementById('navUserName');
-const navUserRole = document.getElementById('navUserRole');
+let menuOpen = false;
 
-// حالة المستخدم
-let currentUser = {
-    name: '',
-    role: '',
-    isLoggedIn: false
-};
-
-// عناصر القائمة
-const menuItems = {
-    home: { icon: '🏠', text: 'الصفحة الرئيسية', page: 'home' },
-    teacherAttendance: { icon: '📝', text: 'تسجيل الغياب', page: 'teacher_attendance', role: 'teacher' },
-    studentReport: { icon: '📊', text: 'تقريري', page: 'student_dashboard', role: 'student' },
-    logout: { icon: '🚪', text: 'تسجيل الخروج', page: 'logout' }
-};
-
-// فتح/إغلاق القائمة
-burgerBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    burgerBtn.classList.toggle('active');
-    navMenu.classList.toggle('active');
-    navOverlay.classList.toggle('active');
-});
-
-navOverlay.addEventListener('click', function() {
-    closeMenu();
-});
-
-// إغلاق القائمة
-function closeMenu() {
-    burgerBtn.classList.remove('active');
-    navMenu.classList.remove('active');
-    navOverlay.classList.remove('active');
-}
-
-// تحديث معلومات المستخدم
-function updateUserInfo(userName, userRole, isLoggedIn) {
-    currentUser.name = userName;
-    currentUser.role = userRole;
-    currentUser.isLoggedIn = isLoggedIn;
+function toggleMenu() {
+    const sidebar = document.getElementById('navSidebar');
+    const overlay = document.querySelector('.nav-overlay');
+    const burgerBtn = document.querySelector('.burger-btn');
     
-    if (isLoggedIn) {
-        navUserName.textContent = userName;
-        navUserRole.textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
-        renderMenu();
+    menuOpen = !menuOpen;
+    
+    if (menuOpen) {
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+        burgerBtn.classList.add('active');
+    } else {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+        burgerBtn.classList.remove('active');
     }
 }
 
-// عرض القائمة حسب دور المستخدم
-function renderMenu() {
+function updateNavInfo(userName, userRole) {
+    document.getElementById('navUserName').textContent = userName;
+    document.getElementById('navUserRole').textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
+    updateNavItems(userRole);
+}
+
+function updateNavItems(userRole) {
+    const navItems = document.getElementById('navItems');
     navItems.innerHTML = '';
     
-    // إضافة العناصر المشتركة
-    addMenuItem(menuItems.home);
+    // الصفحة الرئيسية
+    addNavItem('🏠', 'الصفحة الرئيسية', 'home');
     
-    // إضافة عناصر حسب الدور
-    if (currentUser.role === 'teacher') {
-        addMenuItem(menuItems.teacherAttendance);
-    } else if (currentUser.role === 'student') {
-        addMenuItem(menuItems.studentReport);
+    // حسب الدور
+    if (userRole === 'teacher') {
+        addNavItem('📝', 'تسجيل الغياب', 'teacher_attendance');
+    } else if (userRole === 'student') {
+        addNavItem('📊', 'تقريري', 'student_dashboard');
     }
     
-    // إضافة تسجيل الخروج
-    addMenuItem(menuItems.logout);
+    // تسجيل الخروج
+    addNavItem('🚪', 'تسجيل الخروج', 'logout');
 }
 
-// إضافة عنصر للقائمة
-function addMenuItem(item) {
-    const div = document.createElement('div');
-    div.className = 'nav-item';
-    div.innerHTML = `
-        <i>${item.icon}</i>
-        <span>${item.text}</span>
-    `;
+function addNavItem(icon, text, page) {
+    const navItems = document.getElementById('navItems');
+    const button = document.createElement('button');
+    button.className = 'nav-item';
+    button.innerHTML = `<i>${icon}</i><span>${text}</span>`;
     
-    div.addEventListener('click', function() {
-        if (item.page === 'logout') {
-            // إرسال طلب تسجيل الخروج
-            window.location.href = '?action=logout';
+    button.onclick = function() {
+        if (page === 'logout') {
+            window.location.href = window.location.pathname + '?action=logout';
         } else {
-            // تغيير الصفحة
-            window.location.href = '?page=' + item.page;
+            window.location.href = window.location.pathname + '?page=' + page;
         }
-        closeMenu();
-    });
+        toggleMenu();
+    };
     
-    navItems.appendChild(div);
+    navItems.appendChild(button);
 }
 
-// إغلاق القائمة عند النقر خارجها
-document.addEventListener('click', function(e) {
-    if (!navMenu.contains(e.target) && !burgerBtn.contains(e.target)) {
-        closeMenu();
-    }
-});
-
-// التعامل مع مفاتيح لوحة المفاتيح
+// إغلاق القائمة عند الضغط على ESC
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeMenu();
-    }
-});
-
-// تحديث معلومات المستخدم عند التحميل
-window.addEventListener('load', function() {
-    // سيتم استدعاء هذه الدالة من بايثون
-    if (window.updateUserFromPython) {
-        window.updateUserFromPython();
+    if (e.key === 'Escape' && menuOpen) {
+        toggleMenu();
     }
 });
 </script>
 """, unsafe_allow_html=True)
-
-# Top toolbar HTML (مخفى الآن)
-def show_toolbar():
-    # إخفاء الشريط العلوي تماماً
-    pass
 
 # UI / Navigation
 def safe_rerun():
@@ -1058,6 +903,13 @@ if "page" in query_params:
 
 # صفحة تسجيل الدخول الرئيسية
 if st.session_state.page == "login":
+    # إخفاء البرجر منيو في صفحة تسجيل الدخول
+    st.markdown("""
+    <style>
+    .burger-container { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # تصميم صفحة تسجيل الدخول
     st.markdown("""
     <div class="login-screen">
@@ -1137,9 +989,10 @@ elif st.session_state.logged_in:
     user_role = st.session_state.get('user_role', '')
     user_role_display = "معلم" if user_role == "teacher" else "طالب"
     
+    # إضافة JavaScript لتحديث البرجر منيو
     st.markdown(f"""
     <script>
-    updateUserInfo('{st.session_state.user_name}', '{user_role}', true);
+    updateNavInfo('{st.session_state.user_name}', '{user_role}');
     </script>
     """, unsafe_allow_html=True)
     
@@ -1245,45 +1098,28 @@ elif st.session_state.logged_in:
         
         st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
         
-        # عرض البطاقات حسب نوع المستخدم
-        st.markdown('<div class="dashboard-cards">', unsafe_allow_html=True)
+        # عرض الأزرار حسب نوع المستخدم
+        col1, col2 = st.columns(2)
         
         if st.session_state.user_role == "teacher":
-            col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"""
-                <div onclick="window.location.href='?page=teacher_attendance'" style="cursor: pointer;">
-                    <div class="dashboard-card">
-                        <div class="card-icon">📝</div>
-                        <div class="card-title">تسجيل الغياب</div>
-                        <div class="card-desc">تسجيل غياب الطلاب وتحديد نوع الغياب</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("📝 تسجيل الغياب", use_container_width=True):
+                    st.session_state.page = "teacher_attendance"
+                    st.rerun()
             
             with col2:
-                st.markdown(f"""
-                <div onclick="window.location.href='?page=student_dashboard'" style="cursor: pointer;">
-                    <div class="dashboard-card">
-                        <div class="card-icon">👨‍🎓</div>
-                        <div class="card-title">عرض تقارير</div>
-                        <div class="card-desc">عرض تقارير الحضور والغياب للطلاب</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("👨‍🎓 عرض تقارير", use_container_width=True):
+                    st.session_state.page = "student_dashboard"
+                    st.rerun()
         
         elif st.session_state.user_role == "student":
-            st.markdown(f"""
-            <div onclick="window.location.href='?page=student_dashboard'" style="cursor: pointer;">
-                <div class="dashboard-card">
-                    <div class="card-icon">📊</div>
-                    <div class="card-title">تقرير الغياب الخاص بي</div>
-                    <div class="card-desc">عرض تقرير الغياب والحضور الخاص بك</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            with col1:
+                if st.button("📊 تقرير الغياب الخاص بي", use_container_width=True):
+                    st.session_state.page = "student_dashboard"
+                    st.rerun()
+            
+            with col2:
+                st.info("👈 استخدم البرجر منيو للتنقل")
         
         # زر تسجيل الخروج
         st.markdown('<div style="margin-top: 40px;">', unsafe_allow_html=True)
@@ -1298,7 +1134,7 @@ elif st.session_state.logged_in:
         st.markdown('</div>', unsafe_allow_html=True)
     
     # إضافة مسافة في الأسفل
-    st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
 
 # إذا حاول الوصول مباشرة بدون تسجيل دخول
 else:

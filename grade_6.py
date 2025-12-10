@@ -1042,6 +1042,7 @@ def show_toolbar():
     badge_class = "badge-teacher" if user_role == "teacher" else "badge-student"
     badge_text = "معلم" if user_role == "teacher" else "طالب"
     
+    # تم إزالة عرض اسم المعلم والبادجة
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -1051,10 +1052,7 @@ def show_toolbar():
                 <p class="school-date">{formatted_date}</p>
             </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span class="user-type-badge {badge_class}">{badge_text}</span>
-            <div style="color: white; font-size: 16px; font-weight: 600;">{st.session_state.user_name}</div>
-        </div>
+        <div></div> <!-- مساحة فارغة على اليمين بدلاً من عرض الاسم -->
     </div>
     """, unsafe_allow_html=True)
     st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
@@ -1151,22 +1149,24 @@ if st.session_state.page == "login":
 elif st.session_state.logged_in:
     show_toolbar()
     
-    # عرض رسالة ترحيب
-    user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
-    st.markdown(f"""
-    <div class="welcome-message">
-        <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
-        <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # عرض رسالة ترحيب - تم إزالة الرسالة الترحيبية
+    # user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
+    # st.markdown(f"""
+    # <div class="welcome-message">
+    #     <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
+    #     <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
+    # </div>
+    # """, unsafe_allow_html=True)
     
     # صفحة المعلم لتسجيل الغياب
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
         st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
-        teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        st.markdown(f'<h3 style="text-align: center; color: #475569;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
+        
+        # تم إزالة اسم المعلم من هنا
+        # teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
+        # st.markdown(f'<h3 style="text-align: center; color: #475569;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
 
         # اختيار الطلاب الغائبين
         st.markdown("**اختر الطلاب الغائبين:**")
@@ -1192,6 +1192,7 @@ elif st.session_state.logged_in:
                 st.warning("⚠️ من فضلك اختر نوع الغياب.")
             else:
                 status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
                 
                 # تسجيل الغياب
                 try:

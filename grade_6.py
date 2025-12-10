@@ -437,14 +437,70 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
     
-    # تسجيل فقط الطلاب الغائبين
-    for student in selected_absent:
+    # الحصول على جميع طلاب الفصل المحدد
+    class_students = CLASSES.get(class_name, [])
+    
+    # **التعديل الجديد**: تسجيل جميع طلاب الفصل
+    for student in class_students:
+        # تحديد حالة الطالب
+        if student in selected_absent:
+            # إذا كان الطالب في قائمة الغائبين
+            status = absent_label
+        else:
+            # إذا لم يكن في القائمة، فهو حاضر
+            status = "حاضر"
+        
         # الحصول على فصل الطالب تلقائياً من القاموس
         student_class = get_student_class(student)
-        rows.append([student, teacher_name, student_class, absent_label, date_display])
+        rows.append([student, teacher_name, student_class, status, date_display])
     
     failed = []
     success_count = 0
+    
+    # حفظ في Google Sheets إذا كان متصلاً
+    if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
+        try:
+            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+            success_count = len(rows)
+        except Exception as e:
+            # إذا فشلت الإضافة الجماعية، نجرب إضافة كل صف على حدة
+            try:
+                for r in rows:
+                    worksheet.append_row(r, value_input_option="USER_ENTERED")
+                    success_count += 1
+            except Exception as ex:
+                failed.append((f"فصل {class_name}", str(ex)))
+    elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
+        failed.append((f"فصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
+    
+    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    telegram_status = "لم يتم الإرسال"
+    telegram_details = ""
+    
+    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+        absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
+        
+        # حساب عدد الحاضرين
+        present_count = len(class_students) - len(selected_absent)
+        
+        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
+        message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
+        
+        if BOT_TOKEN and CHAT_ID:
+            ok, info = send_telegram_message(message)
+            if ok:
+                telegram_status = "✅ تم الإرسال بنجاح"
+                telegram_details = "تم إرسال الإشعار إلى Telegram"
+            else:
+                telegram_status = "❌ فشل الإرسال"
+                telegram_details = f"تفاصيل الخطأ: {info}"
+        else:
+            telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
+    else:
+        telegram_status = "لم يتم الإرسال (لا يوجد طلاب)"
+        telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب في الفصل"
+    
+    return failed, telegram_status, telegram_details, success_count
     
     # حفظ في Google Sheets إذا كان متصلاً
     if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
@@ -1597,3 +1653,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

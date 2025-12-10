@@ -758,7 +758,7 @@ st.markdown("""
         border-color: #3b82f6 !important;
     }
     .stMultiSelect label {
-        color: #cbd5e1 !important;
+        color: #000205 !important;
         font-weight: 600 !important;
         font-size: 16px !important;
     }
@@ -1081,4 +1081,5 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 

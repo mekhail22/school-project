@@ -1183,42 +1183,61 @@ elif st.session_state.logged_in:
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
-        st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
-        
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
         
-        # عرض اسم المعلم والفصول التي يدرسها
-        st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
-        st.markdown(f"### 📚 الفصول الموكلة إليك:")
-        
-        # عرض أزرار الفصول التي يدرسها المعلم فقط
-        if teacher_classes:
-            col1, col2 = st.columns(2)
-            cols = [col1, col2]
+        # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
+        if not st.session_state.selected_class:
+            st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
             
-            for idx, class_name in enumerate(teacher_classes):
-                with cols[idx % 2]:
-                    if st.button(f"🎯 {class_name}", key=f"class_{class_name}", use_container_width=True):
-                        st.session_state.selected_class = class_name
-                        st.rerun()
-        else:
-            st.warning("⚠️ لا يوجد فصول موكلة إليك. الرجاء التواصل مع الإدارة.")
+            # عرض اسم المعلم والفصول التي يدرسها
+            st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
+            st.markdown(f"### 📚 اختر الفصل لتسجيل الغياب:")
+            
+            # عرض أزرار الفصول التي يدرسها المعلم فقط
+            if teacher_classes:
+                col1, col2 = st.columns(2)
+                cols = [col1, col2]
+                
+                for idx, class_name in enumerate(teacher_classes):
+                    with cols[idx % 2]:
+                        if st.button(f"🎯 {class_name}", key=f"class_{class_name}", use_container_width=True):
+                            st.session_state.selected_class = class_name
+                            st.rerun()
+            else:
+                st.warning("⚠️ لا يوجد فصول موكلة إليك. الرجاء التواصل مع الإدارة.")
         
-        # إذا تم اختيار فصل
-        if st.session_state.selected_class:
+        # إذا تم اختيار فصل، عرض قائمة الطلاب وإخفاء أزرار الفصول
+        else:
             selected_class = st.session_state.selected_class
-            st.markdown(f"### 📋 طلاب {selected_class}")
+            
+            # عرض اسم الفصل المختار في عنوان الصفحة
+            st.markdown(f'<div class="home-title">📋 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
+            
+            # زر العودة لاختيار فصل آخر
+            if st.button("🔄 اختيار فصل آخر", key="change_class"):
+                st.session_state.selected_class = None
+                st.rerun()
+            
+            st.markdown("---")
             
             # عرض قائمة الطلاب للفصل المحدد
             class_students = CLASSES.get(selected_class, [])
             
             if class_students:
-                # عرض عدد الطلاب
-                st.info(f"عدد طلاب الفصل: **{len(class_students)}** طالب")
+                # عرض معلومات الفصل
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("اسم المعلم", teacher_name)
+                with col2:
+                    st.metric("اسم الفصل", selected_class)
+                with col3:
+                    st.metric("عدد الطلاب", len(class_students))
+                
+                st.markdown("---")
                 
                 # اختيار الطلاب الغائبين
-                st.markdown("**اختر الطلاب الغائبين:**")
+                st.markdown("### 👇 اختر الطلاب الغائبين")
                 selected = st.multiselect(
                     f"اختر الطلاب الغائبين من {selected_class}",
                     class_students,
@@ -1226,7 +1245,7 @@ elif st.session_state.logged_in:
                 )
 
                 # اختيار نوع الغياب
-                st.markdown("**اختر نوع الغياب:**")
+                st.markdown("### 📝 اختر نوع الغياب")
                 col_a, col_b = st.columns(2)
                 with col_a:
                     excuse = st.checkbox("غياب بعذر", key="excuse")
@@ -1236,46 +1255,57 @@ elif st.session_state.logged_in:
                 if excuse and no_excuse:
                     st.warning("⚠️ اختر نوع واحد فقط.")
 
-                # زر تسجيل الغياب
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
-                        if not selected:
-                            st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
-                        elif excuse and no_excuse:
-                            st.warning("⚠️ اختر نوع واحد فقط.")
-                        elif not (excuse or no_excuse):
-                            st.warning("⚠️ من فضلك اختر نوع الغياب.")
-                        else:
-                            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                            
-                            # تسجيل الغياب
-                            try:
-                                failed, telegram_status, telegram_details, success_count = record_attendance(
-                                    selected, teacher_name, selected_class, status_label
-                                )
-                            except Exception as e:
-                                st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                            else:
-                                # رسالة نجاح مختصرة فقط
-                                if success_count > 0:
-                                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في {selected_class}")
-                                    # عرض ملخص
-                                    st.info(f"**ملخص التسجيل:**\n- الفصل: {selected_class}\n- المعلم: {teacher_name}\n- عدد الطلاب: {len(class_students)}\n- عدد الغائبين: {len(selected)}\n- الحالة: {status_label}")
-                                if failed:
-                                    st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
+                st.markdown("---")
                 
-                # زر تغيير الفصل
-                if st.button("🔄 اختيار فصل آخر", key="change_class", use_container_width=True):
-                    st.session_state.selected_class = None
-                    st.rerun()
+                # زر تسجيل الغياب
+                if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
+                    if not selected:
+                        st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
+                    elif excuse and no_excuse:
+                        st.warning("⚠️ اختر نوع واحد فقط.")
+                    elif not (excuse or no_excuse):
+                        st.warning("⚠️ من فضلك اختر نوع الغياب.")
+                    else:
+                        status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                        
+                        # تسجيل الغياب
+                        try:
+                            failed, telegram_status, telegram_details, success_count = record_attendance(
+                                selected, teacher_name, selected_class, status_label
+                            )
+                        except Exception as e:
+                            st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                        else:
+                            # رسالة نجاح مختصرة فقط
+                            if success_count > 0:
+                                st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في {selected_class}")
+                                # عرض ملخص
+                                with st.expander("📊 ملخص التسجيل", expanded=True):
+                                    st.markdown(f"""
+                                    **تفاصيل التسجيل:**
+                                    - **الفصل:** {selected_class}
+                                    - **المعلم:** {teacher_name}
+                                    - **عدد الطلاب الكلي:** {len(class_students)}
+                                    - **عدد الغائبين:** {len(selected)}
+                                    - **الحالة:** {status_label}
+                                    - **التاريخ:** {datetime.now().strftime("%d / %m / %Y")}
+                                    
+                                    **الطلاب الغائبون:**
+                                    {', '.join(selected) if selected else "لا أحد"}
+                                    """)
+                                
+                                # زر لتسجيل غياب جديد لنفس الفصل
+                                if st.button("➕ تسجيل غياب جديد لنفس الفصل", key="new_attendance"):
+                                    st.rerun()
+                            if failed:
+                                st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
             else:
                 st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
         # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True):
+        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True, key="back_to_home"):
             st.session_state.selected_class = None
             st.session_state.page = "home"
             st.rerun()

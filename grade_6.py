@@ -12,7 +12,7 @@ import requests
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platytus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -36,83 +36,16 @@ logger = logging.getLogger("attendance_app")
 st.set_page_config(page_title="نظام الغياب", layout="centered")
 
 # ------------------ App settings ------------------
-# قائمة الطلاب
 STUDENTS = [
     "ميخائيل صابر فوزي", "مينا ريمون خيري", "توني هاني نصرالله",
     "يوسف شادي كمال", "ادم مايكل فوزي", "مارك نادر فؤاد",
     "بيشوي عاطف فايز", "جورج مينا نجيب", "كيرلس فادي صادق",
     "يوستينا مجدي فادي"
 ]
-
-# قائمة المعلمين
 TEACHERS = ["مينا سمير", "فادي حبيب"]
 
-# مستخدمون وكلمات مرورهم
-USERS = {
-    # معلمون - لهم صلاحية تسجيل الغياب
-    "مينا سمير": {
-        "password": "teacher123",
-        "role": "teacher",
-        "teacher_name": "مينا سمير"
-    },
-    "فادي حبيب": {
-        "password": "teacher123",
-        "role": "teacher",
-        "teacher_name": "فادي حبيب"
-    },
-    
-    # طلاب - لهم صلاحية عرض تقاريرهم فقط
-    "ميخائيل صابر فوزي": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "ميخائيل صابر فوزي"
-    },
-    "مينا ريمون خيري": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "مينا ريمون خيري"
-    },
-    "توني هاني نصرالله": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "توني هاني نصرالله"
-    },
-    "يوسف شادي كمال": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "يوسف شادي كمال"
-    },
-    "ادم مايكل فوزي": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "ادم مايكل فوزي"
-    },
-    "مارك نادر فؤاد": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "مارك نادر فؤاد"
-    },
-    "بيشوي عاطف فايز": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "بيشوي عاطف فايز"
-    },
-    "جورج مينا نجيب": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "جورج مينا نجيب"
-    },
-    "كيرلس فادي صادق": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "كيرلس فادي صادق"
-    },
-    "يوستينا مجدي فادي": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "يوستينا مجدي فادي"
-    }
-}
+# كلمة السر الافتراضية
+DEFAULT_PASSWORD = "123456"
 
 # ------------------ تحميل الـ Secrets ------------------
 def load_secrets():
@@ -125,6 +58,8 @@ def load_secrets():
         CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
         
         # App settings
+        APP_PASSWORD = getattr(secrets.app, 'password', DEFAULT_PASSWORD)  # كلمة السر الرئيسية
+        TEACHER_PASSWORD = getattr(secrets.app, 'teacher_password', '1234')  # كلمة سر المعلم
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
         # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
@@ -158,6 +93,8 @@ def load_secrets():
         return {
             'BOT_TOKEN': BOT_TOKEN,
             'CHAT_ID': CHAT_ID,
+            'APP_PASSWORD': APP_PASSWORD,
+            'TEACHER_PASSWORD': TEACHER_PASSWORD,
             'SHEET_NAME': SHEET_NAME,
             'SERVICE_ACCOUNT': SERVICE_ACCOUNT
         }
@@ -167,6 +104,8 @@ def load_secrets():
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
+            'APP_PASSWORD': DEFAULT_PASSWORD,
+            'TEACHER_PASSWORD': '1234',
             'SHEET_NAME': 'school_attendance',
             'SERVICE_ACCOUNT': None
         }
@@ -176,6 +115,8 @@ secrets_config = load_secrets()
 
 BOT_TOKEN = secrets_config['BOT_TOKEN']
 CHAT_ID = secrets_config['CHAT_ID']
+APP_PASSWORD = secrets_config['APP_PASSWORD']  # كلمة السر الرئيسية
+TEACHER_PASSWORD = secrets_config['TEACHER_PASSWORD']  # كلمة سر المعلم
 SHEET_NAME = secrets_config['SHEET_NAME']
 SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 
@@ -555,7 +496,7 @@ st.markdown("""
     .login-input {
         width: 100%;
         padding: 15px;
-        margin: 10px 0;
+        margin: 15px 0;
         border: 2px solid #e2e8f0;
         border-radius: 12px;
         font-size: 16px;
@@ -590,22 +531,6 @@ st.markdown("""
         background: #94a3b8;
         cursor: not-allowed;
         transform: none;
-    }
-    .user-type-badge {
-        display: inline-block;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-left: 10px;
-    }
-    .badge-teacher {
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-    }
-    .badge-student {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
     }
     .searchBox {
       display: flex;
@@ -694,33 +619,11 @@ st.markdown("""
         text-align: center;
         border: 1px solid #86efac;
     }
-    .welcome-message {
-        text-align: center;
-        padding: 20px;
-        margin: 20px 0;
-        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        border-radius: 15px;
-        border: 2px solid #bae6fd;
-    }
-    .welcome-text {
-        font-size: 20px;
-        color: #0369a1;
-        font-weight: 600;
-    }
-    .user-info {
-        font-size: 16px;
-        color: #475569;
-        margin-top: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # Top toolbar HTML (يظهر فقط بعد تسجيل الدخول)
 def show_toolbar():
-    user_role = st.session_state.get('user_role', '')
-    badge_class = "badge-teacher" if user_role == "teacher" else "badge-student"
-    badge_text = "معلم" if user_role == "teacher" else "طالب"
-    
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -731,7 +634,6 @@ def show_toolbar():
             </div>
         </div>
         <div class="nav-buttons">
-            <span class="user-type-badge {badge_class}">{badge_text}</span>
             <button class="nav-btn" onclick="document.getElementById('about-modal').style.display='flex'">عنا</button>
             <button class="nav-btn" onclick="document.getElementById('contact-modal').style.display='flex'">اتصل بنا</button>
         </div>
@@ -782,10 +684,7 @@ def safe_rerun():
 # إدارة حالة تسجيل الدخول
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "user_role" not in st.session_state:
-    st.session_state.user_role = ""
-if "user_name" not in st.session_state:
-    st.session_state.user_name = ""
+
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
@@ -806,11 +705,6 @@ if st.session_state.page == "login":
     with col2:
         st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
         
-        # حقل إدخال اسم المستخدم
-        username = st.text_input("اسم المستخدم", 
-                                placeholder="أدخل اسمك (مثال: مينا سمير)",
-                                label_visibility="collapsed")
-        
         # حقل إدخال كلمة السر
         password = st.text_input("كلمة المرور", type="password", 
                                 placeholder="أدخل كلمة المرور",
@@ -821,44 +715,22 @@ if st.session_state.page == "login":
         
         # معالجة تسجيل الدخول
         if login_button:
-            if username and password:
-                if username in USERS:
-                    if USERS[username]["password"] == password:
-                        st.session_state.logged_in = True
-                        st.session_state.user_name = username
-                        st.session_state.user_role = USERS[username]["role"]
-                        
-                        # توجيه المستخدم حسب دوره
-                        if USERS[username]["role"] == "teacher":
-                            st.session_state.page = "teacher_attendance"
-                            st.session_state.teacher_name = USERS[username]["teacher_name"]
-                        else:  # student
-                            st.session_state.page = "student_dashboard"
-                            st.session_state.student_name = USERS[username]["student_name"]
-                        
-                        st.success(f"✅ مرحباً {username}!")
-                        st.rerun()
-                    else:
-                        st.error("❌ كلمة المرور غير صحيحة")
-                else:
-                    st.error("❌ اسم المستخدم غير موجود")
+            if password == APP_PASSWORD:
+                st.session_state.logged_in = True
+                st.session_state.page = "home"
+                st.success("✅ تم تسجيل الدخول بنجاح!")
+                st.rerun()
             else:
-                st.error("❌ من فضلك أدخل اسم المستخدم وكلمة المرور")
+                st.error("❌ كلمة المرور غير صحيحة")
         
         # معلومات مساعدة
         st.markdown("""
         <div style="margin-top: 30px; padding: 15px; background: #f1f5f9; border-radius: 10px; text-align: center;">
             <p style="margin: 0; color: #64748b; font-size: 14px;">
-                <strong>المعلمون:</strong> مينا سمير، فادي حبيب
+                كلمة المرور الافتراضية: <strong>123456</strong>
             </p>
-            <p style="margin: 5px 0; color: #64748b; font-size: 14px;">
-                كلمة المرور: <strong>teacher123</strong>
-            </p>
-            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">
-                <strong>الطلاب:</strong> ادخل اسمك كما هو في القائمة
-            </p>
-            <p style="margin: 0; color: #64748b; font-size: 12px;">
-                كلمة المرور: <strong>student123</strong>
+            <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px;">
+                يمكن تغييرها في إعدادات التطبيق
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -867,19 +739,55 @@ if st.session_state.page == "login":
 elif st.session_state.logged_in:
     show_toolbar()
     
-    # عرض رسالة ترحيب
-    user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
-    st.markdown(f"""
-    <div class="welcome-message">
-        <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
-        <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    if st.session_state.page == "home":
+        st.title("🏠 الصفحة الرئيسية")
+        st.markdown("""
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 18px; color: #475569;">
+                مرحباً بك في نظام إدارة الغياب
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👨‍🏫 معلم", use_container_width=True):
+                st.session_state.page = "teacher_login"
+                safe_rerun()
+        with col2:
+            if st.button("👨‍🎓 طالب", use_container_width=True):
+                st.session_state.page = "student"
+                safe_rerun()
+        
+        # زر تسجيل الخروج
+        st.markdown('<div style="height: 40px"></div>', unsafe_allow_html=True)
+        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.page = "login"
+            st.rerun()
     
-    # صفحة المعلم لتسجيل الغياب
-    if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
+    elif st.session_state.page == "teacher_login":
+        st.header("👨‍🏫 تسجيل دخول المعلم")
+        teacher_choice = st.selectbox("اختر اسمك:", TEACHERS)
+        pwd = st.text_input("كلمة السر:", type="password")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("تسجيل الدخول"):
+                if pwd == TEACHER_PASSWORD:
+                    st.session_state.teacher_name = teacher_choice
+                    st.session_state.page = "teacher_attendance"
+                    st.rerun()
+                else:
+                    st.error("كلمة السر غير صحيحة")
+        with col2:
+            if st.button("رجوع ←"):
+                st.session_state.page = "home"
+                st.rerun()
+    
+    elif st.session_state.page == "teacher_attendance":
         st.header("📝 تسجيل الغياب")
-        teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
+        teacher_name = st.session_state.get("teacher_name", "غير معروف")
         st.subheader(f"المعلم: {teacher_name}")
 
         # اختيار الطلاب الغائبين
@@ -896,119 +804,34 @@ elif st.session_state.logged_in:
         if excuse and no_excuse:
             st.warning("اختر نوع واحد فقط.")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💾 تسجيل الغياب", use_container_width=True):
-                if not selected:
-                    st.warning("يجب اختيار طالب/طلاب أولا.")
-                elif excuse and no_excuse:
-                    st.warning("اختر نوع واحد فقط.")
-                elif not (excuse or no_excuse):
-                    st.warning("من فضلك اختر نوع الغياب.")
+        if st.button("💾 تسجيل"):
+            if not selected:
+                st.warning("يجب اختيار طالب/طلاب أولا.")
+            elif excuse and no_excuse:
+                st.warning("اختر نوع واحد فقط.")
+            elif not (excuse or no_excuse):
+                st.warning("من فضلك اختر نوع الغياب.")
+            else:
+                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                
+                # تسجيل الغياب
+                try:
+                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
                 else:
-                    status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                    
-                    # تسجيل الغياب
-                    try:
-                        failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                    except Exception as e:
-                        st.error(f"حدث خطأ أثناء تسجيل الغياب: {str(e)}")
-                    else:
-                        # رسالة نجاح مختصرة فقط
-                        if success_count > 0:
-                            st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-                        if failed:
-                            st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
-        
-        with col2:
-            if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-                st.session_state.page = "home"
-                st.rerun()
-    
-    # صفحة الطالب لعرض تقاريره
-    elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
-        st.header("📊 تقرير الغياب الخاص بي")
-        student_name = st.session_state.get('student_name', st.session_state.user_name)
-        
-        # عرض بيانات الطالب مباشرة
-        df_student = get_student_records(student_name)
-        
-        if df_student.empty:
-            st.info(f"لا يوجد سجلات غياب لك يا {student_name}")
-        else:
-            # عرض الإحصاءات
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                absent_count = int((df_student["الحالة"] == "غياب بعذر").sum() + (df_student["الحالة"] == "غياب بدون عذر").sum())
-                st.metric("عدد مرات الغياب", absent_count)
-            with col2:
-                present_count = int((df_student["الحالة"] == "حاضر").sum())
-                st.metric("عدد مرات الحضور", present_count)
-            with col3:
-                total_count = len(df_student)
-                percentage = (present_count / total_count * 100) if total_count > 0 else 0
-                st.metric("نسبة الحضور", f"{percentage:.1f}%")
-            
-            # عرض الجدول
-            st.dataframe(df_student, use_container_width=True, hide_index=True)
-            
-            # زر تحميل PDF
-            pdf_buf = generate_student_pdf(student_name, df_student)
-            st.download_button(
-                "📥 تحميل تقرير PDF",
-                data=pdf_buf,
-                file_name=f"{student_name}_report.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 تحديث البيانات", use_container_width=True):
-                st.rerun()
-        with col2:
-            if st.button("🏠 الصفحة الرئيسية", use_container_width=True):
-                st.session_state.page = "home"
-                st.rerun()
-    
-    # الصفحة الرئيسية المشتركة
-    elif st.session_state.page == "home":
-        st.title("🏠 الصفحة الرئيسية")
-        
-        if st.session_state.user_role == "teacher":
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📝 تسجيل الغياب", use_container_width=True):
-                    st.session_state.page = "teacher_attendance"
-                    st.rerun()
-            with col2:
-                if st.button("👨‍🎓 بحث عن طالب", use_container_width=True):
-                    st.session_state.page = "search_student"
-                    st.rerun()
-        
-        elif st.session_state.user_role == "student":
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📊 تقريري", use_container_width=True):
-                    st.session_state.page = "student_dashboard"
-                    st.rerun()
-            with col2:
-                if st.button("🔍 بحث عن طالب", use_container_width=True):
-                    st.session_state.page = "search_student"
-                    st.rerun()
-        
-        # زر تسجيل الخروج للجميع
-        st.markdown('<div style="height: 40px"></div>', unsafe_allow_html=True)
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user_role = ""
-            st.session_state.user_name = ""
-            st.session_state.page = "login"
+                    # رسالة نجاح مختصرة فقط
+                    if success_count > 0:
+                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                    if failed:
+                        st.error(f"حدثت بعض الأخطاء عند تسجيل: {failed}")
+
+        if st.button("رجوع ←"):
+            st.session_state.page = "home"
             st.rerun()
-    
-    # صفحة البحث عن طالب (مشتركة)
-    elif st.session_state.page == "search_student":
-        st.header("🔍 بحث عن طالب")
+
+    elif st.session_state.page == "student":
+        st.header("📊 تقارير الغياب")
         st.markdown('<div class="student-search">', unsafe_allow_html=True)
         search_query = st.text_input("بحث", placeholder="اكتب اسم الطالب...", key="student_search")
         st.markdown('</div>', unsafe_allow_html=True)

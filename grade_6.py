@@ -567,7 +567,7 @@ st.markdown("""
         width: 100%;
         padding: 18px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
-        color: white;
+        color: white !important; /* نص أبيض */
         border: none;
         border-radius: 12px;
         font-size: 20px;
@@ -581,6 +581,7 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white !important; /* نص أبيض عند hover */
     }
     .user-type-badge {
         display: inline-block;
@@ -621,7 +622,7 @@ st.markdown("""
         width: 100%;
         padding: 25px;
         background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
+        color: white !important; /* نص أبيض */
         border: none;
         border-radius: 15px;
         font-size: 24px;
@@ -641,6 +642,7 @@ st.markdown("""
         transform: translateY(-4px);
         box-shadow: 0 15px 30px rgba(59, 130, 246, 0.3);
         border-color: #3b82f6;
+        color: white !important; /* نص أبيض عند hover */
     }
     .main-button.teacher {
         background: linear-gradient(135deg, #10b981, #059669);
@@ -700,12 +702,17 @@ st.markdown("""
         font-weight: 600 !important;
         font-size: 18px !important;
     }
-    /* تحسين ألوان الأزرار */
+    
+    /* =========================================== */
+    /* ===== التعديلات لجعل نص الأزرار أبيض ===== */
+    /* =========================================== */
+    
+    /* زر تسجيل الدخول الرئيسي */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-        color: white !important;
+        color: white !important; /* نص أبيض */
         font-size: 20px !important;
         font-weight: 600 !important;
         border-radius: 12px !important;
@@ -721,21 +728,159 @@ st.markdown("""
         transform: translateY(-3px) !important;
         box-shadow: 0 10px 25px rgba(37,99,235,0.3) !important;
         border-color: #3b82f6 !important;
+        color: white !important; /* نص أبيض عند hover */
     }
-    /* زر تسجيل الغياب بلون مختلف */
-    .attendance-button {
+    
+    /* جميع نصوص الأزرار - نص أبيض */
+    button, 
+    button span,
+    button div,
+    button p,
+    button label,
+    .stButton button,
+    .stButton button span,
+    .stButton button p,
+    .stButton button div,
+    .stButton button label,
+    div[data-testid="stButton"] button,
+    div[data-testid="stButton"] button span,
+    div[data-testid="stButton"] button p,
+    div[data-testid="stButton"] button div,
+    div[data-testid="stButton"] button label,
+    div[data-testid="column"] button,
+    div[data-testid="column"] button span,
+    div[data-testid="column"] button p,
+    div[data-testid="column"] button div,
+    div[data-testid="column"] button label {
+        color: white !important;
+    }
+    
+    /* hover states - نص أبيض */
+    button:hover,
+    button:hover span,
+    button:hover div,
+    button:hover p,
+    button:hover label,
+    .stButton button:hover,
+    .stButton button:hover span,
+    .stButton button:hover p,
+    .stButton button:hover div,
+    .stButton button:hover label,
+    div[data-testid="stButton"] button:hover,
+    div[data-testid="stButton"] button:hover span,
+    div[data-testid="stButton"] button:hover p,
+    div[data-testid="stButton"] button:hover div,
+    div[data-testid="stButton"] button:hover label,
+    div[data-testid="column"] button:hover,
+    div[data-testid="column"] button:hover span,
+    div[data-testid="column"] button:hover p,
+    div[data-testid="column"] button:hover div,
+    div[data-testid="column"] button:hover label {
+        color: white !important;
+    }
+    
+    /* زر تسجيل الغياب بلون مختلف - نص أبيض */
+    button.attendance-button,
+    button.attendance-button span,
+    button.attendance-button p,
+    button.attendance-button div {
         background: linear-gradient(135deg, #10b981, #059669) !important;
+        color: white !important;
     }
-    .attendance-button:hover {
+    
+    button.attendance-button:hover,
+    button.attendance-button:hover span,
+    button.attendance-button:hover p,
+    button.attendance-button:hover div {
         background: linear-gradient(135deg, #059669, #047857) !important;
+        color: white !important;
     }
-    /* أزرار العودة */
-    .back-button {
+    
+    /* أزرار العودة - نص أبيض */
+    button.back-button,
+    button.back-button span,
+    button.back-button p,
+    button.back-button div {
         background: linear-gradient(135deg, #64748b, #475569) !important;
+        color: white !important;
     }
-    .back-button:hover {
+    
+    button.back-button:hover,
+    button.back-button:hover span,
+    button.back-button:hover p,
+    button.back-button:hover div {
         background: linear-gradient(135deg, #475569, #334155) !important;
+        color: white !important;
     }
+    
+    /* زر تسجيل الخروج - نص أبيض */
+    button.logout-button,
+    button.logout-button span,
+    button.logout-button p,
+    button.logout-button div {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        color: white !important;
+    }
+    
+    button.logout-button:hover,
+    button.logout-button:hover span,
+    button.logout-button:hover p,
+    button.logout-button:hover div {
+        background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+        color: white !important;
+    }
+    
+    /* أزرار التنزيل - نص أبيض */
+    div[data-testid="stDownloadButton"] button,
+    div[data-testid="stDownloadButton"] button span,
+    div[data-testid="stDownloadButton"] button p,
+    div[data-testid="stDownloadButton"] button div {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+        color: white !important;
+    }
+    
+    div[data-testid="stDownloadButton"] button:hover,
+    div[data-testid="stDownloadButton"] button:hover span,
+    div[data-testid="stDownloadButton"] button:hover p,
+    div[data-testid="stDownloadButton"] button:hover div {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+        color: white !important;
+    }
+    
+    /* أزرار المعلم - نص أبيض */
+    button.teacher-button,
+    button.teacher-button span,
+    button.teacher-button p,
+    button.teacher-button div {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+        color: white !important;
+    }
+    
+    button.teacher-button:hover,
+    button.teacher-button:hover span,
+    button.teacher-button:hover p,
+    button.teacher-button:hover div {
+        background: linear-gradient(135deg, #059669, #047857) !important;
+        color: white !important;
+    }
+    
+    /* أزرار الطالب - نص أبيض */
+    button.student-button,
+    button.student-button span,
+    button.student-button p,
+    button.student-button div {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        color: white !important;
+    }
+    
+    button.student-button:hover,
+    button.student-button:hover span,
+    button.student-button:hover p,
+    button.student-button:hover div {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        color: white !important;
+    }
+    
     /* تحسين الملتيسيليكت */
     .stMultiSelect > div > div {
         background: white !important;

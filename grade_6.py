@@ -293,6 +293,8 @@ def ensure_font():
         if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
             return FONT_NAME
+        else:
+            return None
     except Exception:
         pass
 
@@ -440,7 +442,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     # الحصول على جميع طلاب الفصل المحدد
     class_students = CLASSES.get(class_name, [])
     
-    # **التعديل الجديد**: تسجيل جميع طلاب الفصل
+    # تسجيل جميع طلاب الفصل
     for student in class_students:
         # تحديد حالة الطالب
         if student in selected_absent:
@@ -499,47 +501,6 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     else:
         telegram_status = "لم يتم الإرسال (لا يوجد طلاب)"
         telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب في الفصل"
-    
-    return failed, telegram_status, telegram_details, success_count
-    
-    # حفظ في Google Sheets إذا كان متصلاً
-    if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
-        try:
-            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-            success_count = len(rows)
-        except Exception as e:
-            # إذا فشلت الإضافة الجماعية، نجرب إضافة كل صف على حدة
-            try:
-                for r in rows:
-                    worksheet.append_row(r, value_input_option="USER_ENTERED")
-                    success_count += 1
-            except Exception as ex:
-                failed.append((f"فصل {class_name}", str(ex)))
-    elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
-        failed.append((f"فصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
-    
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
-    telegram_status = "لم يتم الإرسال"
-    telegram_details = ""
-    
-    if rows:  # فقط إذا كان هناك طلاب غائبين
-        absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
-        message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ نوع الغياب: {absent_label}\n👥 الطلاب الغائبون: {absent_students}"
-        
-        if BOT_TOKEN and CHAT_ID:
-            ok, info = send_telegram_message(message)
-            if ok:
-                telegram_status = "✅ تم الإرسال بنجاح"
-                telegram_details = "تم إرسال الإشعار إلى Telegram"
-            else:
-                telegram_status = "❌ فشل الإرسال"
-                telegram_details = f"تفاصيل الخطأ: {info}"
-        else:
-            telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
-    else:
-        telegram_status = "لم يتم الإرسال (لا يوجد غياب)"
-        telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب غائبين"
     
     return failed, telegram_status, telegram_details, success_count
 
@@ -624,7 +585,12 @@ def generate_student_pdf(student_name, df_records):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
-    font_for_style = REGISTERED_FONT or "Helvetica"
+    
+    # استخدام الخط المتاح
+    font_for_style = "Helvetica"
+    if REGISTERED_FONT:
+        font_for_style = REGISTERED_FONT
+    
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=18, alignment=1, textColor=colors.darkblue)
     normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
@@ -656,12 +622,12 @@ def generate_student_pdf(student_name, df_records):
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
-                reshape_arabic_text(row.get("المرة", "")),
-                reshape_arabic_text(row.get("الطالب", "")),
-                reshape_arabic_text(row.get("المعلم", "")),
-                reshape_arabic_text(row.get("الفصل", "")),
+                reshape_arabic_text(str(row.get("المرة", ""))),
+                reshape_arabic_text(str(row.get("الطالب", ""))),
+                reshape_arabic_text(str(row.get("المعلم", ""))),
+                reshape_arabic_text(str(row.get("الفصل", ""))),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
-                reshape_arabic_text(row.get("الحالة", ""))
+                reshape_arabic_text(str(row.get("الحالة", "")))
             ])
         table = Table(data, hAlign='CENTER', colWidths=[50, 130, 100, 80, 100, 70])
         table.setStyle(TableStyle([
@@ -1526,6 +1492,7 @@ elif st.session_state.logged_in:
                                     - **المعلم:** {teacher_name}
                                     - **عدد الطلاب الكلي:** {len(class_students)}
                                     - **عدد الغائبين:** {len(selected)}
+                                    - **عدد الحاضرين:** {len(class_students) - len(selected)}
                                     - **نوع الغياب:** {status_label}
                                     - **التاريخ:** {datetime.now().strftime("%d / %m / %Y")}
                                     
@@ -1546,7 +1513,7 @@ elif st.session_state.logged_in:
                                         st.session_state.selected_class = None
                                         st.rerun()
                             elif not selected:
-                                st.info("ℹ️ لم يتم اختيار أي طالب غائب. إذا كان الجميع حاضرين، لا داعي للحفظ.")
+                                st.info("ℹ️ لم يتم اختيار أي طالب غائب. تم تسجيل جميع الطلاب كحاضرين.")
                             else:
                                 st.warning("⚠️ حدث خطأ في حفظ البيانات")
                             
@@ -1601,7 +1568,7 @@ elif st.session_state.logged_in:
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
             # زر تحميل PDF
-            pdf_buf = generate_student_pdf(student_name, df_records)
+            pdf_buf = generate_student_pdf(student_name, df_student)
             st.download_button(
                 "📥 تحميل تقرير PDF",
                 data=pdf_buf,
@@ -1653,4 +1620,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

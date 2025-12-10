@@ -483,7 +483,7 @@ weekday = arabic_weekdays[today.weekday()]
 month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
-# CSS مع إضافة الشريط العلوي الأزرق
+# CSS مع برجر منيو محسن
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -494,68 +494,6 @@ st.markdown("""
         font-family: 'Cairo', sans-serif;
         color: #1e293b;
     }
-    
-    /* الشريط العلوي الأزرق */
-    .top-header {
-        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-        color: white;
-        padding: 15px 30px;
-        margin: -50px -50px 30px -50px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 4px solid #fbbf24;
-    }
-    
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    
-    .school-logo {
-        width: 60px;
-        height: 60px;
-        background: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 30px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-    
-    .school-info h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 800;
-        color: white;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-    }
-    
-    .school-info p {
-        margin: 5px 0 0 0;
-        font-size: 14px;
-        color: #dbeafe;
-        opacity: 0.9;
-    }
-    
-    .header-right {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 5px;
-    }
-    
-    .current-date {
-        font-size: 14px;
-        background: rgba(255, 255, 255, 0.15);
-        padding: 5px 12px;
-        border-radius: 20px;
-        backdrop-filter: blur(10px);
-    }
-    
     /* برجر منيو - حل أبسط */
     .burger-container {
         position: fixed;
@@ -929,26 +867,6 @@ document.addEventListener('keydown', function(e) {
 </script>
 """, unsafe_allow_html=True)
 
-# دالة لعرض الشريط العلوي
-def render_top_header():
-    """عرض الشريط العلوي الأزرق"""
-    header_html = f"""
-    <div class="top-header">
-        <div class="header-left">
-            <div class="school-logo">🏫</div>
-            <div class="school-info">
-                <h1>نظام إدارة الغياب</h1>
-                <p>مدرسة الإبداع - النسخة 2.0</p>
-            </div>
-        </div>
-        
-        <div class="header-right">
-            <div class="current-date">{formatted_date}</div>
-        </div>
-    </div>
-    """
-    return header_html
-
 # UI / Navigation
 def safe_rerun():
     try:
@@ -989,7 +907,6 @@ if st.session_state.page == "login":
     st.markdown("""
     <style>
     .burger-container { display: none !important; }
-    .top-header { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1068,9 +985,6 @@ if st.session_state.page == "login":
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
-    # عرض الشريط العلوي الأزرق
-    st.markdown(render_top_header(), unsafe_allow_html=True)
-    
     # تحديث البرجر منيو بمعلومات المستخدم
     user_role = st.session_state.get('user_role', '')
     user_role_display = "معلم" if user_role == "teacher" else "طالب"

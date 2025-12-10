@@ -36,16 +36,40 @@ logger = logging.getLogger("attendance_app")
 st.set_page_config(page_title="نظام الغياب", layout="wide")
 
 # ------------------ App settings ------------------
-# قائمة الطلاب
-STUDENTS = [
-    "ميخائيل صابر فوزي", "مينا ريمون خيري", "توني هاني نصرالله",
-    "يوسف شادي كمال", "ادم مايكل فوزي", "مارك نادر فؤاد",
-    "بيشوي عاطف فايز", "جورج مينا نجيب", "كيرلس فادي صادق",
-    "يوستينا مجدي فادي"
-]
+# قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
+CLASSES = {
+    "فصل C": [
+        "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
+        "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
+        "هشام نبيل هشام", "وليد جمال وليد"
+    ],
+    "فصل B": [
+        "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
+        "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
+        "نبيل جمال نبيل", "جمال هشام جمال"
+    ],
+    "فصل D": [
+        "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
+        "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
+        "مجدي جمال مجدي", "سليمان هشام سليمان"
+    ],
+    "فصل E": [
+        "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
+        "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
+        "فاروق جمال فاروق", "أنور هشام أنور"
+    ]
+}
 
-# قائمة المعلمين
-TEACHERS = ["مينا سمير", "فادي حبيب"]
+# جميع الطلاب في قائمة واحدة
+ALL_STUDENTS = []
+for class_name, students in CLASSES.items():
+    ALL_STUDENTS.extend(students)
+
+# قائمة المعلمين والفصول التي يدرسونها
+TEACHERS = {
+    "مينا سمير": ["فصل C", "فصل B"],
+    "فادي حبيب": ["فصل D", "فصل E"]
+}
 
 # مستخدمون وكلمات مرورهم
 USERS = {
@@ -53,65 +77,22 @@ USERS = {
     "مينا سمير": {
         "password": "teacher123",
         "role": "teacher",
-        "teacher_name": "مينا سمير"
+        "teacher_name": "مينا سمير",
+        "classes": ["فصل C", "فصل B"]
     },
     "فادي حبيب": {
         "password": "teacher123",
         "role": "teacher",
-        "teacher_name": "فادي حبيب"
+        "teacher_name": "فادي حبيب",
+        "classes": ["فصل D", "فصل E"]
     },
     
     # طلاب - لهم صلاحية عرض تقاريرهم فقط
-    "ميخائيل صابر فوزي": {
+    **{student: {
         "password": "student123",
         "role": "student",
-        "student_name": "ميخائيل صابر فوزي"
-    },
-    "مينا ريمون خيري": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "مينا ريمون خيري"
-    },
-    "توني هاني نصرالله": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "توني هاني نصرالله"
-    },
-    "يوسف شادي كمال": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "يوسف شادي كمال"
-    },
-    "ادم مايكل فوزي": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "ادم مايكل فوزي"
-    },
-    "مارك نادر فؤاد": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "مارك نادر فؤاد"
-    },
-    "بيشوي عاطف فايز": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "بيشوي عاطف فاز"
-    },
-    "جورج مينا نجيب": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "جورج مينا نجيب"
-    },
-    "كيرلس فادي صادق": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "كيرلس فادي صادق"
-    },
-    "يوستينا مجدي فادي": {
-        "password": "student123",
-        "role": "student",
-        "student_name": "يوستينا مجدي فادي"
-    }
+        "student_name": student
+    } for student in ALL_STUDENTS}
 }
 
 # ------------------ تحميل الـ Secrets ------------------
@@ -206,7 +187,7 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
                 
                 # إذا كانت الورقة جديدة، أضف العناوين
                 if not current_data:
-                    headers = ["student", "teacher", "status", "date"]
+                    headers = ["student", "teacher", "class", "status", "date"]
                     worksheet.append_row(headers)
                     connection_details += " - تم إنشاء جدول جديد"
                 
@@ -270,15 +251,15 @@ def reshape_arabic_text(text):
 
 def read_sheet():
     if worksheet is None:
-        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
         data = worksheet.get_all_records()
     except Exception:
-        return pd.DataFrame(columns=["student", "teacher", "status", "date"])
+        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     df = pd.DataFrame(data)
-    for c in ["student", "teacher", "status", "date"]:
+    for c in ["student", "teacher", "class", "status", "date"]:
         if c not in df.columns:
             df[c] = ""
     return df
@@ -339,15 +320,19 @@ def send_telegram_message(message):
     except requests.exceptions.RequestException:
         return False, {"exception": "Request failed"}
 
-def record_attendance(selected_absent, teacher_name, absent_label):
+def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
     
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
-    for student in STUDENTS:
+    
+    # الحصول على طلاب الفصل المحدد فقط
+    class_students = CLASSES.get(class_name, [])
+    
+    for student in class_students:
         status = absent_label if student in selected_absent else "حاضر"
-        rows.append([student, teacher_name, status, date_display])
+        rows.append([student, teacher_name, class_name, status, date_display])
 
     failed = []
     success_count = 0
@@ -365,13 +350,13 @@ def record_attendance(selected_absent, teacher_name, absent_label):
                     worksheet.append_row(r, value_input_option="USER_ENTERED")
                     success_count += 1
             except Exception as ex:
-                failed.append(("جميع الطلاب", str(ex)))
+                failed.append((f"فصل {class_name}", str(ex)))
     else:
-        failed.append(("جميع الطلاب", "لا يوجد اتصال بـ Google Sheets"))
+        failed.append((f"فصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
 
     # إرسال إشعار Telegram
     absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
-    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
+    message = f"تم تسجيل الغياب بتاريخ {date_display}\nالمعلم: {teacher_name}\nالفصل: {class_name}\nحالة الغياب: {absent_label}\nغائبون: {absent_students}\nتم حفظ {success_count} سجل بنجاح"
     
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
@@ -392,7 +377,7 @@ def record_attendance(selected_absent, teacher_name, absent_label):
 def get_student_records(student_name):
     df = read_sheet()
     if "student" not in df.columns:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     try:
         df_matches = df[df["student"].astype(str).str.contains(student_name, case=False, na=False)].copy()
@@ -400,14 +385,14 @@ def get_student_records(student_name):
         df_matches = df[df["student"].astype(str).str.lower() == student_name.lower()].copy()
     
     if df_matches.empty:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     df_matches = df_matches.rename(columns={
-        "student": "الطالب", "teacher": "المعلم", "date": "التاريخ", "status": "الحالة"
+        "student": "الطالب", "teacher": "المعلم", "class": "الفصل", "date": "التاريخ", "status": "الحالة"
     })
-    return df_matches[["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
+    return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
 
 def generate_student_pdf(student_name, df_records):
     buffer = io.BytesIO()
@@ -432,17 +417,18 @@ def generate_student_pdf(student_name, df_records):
         elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
         elements.append(Spacer(1, 10))
 
-        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "التاريخ", "الحالة"]]
+        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
                 reshape_arabic_text(row.get("المرة", "")),
                 reshape_arabic_text(row.get("الطالب", "")),
                 reshape_arabic_text(row.get("المعلم", "")),
+                reshape_arabic_text(row.get("الفصل", "")),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
                 reshape_arabic_text(row.get("الحالة", ""))
             ])
-        table = Table(data, hAlign='CENTER', colWidths=[60, 150, 120, 110, 70])
+        table = Table(data, hAlign='CENTER', colWidths=[50, 130, 100, 80, 100, 70])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), font_for_style),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -519,13 +505,13 @@ st.markdown("""
         font-size: 20px; 
         font-weight: bold; 
         margin: 0; 
-        color: white !important; /* اسم المدرسة أبيض */
+        color: white !important;
     }
     .school-date { 
         font-size: 14px; 
         opacity: 0.9; 
         margin: 0; 
-        color: rgba(255, 255, 255, 0.9) !important; /* التاريخ أبيض مع شفافية */
+        color: rgba(255, 255, 255, 0.9) !important;
     }
     .content-padding { height: 90px; }
     .login-container {
@@ -577,7 +563,7 @@ st.markdown("""
         width: 100%;
         padding: 18px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
-        color: white !important; /* نص أبيض */
+        color: white !important;
         border: none;
         border-radius: 12px;
         font-size: 20px;
@@ -591,7 +577,7 @@ st.markdown("""
         transform: translateY(-3px);
         box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white !important; /* نص أبيض عند hover */
+        color: white !important;
     }
     .user-type-badge {
         display: inline-block;
@@ -609,7 +595,6 @@ st.markdown("""
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
     }
-    /* صفحة رئيسية أكبر */
     .home-page {
         max-width: 800px;
         margin: 0 auto;
@@ -632,7 +617,7 @@ st.markdown("""
         width: 100%;
         padding: 25px;
         background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white !important; /* نص أبيض */
+        color: white !important;
         border: none;
         border-radius: 15px;
         font-size: 24px;
@@ -652,7 +637,7 @@ st.markdown("""
         transform: translateY(-4px);
         box-shadow: 0 15px 30px rgba(59, 130, 246, 0.3);
         border-color: #3b82f6;
-        color: white !important; /* نص أبيض عند hover */
+        color: white !important;
     }
     .main-button.teacher {
         background: linear-gradient(135deg, #10b981, #059669);
@@ -713,16 +698,12 @@ st.markdown("""
         font-size: 18px !important;
     }
     
-    /* =========================================== */
     /* ===== التعديلات لجعل نص الأزرار أبيض ===== */
-    /* =========================================== */
-    
-    /* زر تسجيل الدخول الرئيسي */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-        color: white !important; /* نص أبيض */
+        color: white !important;
         font-size: 20px !important;
         font-weight: 600 !important;
         border-radius: 12px !important;
@@ -738,7 +719,7 @@ st.markdown("""
         transform: translateY(-3px) !important;
         box-shadow: 0 10px 25px rgba(37,99,235,0.3) !important;
         border-color: #3b82f6 !important;
-        color: white !important; /* نص أبيض عند hover */
+        color: white !important;
     }
     
     /* جميع نصوص الأزرار - نص أبيض */
@@ -907,6 +888,51 @@ st.markdown("""
         font-weight: 600 !important;
         font-size: 18px !important;
     }
+    
+    /* أزرار الفصول */
+    .class-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin: 20px 0;
+        justify-content: center;
+    }
+    
+    .class-button {
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white !important;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        min-width: 150px;
+    }
+    
+    .class-button:hover {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(123, 92, 246, 0.3);
+    }
+    
+    .class-button.active {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: 3px solid #059669;
+    }
+    
+    .student-list-container {
+        max-height: 400px;
+        overflow-y: auto;
+        margin: 20px 0;
+        padding: 15px;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+    }
+    
     /* تحسين الرسائل */
     .stAlert {
         border-radius: 12px !important;
@@ -1003,13 +1029,13 @@ st.markdown("""
     }
     /* تحسين صفحة المعلم */
     .teacher-page {
-        max-width: 900px;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
     }
     /* تحسين صفحة الطالب */
     .student-page {
-        max-width: 900px;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
     }
@@ -1038,11 +1064,6 @@ st.markdown("""
 
 # Top toolbar HTML (يظهر فقط بعد تسجيل الدخول)
 def show_toolbar():
-    user_role = st.session_state.get('user_role', '')
-    badge_class = "badge-teacher" if user_role == "teacher" else "badge-student"
-    badge_text = "معلم" if user_role == "teacher" else "طالب"
-    
-    # تم إزالة عرض اسم المعلم والبادجة
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -1052,7 +1073,7 @@ def show_toolbar():
                 <p class="school-date">{formatted_date}</p>
             </div>
         </div>
-        <div></div> <!-- مساحة فارغة على اليمين بدلاً من عرض الاسم -->
+        <div></div> <!-- مساحة فارغة على اليمين -->
     </div>
     """, unsafe_allow_html=True)
     st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
@@ -1073,6 +1094,8 @@ if "user_name" not in st.session_state:
     st.session_state.user_name = ""
 if "page" not in st.session_state:
     st.session_state.page = "login"
+if "selected_class" not in st.session_state:
+    st.session_state.selected_class = None
 
 # صفحة تسجيل الدخول الرئيسية
 if st.session_state.page == "login":
@@ -1149,67 +1172,97 @@ if st.session_state.page == "login":
 elif st.session_state.logged_in:
     show_toolbar()
     
-    # عرض رسالة ترحيب - تم إزالة الرسالة الترحيبية
-    # user_role_display = "معلم" if st.session_state.user_role == "teacher" else "طالب"
-    # st.markdown(f"""
-    # <div class="welcome-message">
-    #     <div class="welcome-text">مرحباً بك {st.session_state.user_name}</div>
-    #     <div class="user-info">أنت مسجل دخولك كـ {user_role_display}</div>
-    # </div>
-    # """, unsafe_allow_html=True)
-    
     # صفحة المعلم لتسجيل الغياب
     if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
         st.markdown('<div class="home-title">📝 تسجيل الغياب</div>', unsafe_allow_html=True)
         
-        # تم إزالة اسم المعلم من هنا
-        # teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-        # st.markdown(f'<h3 style="text-align: center; color: #475569;">المعلم: {teacher_name}</h3>', unsafe_allow_html=True)
-
-        # اختيار الطلاب الغائبين
-        st.markdown("**اختر الطلاب الغائبين:**")
-        selected = st.multiselect("اختر الطلاب الغائبين", STUDENTS, label_visibility="collapsed")
-
-        # اختيار نوع الغياب
-        st.markdown("**اختر نوع الغياب:**")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            excuse = st.checkbox("غياب بعذر", key="excuse")
-        with col_b:
-            no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-
-        if excuse and no_excuse:
-            st.warning("⚠️ اختر نوع واحد فقط.")
-
-        if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
-            if not selected:
-                st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
-            elif excuse and no_excuse:
-                st.warning("⚠️ اختر نوع واحد فقط.")
-            elif not (excuse or no_excuse):
-                st.warning("⚠️ من فضلك اختر نوع الغياب.")
-            else:
-                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
-                
-                # تسجيل الغياب
-                try:
-                    failed, telegram_status, telegram_details, success_count = record_attendance(selected, teacher_name, status_label)
-                except Exception as e:
-                    st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+        teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
+        teacher_classes = USERS.get(teacher_name, {}).get("classes", [])
+        
+        # اختيار الفصل أولاً
+        st.markdown("### 👇 اختر الفصل")
+        
+        # عرض أزرار الفصول
+        col1, col2, col3, col4 = st.columns(4)
+        cols = [col1, col2, col3, col4]
+        
+        for idx, class_name in enumerate(["فصل C", "فصل B", "فصل D", "فصل E"]):
+            with cols[idx]:
+                # التحقق إذا كان المعلم مسؤول عن هذا الفصل
+                if class_name in teacher_classes:
+                    if st.button(f"🎯 {class_name}", key=f"class_{idx}", use_container_width=True):
+                        st.session_state.selected_class = class_name
+                        st.rerun()
                 else:
-                    # رسالة نجاح مختصرة فقط
-                    if success_count > 0:
-                        st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
-                    if failed:
-                        st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
+                    st.button(f"🔒 {class_name}", key=f"class_{idx}", use_container_width=True, disabled=True)
+        
+        # إذا تم اختيار فصل
+        if st.session_state.selected_class:
+            selected_class = st.session_state.selected_class
+            st.markdown(f"### 📋 طلاب {selected_class}")
+            
+            # عرض قائمة الطلاب للفصل المحدد
+            class_students = CLASSES.get(selected_class, [])
+            
+            if class_students:
+                # اختيار الطلاب الغائبين
+                st.markdown("**اختر الطلاب الغائبين:**")
+                selected = st.multiselect(
+                    f"اختر الطلاب الغائبين من {selected_class}",
+                    class_students,
+                    label_visibility="collapsed"
+                )
+
+                # اختيار نوع الغياب
+                st.markdown("**اختر نوع الغياب:**")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    excuse = st.checkbox("غياب بعذر", key="excuse")
+                with col_b:
+                    no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+
+                if excuse and no_excuse:
+                    st.warning("⚠️ اختر نوع واحد فقط.")
+
+                # زر تسجيل الغياب
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
+                        if not selected:
+                            st.warning("⚠️ يجب اختيار طالب/طلاب أولا.")
+                        elif excuse and no_excuse:
+                            st.warning("⚠️ اختر نوع واحد فقط.")
+                        elif not (excuse or no_excuse):
+                            st.warning("⚠️ من فضلك اختر نوع الغياب.")
+                        else:
+                            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                            
+                            # تسجيل الغياب
+                            try:
+                                failed, telegram_status, telegram_details, success_count = record_attendance(
+                                    selected, teacher_name, selected_class, status_label
+                                )
+                            except Exception as e:
+                                st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                            else:
+                                # رسالة نجاح مختصرة فقط
+                                if success_count > 0:
+                                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب في {selected_class}")
+                                if failed:
+                                    st.error(f"⚠️ حدثت بعض الأخطاء عند تسجيل: {failed}")
+                
+                # زر تغيير الفصل
+                if st.button("🔄 تغيير الفصل", key="change_class", use_container_width=True):
+                    st.session_state.selected_class = None
+                    st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
         
         # زر العودة للصفحة الرئيسية
         if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True):
+            st.session_state.selected_class = None
             st.session_state.page = "home"
             st.rerun()
     
@@ -1284,6 +1337,7 @@ elif st.session_state.logged_in:
             st.session_state.logged_in = False
             st.session_state.user_role = ""
             st.session_state.user_name = ""
+            st.session_state.selected_class = None
             st.session_state.page = "login"
             st.rerun()
         

@@ -559,33 +559,9 @@ st.markdown("""
         border-color: #3b82f6;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
     }
-    /* تعديل ألوان الـ placeholder لتكون أغمق وأوضح */
     .login-input::placeholder {
-        color: #64748b !important;
-        font-size: 16px !important;
-        opacity: 0.9 !important;
-    }
-    /* CSS خاص للـ placeholder */
-    ::-webkit-input-placeholder { /* Chrome, Safari, Opera */
-        color: #64748b !important;
-        opacity: 0.9 !important;
-    }
-    :-moz-placeholder { /* Firefox 18- */
-        color: #64748b !important;
-        opacity: 0.9 !important;
-    }
-    ::-moz-placeholder { /* Firefox 19+ */
-        color: #64748b !important;
-        opacity: 0.9 !important;
-    }
-    :-ms-input-placeholder { /* IE 10+ */
-        color: #64748b !important;
-        opacity: 0.9 !important;
-    }
-    /* إضافة تأثير عند الكتابة */
-    .login-input:not(:placeholder-shown) {
-        color: #1e293b !important;
-        border-color: #3b82f6 !important;
+        color: #94a3b8;
+        font-size: 16px;
     }
     .login-button {
         width: 100%;
@@ -847,12 +823,6 @@ st.markdown("""
         border-color: #3b82f6 !important;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
     }
-    /* تحسين ألوان الـ placeholder في جميع المتصفحات */
-    .stTextInput > div > div > input::placeholder {
-        color: #64748b !important;
-        opacity: 0.9 !important;
-        font-size: 16px !important;
-    }
     /* تحسين السيلكت بوكس */
     .stSelectbox > div > div {
         background: white !important;
@@ -908,14 +878,6 @@ st.markdown("""
         font-size: 14px;
         line-height: 1.6;
     }
-    /* تحسين شاشة تسجيل الدخول */
-    .login-screen {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -966,9 +928,9 @@ if st.session_state.page == "login":
     
     # تصميم صفحة تسجيل الدخول
     st.markdown("""
-    <div class="login-screen">
-        <div class="login-container">
-            <div class="login-title">🚪 تسجيل الدخول</div>
+    <div class="login-container">
+        <div class="login-title">🚪 تسجيل الدخول</div>
+    </div>
     """, unsafe_allow_html=True)
     
     # حاوية الإدخالات
@@ -979,13 +941,13 @@ if st.session_state.page == "login":
         # حقل إدخال اسم المستخدم مع تسمية واضحة
         st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
-                                placeholder="مثال: مينا سمير أو اسم الطالب",
+                                placeholder="أدخل اسمك (مثال: مينا سمير)",
                                 label_visibility="collapsed")
         
         # حقل إدخال كلمة السر مع تسمية واضحة
         st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
         password = st.text_input("كلمة المرور", type="password", 
-                                placeholder="أدخل كلمة المرور هنا",
+                                placeholder="أدخل كلمة المرور",
                                 label_visibility="collapsed")
         
         # زر تسجيل الدخول
@@ -1029,8 +991,6 @@ if st.session_state.page == "login":
             </div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("</div></div>", unsafe_allow_html=True)
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:

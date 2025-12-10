@@ -95,7 +95,7 @@ USERS = {
     "بيشوي عاطف فايز": {
         "password": "student123",
         "role": "student",
-        "student_name": "بيشوي عاطف فاز"
+        "student_name": "بيشوي عاطف فايز"
     },
     "جورج مينا نجيب": {
         "password": "student123",
@@ -484,10 +484,12 @@ month = arabic_months[today.month - 1]
 formatted_date = f"{weekday}، {today.day} {month} {today.year}"
 
 # CSS مع برجر منيو محسن
+# === التغيير الأساسي هنا: لم أعد أخفي عنصر header حتى يظهر الشريط فوق مرة تانية ===
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    #MainMenu, header, footer {visibility: hidden !important;}
+    /* إزالة إخفاء الهيدر: عرض الشريط العلوي للستريملت سيعود */
+    #MainMenu, footer {visibility: hidden !important;}
     .stApp {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
@@ -775,14 +777,14 @@ st.markdown("""
 # إضافة HTML للبرجر منيو (طريقة مباشرة)
 st.markdown("""
 <div class="burger-container">
-    <button class="burger-btn" onclick="toggleMenu()">
+    <button class="burger-btn" id="burgerBtn">
         <div class="burger-line"></div>
         <div class="burger-line"></div>
         <div class="burger-line"></div>
     </button>
 </div>
 
-<div class="nav-overlay" onclick="toggleMenu()"></div>
+<div class="nav-overlay" id="navOverlay"></div>
 
 <div class="nav-sidebar" id="navSidebar">
     <div class="nav-header">
@@ -796,74 +798,72 @@ st.markdown("""
 </div>
 
 <script>
-let menuOpen = false;
-
-function toggleMenu() {
+(function(){
+    // نستخدم IIFE لتجنب مشاكل النطاق مع Streamlit
+    let menuOpen = false;
     const sidebar = document.getElementById('navSidebar');
-    const overlay = document.querySelector('.nav-overlay');
-    const burgerBtn = document.querySelector('.burger-btn');
-    
-    menuOpen = !menuOpen;
-    
-    if (menuOpen) {
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-        burgerBtn.classList.add('active');
-    } else {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-        burgerBtn.classList.remove('active');
-    }
-}
+    const overlay = document.getElementById('navOverlay');
+    const burgerBtn = document.getElementById('burgerBtn');
 
-function updateNavInfo(userName, userRole) {
-    document.getElementById('navUserName').textContent = userName;
-    document.getElementById('navUserRole').textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
-    updateNavItems(userRole);
-}
-
-function updateNavItems(userRole) {
-    const navItems = document.getElementById('navItems');
-    navItems.innerHTML = '';
-    
-    // الصفحة الرئيسية
-    addNavItem('🏠', 'الصفحة الرئيسية', 'home');
-    
-    // حسب الدور
-    if (userRole === 'teacher') {
-        addNavItem('📝', 'تسجيل الغياب', 'teacher_attendance');
-    } else if (userRole === 'student') {
-        addNavItem('📊', 'تقريري', 'student_dashboard');
-    }
-    
-    // تسجيل الخروج
-    addNavItem('🚪', 'تسجيل الخروج', 'logout');
-}
-
-function addNavItem(icon, text, page) {
-    const navItems = document.getElementById('navItems');
-    const button = document.createElement('button');
-    button.className = 'nav-item';
-    button.innerHTML = `<i>${icon}</i><span>${text}</span>`;
-    
-    button.onclick = function() {
-        if (page === 'logout') {
-            window.location.href = window.location.pathname + '?action=logout';
+    function toggleMenu() {
+        menuOpen = !menuOpen;
+        if (menuOpen) {
+            sidebar.classList.add('open');
+            overlay.classList.add('open');
+            burgerBtn.classList.add('active');
         } else {
-            window.location.href = window.location.pathname + '?page=' + page;
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+            burgerBtn.classList.remove('active');
         }
-        toggleMenu();
-    };
-    
-    navItems.appendChild(button);
-}
-
-// إغلاق القائمة عند الضغط على ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && menuOpen) {
-        toggleMenu();
     }
-});
+
+    // Attach events safely
+    burgerBtn.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+
+    // Functions to be called from Python via injected script
+    window.updateNavInfo = function(userName, userRole) {
+        document.getElementById('navUserName').textContent = userName || '...';
+        document.getElementById('navUserRole').textContent = userRole === 'teacher' ? 'معلم' : 'طالب';
+        updateNavItems(userRole);
+    }
+
+    function updateNavItems(userRole) {
+        const navItems = document.getElementById('navItems');
+        navItems.innerHTML = '';
+        addNavItem('🏠', 'الصفحة الرئيسية', 'home');
+        if (userRole === 'teacher') {
+            addNavItem('📝', 'تسجيل الغياب', 'teacher_attendance');
+        } else if (userRole === 'student') {
+            addNavItem('📊', 'تقريري', 'student_dashboard');
+        }
+        addNavItem('🚪', 'تسجيل الخروج', 'logout');
+    }
+
+    function addNavItem(icon, text, page) {
+        const navItems = document.getElementById('navItems');
+        const button = document.createElement('button');
+        button.className = 'nav-item';
+        button.innerHTML = `<i>${icon}</i><span>${text}</span>`;
+        button.addEventListener('click', function() {
+            if (page === 'logout') {
+                window.location.href = window.location.pathname + '?action=logout';
+            } else {
+                window.location.href = window.location.pathname + '?page=' + page;
+            }
+            toggleMenu();
+        });
+        navItems.appendChild(button);
+    }
+
+    // Close on ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && menuOpen) {
+            toggleMenu();
+        }
+    });
+})();
 </script>
 """, unsafe_allow_html=True)
 

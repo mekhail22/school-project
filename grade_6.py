@@ -260,15 +260,45 @@ def read_sheet():
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
-        data = worksheet.get_all_records()
-    except Exception:
+        # قراءة البيانات مع الحفاظ على جميع الصفوف
+        data = worksheet.get_all_values()
+        
+        if not data:
+            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+        
+        # التأكد من أن العناوين موجودة
+        if len(data) < 1:
+            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+        
+        headers = data[0]
+        if len(headers) < 5:
+            # إذا كانت العناوين غير مكتملة، نضيف الأعمدة المفقودة
+            while len(headers) < 5:
+                headers.append(f"column_{len(headers)}")
+        
+        # إنشاء DataFrame مع معالجة البيانات الفارغة
+        rows = []
+        for i, row in enumerate(data[1:], 1):  # تخطي العناوين
+            if len(row) < 5:
+                # إذا كان الصف غير مكتمل، نكمله بالقيم الفارغة
+                row = row + [""] * (5 - len(row))
+            rows.append(row[:5])  # نأخذ أول 5 أعمدة فقط
+        
+        df = pd.DataFrame(rows, columns=headers[:5])
+        
+        # إعادة تسمية الأعمدة للتأكد من الأسماء الصحيحة
+        expected_columns = ["student", "teacher", "class", "status", "date"]
+        for i, col in enumerate(expected_columns):
+            if i < len(df.columns):
+                df = df.rename(columns={df.columns[i]: col})
+            else:
+                df[col] = ""
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في قراءة البيانات: {str(e)}")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-    
-    df = pd.DataFrame(data)
-    for c in ["student", "teacher", "class", "status", "date"]:
-        if c not in df.columns:
-            df[c] = ""
-    return df
 
 def normalize_date_for_pdf(src_date_str):
     if pd.isna(src_date_str) or str(src_date_str).strip() == "":
@@ -349,6 +379,62 @@ def get_student_class(student_name):
     """الحصول على فصل الطالب تلقائياً"""
     return STUDENT_TO_CLASS.get(student_name, "")
 
+def clean_sheet_data():
+    """تنظيف البيانات في Google Sheets - إصلاح الخانات المختلطة"""
+    if worksheet is None:
+        return False, "لا يوجد اتصال بـ Google Sheets"
+    
+    try:
+        # قراءة البيانات الحالية
+        data = worksheet.get_all_values()
+        
+        if len(data) <= 1:  # فقط العناوين أو لا يوجد بيانات
+            return True, "لا توجد بيانات تحتاج للتنظيف"
+        
+        headers = data[0]
+        rows_to_update = []
+        
+        # تصحيح البيانات
+        for i, row in enumerate(data[1:], start=2):  # start=2 لأن الصفوف تبدأ من 2 في Google Sheets
+            if len(row) >= 5:
+                # تحليل الصف الحالي
+                student = row[0] if len(row) > 0 else ""
+                teacher = row[1] if len(row) > 1 else ""
+                class_field = row[2] if len(row) > 2 else ""
+                status = row[3] if len(row) > 3 else ""
+                date_field = row[4] if len(row) > 4 else ""
+                
+                # إذا كان التاريخ في خانة الفصل والحالة في خانة التاريخ
+                if "/" in class_field and "غياب" not in class_field and "حاضر" not in class_field:
+                    # احتمال أن التاريخ في خانة الفصل
+                    date_field = class_field
+                    class_field = get_student_class(student)  # الحصول على الفصل من اسم الطالب
+                
+                if "غياب" in date_field or "حاضر" in date_field:
+                    # احتمال أن الحالة في خانة التاريخ
+                    status = date_field
+                    date_field = ""
+                
+                # إذا كان التاريخ فارغاً، نضيف التاريخ الحالي
+                if not date_field or date_field.strip() == "":
+                    date_field = datetime.now().strftime("%d / %m / %Y")
+                
+                # إذا كان الفصل فارغاً، نضيفه من اسم الطالب
+                if not class_field or class_field.strip() == "":
+                    class_field = get_student_class(student)
+                
+                # تحديث الصف
+                worksheet.update(f'A{i}:E{i}', [[student, teacher, class_field, status, date_field]])
+                rows_to_update.append(i)
+        
+        if rows_to_update:
+            return True, f"تم تنظيف {len(rows_to_update)} صف"
+        else:
+            return True, "البيانات نظيفة بالفعل"
+            
+    except Exception as e:
+        return False, f"خطأ في تنظيف البيانات: {str(e)}"
+
 # Telegram functions
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
@@ -428,17 +514,18 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     return failed, telegram_status, telegram_details, success_count
 
 def get_student_records(student_name):
+    """الحصول على سجلات الطالب مع معالجة البيانات المختلطة"""
     df = read_sheet()
-    if "student" not in df.columns or df.empty:
+    
+    if df.empty or "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     try:
-        # البحث بدقة أكبر - مطابقة كاملة للاسم
-        df_matches = df[df["student"].astype(str).str.strip() == student_name].copy()
+        # البحث عن سجلات الطالب
+        df_matches = df[df["student"].astype(str).str.strip().str.contains(student_name.strip(), na=False)].copy()
     except Exception:
-        # إذا فشلت، حاول البحث الجزئي
         try:
-            df_matches = df[df["student"].astype(str).str.contains(student_name, case=False, na=False)].copy()
+            df_matches = df[df["student"].astype(str).str.strip() == student_name.strip()].copy()
         except Exception:
             df_matches = pd.DataFrame(columns=df.columns)
     
@@ -448,15 +535,39 @@ def get_student_records(student_name):
     # تنظيف البيانات
     df_matches = df_matches.copy()
     
-    # تأكد من وجود جميع الأعمدة المطلوبة
-    for col in ["teacher", "class", "date", "status"]:
+    # التأكد من وجود جميع الأعمدة
+    for col in ["student", "teacher", "class", "status", "date"]:
         if col not in df_matches.columns:
             df_matches[col] = ""
     
-    # معالجة التواريخ بشكل صحيح
-    df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
+    # إصلاح البيانات المختلطة
+    def fix_mixed_data(row):
+        # إذا كان التاريخ في خانة الفصل
+        if pd.notna(row.get("class")) and "/" in str(row.get("class")) and "غياب" not in str(row.get("class")) and "حاضر" not in str(row.get("class")):
+            if pd.isna(row.get("date")) or str(row.get("date")).strip() == "":
+                row["date"] = row["class"]
+                row["class"] = get_student_class(row["student"])
+        
+        # إذا كانت الحالة في خانة التاريخ
+        if pd.notna(row.get("date")) and ("غياب" in str(row.get("date")) or "حاضر" in str(row.get("date"))):
+            if pd.isna(row.get("status")) or str(row.get("status")).strip() == "":
+                row["status"] = row["date"]
+                row["date"] = ""
+        
+        # إذا كان الفصل فارغاً، نضيفه من اسم الطالب
+        if pd.isna(row.get("class")) or str(row.get("class")).strip() == "":
+            row["class"] = get_student_class(row["student"])
+        
+        # إذا كان التاريخ فارغاً، نضيف تاريخ افتراضي
+        if pd.isna(row.get("date")) or str(row.get("date")).strip() == "":
+            row["date"] = datetime.now().strftime("%d / %m / %Y")
+        
+        return row
     
-    # معالجة حالة الغياب - جعل "غياب بعذر" تظهر كـ "غياب"
+    # تطبيق إصلاح البيانات
+    df_matches = df_matches.apply(fix_mixed_data, axis=1)
+    
+    # تنظيف الحالة - جعل "غياب بعذر" تظهر كـ "غياب"
     def clean_status(status):
         if pd.isna(status):
             return ""
@@ -466,26 +577,21 @@ def get_student_records(student_name):
         return status_str
     
     df_matches["status_clean"] = df_matches["status"].apply(clean_status)
+    df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
+    # إعادة ترتيب الصفوف
+    df_matches = df_matches.sort_values("date", ascending=False)
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
+    
+    # إعادة تسمية الأعمدة
     df_matches = df_matches.rename(columns={
         "student": "الطالب", 
         "teacher": "المعلم", 
         "class": "الفصل", 
-        "date_clean": "التاريخ",  # استخدام التاريخ النظيف
-        "status_clean": "الحالة"   # استخدام الحالة النظيفة
+        "date_clean": "التاريخ",
+        "status_clean": "الحالة"
     })
-    
-    # ترتيب حسب التاريخ من الأحدث إلى الأقدم
-    try:
-        # إنشاء عمود مؤقت للترتيب
-        df_matches["temp_date"] = pd.to_datetime(df_matches["التاريخ"], errors='coerce')
-        df_matches = df_matches.sort_values("temp_date", ascending=False)
-        df_matches = df_matches.drop("temp_date", axis=1)
-        df_matches["المرة"] = range(1, len(df_matches) + 1)
-    except:
-        pass
     
     return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
 
@@ -1289,6 +1395,16 @@ elif st.session_state.logged_in:
         
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
+        
+        # زر تنظيف البيانات (للمعلمين فقط)
+        with st.expander("🔧 أدوات إدارية", expanded=False):
+            if st.button("🧹 تنظيف وتصحيح البيانات في Google Sheets"):
+                with st.spinner("جاري تنظيف البيانات..."):
+                    success, message = clean_sheet_data()
+                    if success:
+                        st.success(f"✅ {message}")
+                    else:
+                        st.error(f"❌ {message}")
         
         # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
         if not st.session_state.selected_class:

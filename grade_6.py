@@ -12,7 +12,7 @@ import requests
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer  # تم التصحيح هنا
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -513,7 +513,7 @@ st.markdown("""
         width: 100%;
         padding: 16px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
-        color: white !important; /* نص أبيض */
+        color: white;
         border: none;
         border-radius: 12px;
         font-size: 18px;
@@ -526,13 +526,11 @@ st.markdown("""
     .login-button:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
-        color: white !important; /* نص أبيض عند hover */
     }
     .login-button:disabled {
         background: #94a3b8;
         cursor: not-allowed;
         transform: none;
-        color: white !important; /* نص أبيض حتى عند التعطيل */
     }
     .searchBox {
       display: flex;
@@ -594,158 +592,15 @@ st.markdown("""
         max-width: 230px;
     }
     h1,h2,h3,h4,h5,h6 { color: #1e293b !important; text-align: center; font-family: 'Cairo', sans-serif !important; }
-    
-    /* ===== الأزرار الأساسية - نص أبيض ===== */
     .stButton>button {
         width: 250px; height: 60px; background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white !important; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
+        color: white; font-size: 20px; font-weight: bold; border-radius: 16px; border: none;
         box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.3s ease; margin: 15px auto; display: block;
     }
     .stButton>button:hover {
         background: linear-gradient(to right, #1d4ed8, #1e40af);
         transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,0.4);
-        color: white !important;
     }
-    
-    /* ===== جميع الأزرار في التطبيق - نص أبيض ===== */
-    button, 
-    button span,
-    button div,
-    button p,
-    .stButton button,
-    .stButton button span,
-    .stButton button p,
-    .stButton button div,
-    div[data-testid="stButton"] button,
-    div[data-testid="stButton"] button span,
-    div[data-testid="stButton"] button p,
-    div[data-testid="stButton"] button div,
-    div[data-testid="column"] button,
-    div[data-testid="column"] button span,
-    div[data-testid="column"] button p,
-    div[data-testid="column"] button div {
-        color: white !important;
-    }
-    
-    /* hover states - نص أبيض */
-    button:hover,
-    button:hover span,
-    button:hover div,
-    button:hover p,
-    .stButton button:hover,
-    .stButton button:hover span,
-    .stButton button:hover p,
-    .stButton button:hover div,
-    div[data-testid="stButton"] button:hover,
-    div[data-testid="stButton"] button:hover span,
-    div[data-testid="stButton"] button:hover p,
-    div[data-testid="stButton"] button:hover div,
-    div[data-testid="column"] button:hover,
-    div[data-testid="column"] button:hover span,
-    div[data-testid="column"] button:hover p,
-    div[data-testid="column"] button:hover div {
-        color: white !important;
-    }
-    
-    /* أزرار خاصة - نص أبيض */
-    button[kind="primary"],
-    button[kind="secondary"],
-    button[kind="tertiary"] {
-        color: white !important;
-    }
-    
-    button[kind="primary"]:hover,
-    button[kind="secondary"]:hover,
-    button[kind="tertiary"]:hover {
-        color: white !important;
-    }
-    
-    /* أزرار التنزيل - نص أبيض */
-    div[data-testid="stDownloadButton"] button,
-    div[data-testid="stDownloadButton"] button span,
-    div[data-testid="stDownloadButton"] button p,
-    div[data-testid="stDownloadButton"] button div {
-        color: white !important;
-        background: linear-gradient(135deg, #10b981, #059669) !important;
-    }
-    
-    div[data-testid="stDownloadButton"] button:hover,
-    div[data-testid="stDownloadButton"] button:hover span,
-    div[data-testid="stDownloadButton"] button:hover p,
-    div[data-testid="stDownloadButton"] button:hover div {
-        color: white !important;
-        background: linear-gradient(135deg, #0da271, #047857) !important;
-    }
-    
-    /* أزرار العودة - نص أبيض */
-    div[data-testid="column"] button[kind="secondary"],
-    div[data-testid="column"] button[kind="secondary"] span,
-    div[data-testid="column"] button[kind="secondary"] p,
-    div[data-testid="column"] button[kind="secondary"] div {
-        color: white !important;
-        background: linear-gradient(135deg, #6b7280, #4b5563) !important;
-    }
-    
-    div[data-testid="column"] button[kind="secondary"]:hover,
-    div[data-testid="column"] button[kind="secondary"]:hover span,
-    div[data-testid="column"] button[kind="secondary"]:hover p,
-    div[data-testid="column"] button[kind="secondary"]:hover div {
-        color: white !important;
-        background: linear-gradient(135deg, #4b5563, #374151) !important;
-    }
-    
-    /* زر تسجيل الخروج - نص أبيض */
-    button:contains("تسجيل الخروج"),
-    button:contains("تسجيل الخروج") span,
-    button:contains("تسجيل الخروج") p,
-    button:contains("تسجيل الخروج") div {
-        color: white !important;
-        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-    }
-    
-    button:contains("تسجيل الخروج"):hover,
-    button:contains("تسجيل الخروج"):hover span,
-    button:contains("تسجيل الخروج"):hover p,
-    button:contains("تسجيل الخروج"):hover div {
-        color: white !important;
-        background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-    }
-    
-    /* أزرار الاختيار في صفحة المعلم - نص أبيض */
-    div[data-testid="stCheckbox"] label {
-        color: #1e293b !important; /* الحفاظ على اللون الأسود للنص */
-    }
-    
-    /* أزرار multiselect - نص أبيض */
-    div[data-testid="stMultiSelect"] span,
-    div[data-testid="stMultiSelect"] div {
-        color: #1e293b !important; /* الحفاظ على اللون الأسود للنص */
-    }
-    
-    /* زر تسجيل الغياب في صفحة المعلم - نص أبيض */
-    section[data-testid="stSidebar"] button,
-    section[data-testid="stSidebar"] button span,
-    section[data-testid="stSidebar"] button p,
-    section[data-testid="stSidebar"] button div,
-    section[data-testid="stSidebar"] button:hover,
-    section[data-testid="stSidebar"] button:hover span,
-    section[data-testid="stSidebar"] button:hover p,
-    section[data-testid="stSidebar"] button:hover div {
-        color: white !important;
-    }
-    
-    /* أزرار selectbox - نص أبيض */
-    div[data-testid="stSelectbox"] div,
-    div[data-testid="stSelectbox"] span,
-    div[data-testid="stSelectbox"] p {
-        color: #1e293b !important; /* الحفاظ على اللون الأسود للنص */
-    }
-    
-    /* أزرار text_input - نص أبيض */
-    div[data-testid="stTextInput"] input {
-        color: #1e293b !important; /* الحفاظ على اللون الأسود للنص */
-    }
-    
     .error-message {
         color: #dc2626;
         background: #fee2e2;

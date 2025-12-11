@@ -12,7 +12,7 @@ import requests
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -744,6 +744,168 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
+# 🆕 **دالة جديدة: توليد تقرير PDF كامل للفصل**
+def generate_class_full_report(class_name, teacher_name, stats, history_df):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    elements = []
+    
+    # استخدام الخط المتاح
+    font_for_style = "Helvetica"
+    if REGISTERED_FONT:
+        font_for_style = REGISTERED_FONT
+    
+    # أنماط النصوص
+    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
+    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
+    header_style = ParagraphStyle('Header', fontName=font_for_style, fontSize=14, alignment=2, textColor=colors.black)
+    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
+    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    
+    # صفحة الغلاف
+    elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), subtitle_style))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
+    elements.append(Spacer(1, 10))
+    
+    today = datetime.now()
+    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
+    elements.append(Paragraph(reshape_arabic_text(f"تاريخ التقرير: {current_date}"), normal_style))
+    elements.append(Spacer(1, 20))
+    
+    # الإحصائيات العامة
+    elements.append(Paragraph(reshape_arabic_text("الإحصائيات العامة"), subtitle_style))
+    elements.append(Spacer(1, 10))
+    
+    # جدول الإحصائيات
+    stats_data = [
+        [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(stats["total_students"]))],
+        [reshape_arabic_text("إجمالي السجلات"), reshape_arabic_text(str(stats["total_records"]))],
+        [reshape_arabic_text("عدد الحضور"), reshape_arabic_text(str(stats["present_count"]))],
+        [reshape_arabic_text("عدد الغياب"), reshape_arabic_text(str(stats["absent_count"]))],
+        [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")]
+    ]
+    
+    stats_table = Table(stats_data, colWidths=[150, 100])
+    stats_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
+    elements.append(stats_table)
+    
+    elements.append(PageBreak())
+    
+    # إحصائيات الطلاب
+    elements.append(Paragraph(reshape_arabic_text("إحصائيات الطلاب"), subtitle_style))
+    elements.append(Spacer(1, 10))
+    
+    if stats["students"]:
+        # جدول تفصيلي للطلاب
+        student_header = [
+            reshape_arabic_text("اسم الطالب"),
+            reshape_arabic_text("عدد السجلات"),
+            reshape_arabic_text("الحضور"),
+            reshape_arabic_text("الغياب"),
+            reshape_arabic_text("نسبة الحضور %")
+        ]
+        
+        student_data = [student_header]
+        for student in stats["students"]:
+            student_data.append([
+                reshape_arabic_text(student["name"]),
+                reshape_arabic_text(str(student["total"])),
+                reshape_arabic_text(str(student["present"])),
+                reshape_arabic_text(str(student["absent"])),
+                reshape_arabic_text(f"{student['rate']:.1f}%")
+            ])
+        
+        student_table = Table(student_data, colWidths=[150, 70, 60, 60, 80])
+        student_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),  # حجم خط أكبر للرأس
+        ]))
+        elements.append(student_table)
+    
+    elements.append(PageBreak())
+    
+    # سجل الحضور
+    elements.append(Paragraph(reshape_arabic_text("سجل الحضور التفصيلي"), subtitle_style))
+    elements.append(Spacer(1, 10))
+    
+    if not history_df.empty:
+        # تقليل عدد السجلات لعرضها في PDF (عرض 50 سجل فقط)
+        history_display = history_df.head(50)
+        
+        history_header = [
+            reshape_arabic_text("الطالب"),
+            reshape_arabic_text("المعلم"),
+            reshape_arabic_text("التاريخ"),
+            reshape_arabic_text("الحالة")
+        ]
+        
+        history_data = [history_header]
+        for _, row in history_display.iterrows():
+            history_data.append([
+                reshape_arabic_text(str(row.get("student", ""))),
+                reshape_arabic_text(str(row.get("teacher", ""))),
+                reshape_arabic_text(normalize_date_for_pdf(row.get("date_clean", ""))),
+                reshape_arabic_text(str(row.get("status_clean", "")))
+            ])
+        
+        history_table = Table(history_data, colWidths=[150, 100, 100, 80])
+        history_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
+        ]))
+        elements.append(history_table)
+        
+        # ملاحظة إذا كان هناك سجلات أكثر
+        if len(history_df) > 50:
+            elements.append(Spacer(1, 10))
+            elements.append(Paragraph(reshape_arabic_text(f"ملاحظة: يتم عرض أول 50 سجل من أصل {len(history_df)} سجل"), 
+                                     ParagraphStyle('Note', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
+    else:
+        elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات حضرور لهذا الفصل بعد."), normal_style))
+    
+    # الصفحة الأخيرة - التوقيعات
+    elements.append(PageBreak())
+    elements.append(Spacer(1, 50))
+    elements.append(Paragraph(reshape_arabic_text("توقيع المعلم:"), header_style))
+    elements.append(Spacer(1, 30))
+    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(reshape_arabic_text(f"{teacher_name}"), normal_style))
+    
+    elements.append(Spacer(1, 50))
+    elements.append(Paragraph(reshape_arabic_text("توقيع مدير المدرسة:"), header_style))
+    elements.append(Spacer(1, 30))
+    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(reshape_arabic_text("مدير مدرسة السلام الإعدادية الثانويه المشتركه"), normal_style))
+    
+    elements.append(Spacer(1, 30))
+    elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
 # Image helper
 def get_image_base64(image_path):
     try:
@@ -1362,6 +1524,24 @@ st.markdown("""
         font-size: 14px;
         line-height: 1.6;
     }
+    /* زر تحميل التقرير الكامل */
+    .full-report-button {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+        color: white !important;
+        padding: 15px 30px !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        border: none !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        margin-top: 20px !important;
+    }
+    .full-report-button:hover {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 5px 15px rgba(123, 92, 246, 0.3) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1445,13 +1625,13 @@ if st.session_state.page == "login":
                         
                         # توجيه المستخدم حسب دوره
                         if USERS[username]["role"] == "teacher":
-                            st.session_state.page = "teacher_attendance"
+                            st.session_state.page = "home"
                             st.session_state.teacher_name = USERS[username]["teacher_name"]
                             st.session_state.teacher_classes = USERS[username]["classes"]
                             st.session_state.teacher_mode = None  # إعادة تعيين الوضع
                             st.session_state.selected_class = None  # إعادة تعيين الفصل
                         else:  # student
-                            st.session_state.page = "student_dashboard"
+                            st.session_state.page = "home"
                             st.session_state.student_name = USERS[username]["student_name"]
                         
                         st.success(f"✅ مرحباً {username}!")
@@ -1486,16 +1666,85 @@ if st.session_state.page == "login":
 elif st.session_state.logged_in:
     show_toolbar()
     
+    # الصفحة الرئيسية المشتركة
+    if st.session_state.page == "home":
+        st.markdown('<div class="home-page">', unsafe_allow_html=True)
+        
+        st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
+        
+        # 🆕 **الزرارين الجديدين للمعلم في الصفحة الرئيسية**
+        if st.session_state.user_role == "teacher":
+            # رسالة ترحيب
+            st.markdown(f"""
+            <div class="welcome-message">
+                <div class="welcome-text">مرحباً بك 👨‍🏫 {st.session_state.user_name}</div>
+                <div class="user-info">يمكنك اختيار المهمة التي تريد تنفيذها:</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # أزرار المهام الرئيسية
+            st.markdown("### 📋 اختر المهمة:")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📝 تسجيل الغياب", key="main_record", use_container_width=True):
+                    st.session_state.page = "teacher_attendance"
+                    st.session_state.teacher_mode = "record"
+                    st.session_state.selected_class = None  # سيختار الفصل لاحقاً
+                    st.rerun()
+            
+            with col2:
+                if st.button("📊 عرض الإحصائيات", key="main_stats", use_container_width=True):
+                    st.session_state.page = "teacher_attendance"
+                    st.session_state.teacher_mode = "statistics"
+                    st.session_state.selected_class = None  # سيختار الفصل لاحقاً
+                    st.rerun()
+            
+            st.markdown("---")
+        
+        elif st.session_state.user_role == "student":
+            # رسالة ترحيب للطالب
+            st.markdown(f"""
+            <div class="welcome-message">
+                <div class="welcome-text">مرحباً بك 👨‍🎓 {st.session_state.user_name}</div>
+                <div class="user-info">يمكنك عرض تقرير الغياب الخاص بك:</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("👨‍🎓 تقرير الغياب الخاص بي", key="student_dashboard_btn", use_container_width=True):
+                st.session_state.page = "student_dashboard"
+                st.rerun()
+        
+        # زر تسجيل الخروج للجميع
+        if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_role = ""
+            st.session_state.user_name = ""
+            st.session_state.selected_class = None
+            st.session_state.teacher_mode = None
+            st.session_state.teacher_classes = None
+            st.session_state.page = "login"
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     # صفحة المعلم لتسجيل الغياب وعرض الإحصائيات
-    if st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
+    elif st.session_state.user_role == "teacher" and st.session_state.page == "teacher_attendance":
         st.markdown('<div class="teacher-page">', unsafe_allow_html=True)
         
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
         
+        # زر العودة للصفحة الرئيسية
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_teacher", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+        
+        st.markdown("---")
+        
         # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
         if not st.session_state.selected_class:
-            st.markdown('<div class="home-title">📊 لوحة تحكم المعلم</div>', unsafe_allow_html=True)
+            st.markdown('<div class="home-title">🎯 اختر الفصل</div>', unsafe_allow_html=True)
             
             # عرض اسم المعلم والفصول التي يدرسها
             st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
@@ -1510,46 +1759,21 @@ elif st.session_state.logged_in:
                     with cols[idx % 2]:
                         if st.button(f"🎯 {class_name}", key=f"class_{class_name}", use_container_width=True):
                             st.session_state.selected_class = class_name
-                            st.session_state.teacher_mode = None  # إعادة تعيين الوضع
                             st.rerun()
             else:
                 st.warning("⚠️ لا يوجد فصول موكلة إليك. الرجاء التواصل مع الإدارة.")
         
-        # إذا تم اختيار فصل، عرض خيارات المعلم
+        # إذا تم اختيار فصل، عرض الخيارات حسب الوضع
         else:
             selected_class = st.session_state.selected_class
             
-            # إذا لم يتم اختيار الوضع بعد، عرض خيارات المعلم
-            if not st.session_state.teacher_mode:
-                st.markdown(f'<div class="home-title">🎯 الفصل: {selected_class}</div>', unsafe_allow_html=True)
-                
-                # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class"):
-                    st.session_state.selected_class = None
-                    st.session_state.teacher_mode = None
-                    st.rerun()
-                
-                st.markdown("---")
-                st.markdown("### 📋 اختر المهمة:")
-                
-                # أزرار اختيار المهمة
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📝 تسجيل الغياب", key="record_mode", use_container_width=True):
-                        st.session_state.teacher_mode = "record"
-                        st.rerun()
-                with col2:
-                    if st.button("📊 عرض الإحصائيات", key="stats_mode", use_container_width=True):
-                        st.session_state.teacher_mode = "statistics"
-                        st.rerun()
-            
             # إذا اختار تسجيل الغياب
-            elif st.session_state.teacher_mode == "record":
+            if st.session_state.teacher_mode == "record":
                 st.markdown(f'<div class="home-title">📝 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
                 
-                # زر العودة لاختيار مهمة أخرى
-                if st.button("🔄 العودة لاختيار مهمة", key="back_to_mode"):
-                    st.session_state.teacher_mode = None
+                # زر العودة لاختيار فصل آخر
+                if st.button("🔄 اختيار فصل آخر", key="change_class_record"):
+                    st.session_state.selected_class = None
                     st.rerun()
                 
                 st.markdown("---")
@@ -1635,7 +1859,9 @@ elif st.session_state.logged_in:
                                         if st.button("➕ تسجيل غياب جديد", key="new_record"):
                                             st.rerun()
                                     with col2:
-                                        if st.button("🔄 العودة للخيارات", key="back_to_options"):
+                                        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_after_record"):
+                                            st.session_state.page = "home"
+                                            st.session_state.selected_class = None
                                             st.session_state.teacher_mode = None
                                             st.rerun()
                                 elif not selected:
@@ -1652,9 +1878,9 @@ elif st.session_state.logged_in:
             elif st.session_state.teacher_mode == "statistics":
                 st.markdown(f'<div class="home-title">📊 إحصائيات {selected_class}</div>', unsafe_allow_html=True)
                 
-                # زر العودة لاختيار مهمة أخرى
-                if st.button("🔄 العودة لاختيار مهمة", key="back_to_mode_stats"):
-                    st.session_state.teacher_mode = None
+                # زر العودة لاختيار فصل آخر
+                if st.button("🔄 اختيار فصل آخر", key="change_class_stats"):
+                    st.session_state.selected_class = None
                     st.rerun()
                 
                 st.markdown("---")
@@ -1712,6 +1938,45 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
+                # 🆕 **زر تحميل تقرير الفصل الكامل**
+                st.markdown("---")
+                st.markdown("### 📥 تحميل تقرير كامل")
+                
+                # إنشاء تقرير PDF كامل
+                try:
+                    pdf_buffer = generate_class_full_report(selected_class, teacher_name, stats, history_df)
+                    
+                    # زر تحميل التقرير
+                    st.download_button(
+                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
+                        data=pdf_buffer,
+                        file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
+                    )
+                    
+                    # معلومات عن التقرير
+                    with st.expander("📋 محتويات التقرير"):
+                        st.markdown("""
+                        **يحتوي التقرير الكامل على:**
+                        1. **صفحة الغلاف**: معلومات الفصل والمعلم
+                        2. **الإحصائيات العامة**: 
+                           - عدد الطلاب
+                           - إجمالي السجلات
+                           - عدد الحضور والغياب
+                           - نسبة الحضور
+                        3. **إحصائيات الطلاب**: 
+                           - تفاصيل كل طالب (حضور، غياب، نسبة)
+                        4. **سجل الحضور التفصيلي**: 
+                           - آخر 50 سجل حضور/غياب
+                        5. **صفحة التوقيعات**:
+                           - توقيع المعلم
+                           - توقيع مدير المدرسة
+                        """)
+                except Exception as e:
+                    st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+                
                 # عرض سجل الحضور الأخير
                 st.markdown("---")
                 st.markdown("### 📅 سجل الحضور الأخير")
@@ -1727,26 +1992,27 @@ elif st.session_state.logged_in:
                     })
                     st.dataframe(recent_history, use_container_width=True, hide_index=True)
                     
-                    # زر لتحميل تقرير كامل
-                    if st.button("📥 تحميل تقرير الفصل الكامل", use_container_width=True):
-                        st.info("🚧 هذه الميزة قيد التطوير")
+                    # ملاحظة عن عدد السجلات
+                    if len(history_df) > 20:
+                        st.info(f"⚠️ يتم عرض آخر 20 سجل فقط من أصل {len(history_df)} سجل. لرؤية جميع السجلات، قم بتحميل التقرير الكامل.")
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True, key="back_to_home"):
-            st.session_state.selected_class = None
-            st.session_state.teacher_mode = None
-            st.session_state.page = "home"
-            st.rerun()
     
     # صفحة الطالب لعرض تقاريره
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
         st.markdown('<div class="student-page">', unsafe_allow_html=True)
         
         st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
+        
+        # زر العودة للصفحة الرئيسية
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+        
+        st.markdown("---")
+        
         student_name = st.session_state.get('student_name', st.session_state.user_name)
         
         # عرض بيانات الطالب
@@ -1789,44 +2055,6 @@ elif st.session_state.logged_in:
                 use_container_width=True
             )
         
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-    
-    # الصفحة الرئيسية المشتركة
-    elif st.session_state.page == "home":
-        st.markdown('<div class="home-page">', unsafe_allow_html=True)
-        
-        st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
-        
-        # عرض الأزرار حسب نوع المستخدم
-        st.markdown('<div class="main-buttons-container">', unsafe_allow_html=True)
-        
-        if st.session_state.user_role == "teacher":
-            if st.button("👨‍🏫 تسجيل الغياب وعرض الإحصائيات", key="teacher_attendance_btn", use_container_width=True):
-                st.session_state.page = "teacher_attendance"
-                st.rerun()
-        
-        elif st.session_state.user_role == "student":
-            if st.button("👨‍🎓 تقرير الغياب الخاص بي", key="student_dashboard_btn", use_container_width=True):
-                st.session_state.page = "student_dashboard"
-                st.rerun()
-        
-        # زر تسجيل الخروج للجميع
-        if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user_role = ""
-            st.session_state.user_name = ""
-            st.session_state.selected_class = None
-            st.session_state.teacher_mode = None
-            st.session_state.teacher_classes = None
-            st.session_state.page = "login"
-            st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 # إذا حاول الوصول مباشرة بدون تسجيل دخول

@@ -2032,9 +2032,7 @@ elif st.session_state.logged_in:
                     })
                     
                     st.dataframe(all_history, use_container_width=True, hide_index=True)
-                    
-                    # ملاحظة عن عدد السجلات
-                    st.info(f"✅ تم تحميل {len(all_history)} سجل حضرور.")
+            
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
         
@@ -2113,3 +2111,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

@@ -844,8 +844,8 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Spacer(1, 10))
     
     if not history_df.empty:
-        # تقليل عدد السجلات لعرضها في PDF (عرض 50 سجل فقط)
-        history_display = history_df.head(50)
+        # 🆕 **تعديل: عرض كل السجلات، ليس فقط 50**
+        history_display = history_df.copy()  # عرض كل السجلات
         
         history_header = [
             reshape_arabic_text("الطالب"),
@@ -863,23 +863,50 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 reshape_arabic_text(str(row.get("status_clean", "")))
             ])
         
-        history_table = Table(history_data, colWidths=[150, 100, 100, 80])
-        history_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
-        ]))
-        elements.append(history_table)
+        # حساب عدد الصفوف في كل صفحة (تقريباً 35 صف في الصفحة)
+        rows_per_page = 35
+        total_rows = len(history_data) - 1  # ناقص رأس الجدول
         
-        # ملاحظة إذا كان هناك سجلات أكثر
-        if len(history_df) > 50:
-            elements.append(Spacer(1, 10))
-            elements.append(Paragraph(reshape_arabic_text(f"ملاحظة: يتم عرض أول 50 سجل من أصل {len(history_df)} سجل"), 
-                                     ParagraphStyle('Note', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
+        if total_rows > rows_per_page:
+            # تقسيم الجدول إلى صفحات متعددة
+            for page_num in range(0, total_rows, rows_per_page):
+                if page_num > 0:
+                    elements.append(PageBreak())
+                    elements.append(Paragraph(reshape_arabic_text(f"سجل الحضور التفصيلي - استكمال"), subtitle_style))
+                    elements.append(Spacer(1, 10))
+                
+                end_idx = min(page_num + rows_per_page, total_rows)
+                page_data = [history_header] + history_data[page_num + 1:end_idx + 1]
+                
+                history_table = Table(page_data, colWidths=[150, 100, 100, 80])
+                history_table.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                    ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
+                ]))
+                elements.append(history_table)
+                
+                # إضافة رقم الصفحة
+                elements.append(Spacer(1, 10))
+                elements.append(Paragraph(reshape_arabic_text(f"الصفحة {page_num//rows_per_page + 1} من {((total_rows - 1)//rows_per_page) + 1}"), 
+                                         ParagraphStyle('PageNumber', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
+        else:
+            # إذا كان الجدول صغيراً يكفي لصفحة واحدة
+            history_table = Table(history_data, colWidths=[150, 100, 100, 80])
+            history_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
+            ]))
+            elements.append(history_table)
     else:
         elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات حضرور لهذا الفصل بعد."), normal_style))
     
@@ -1542,6 +1569,19 @@ st.markdown("""
         transform: translateY(-2px) !important;
         box-shadow: 0 5px 15px rgba(123, 92, 246, 0.3) !important;
     }
+    
+    /* زر العودة للصفحة الرئيسية في الأسفل */
+    .bottom-back-button {
+        margin-top: 40px !important;
+        margin-bottom: 20px !important;
+        background: linear-gradient(135deg, #64748b, #475569) !important;
+        color: white !important;
+        border: 3px solid rgba(100, 116, 139, 0.2) !important;
+    }
+    .bottom-back-button:hover {
+        background: linear-gradient(135deg, #475569, #334155) !important;
+        border-color: #64748b !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1736,7 +1776,7 @@ elif st.session_state.logged_in:
         teacher_classes = st.session_state.get('teacher_classes', [])
         
         # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_teacher", use_container_width=True):
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_teacher_top", use_container_width=True):
             st.session_state.page = "home"
             st.rerun()
         
@@ -1969,7 +2009,7 @@ elif st.session_state.logged_in:
                         3. **إحصائيات الطلاب**: 
                            - تفاصيل كل طالب (حضور، غياب، نسبة)
                         4. **سجل الحضور التفصيلي**: 
-                           - آخر 50 سجل حضور/غياب
+                           - جميع سجلات الحضور/الغياب
                         5. **صفحة التوقيعات**:
                            - توقيع المعلم
                            - توقيع مدير المدرسة
@@ -1977,26 +2017,32 @@ elif st.session_state.logged_in:
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
                 
-                # عرض سجل الحضور الأخير
+                # 🆕 **تعديل: عرض جميع السجلات**
                 st.markdown("---")
-                st.markdown("### 📅 سجل الحضور الأخير")
+                st.markdown("### 📅 جميع سجلات الحضور")
                 
                 if not history_df.empty:
-                    # عرض آخر 20 سجل فقط
-                    recent_history = history_df.head(20)
-                    recent_history = recent_history.rename(columns={
+                    # عرض كل السجلات مع دعم التمرير
+                    all_history = history_df.copy()
+                    all_history = all_history.rename(columns={
                         "student": "الطالب",
                         "teacher": "المعلم",
                         "date_clean": "التاريخ",
                         "status_clean": "الحالة"
                     })
-                    st.dataframe(recent_history, use_container_width=True, hide_index=True)
+                    
+                    st.dataframe(all_history, use_container_width=True, hide_index=True)
                     
                     # ملاحظة عن عدد السجلات
-                    if len(history_df) > 20:
-                        st.info(f"⚠️ يتم عرض آخر 20 سجل فقط من أصل {len(history_df)} سجل. لرؤية جميع السجلات، قم بتحميل التقرير الكامل.")
+                    st.info(f"✅ تم تحميل {len(all_history)} سجل حضرور.")
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
+        
+        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
+        st.markdown("---")
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
+            st.session_state.page = "home"
+            st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -2006,8 +2052,8 @@ elif st.session_state.logged_in:
         
         st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
         
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student", use_container_width=True):
+        # زر العودة للصفحة الرئيسية في الأعلى
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_top", use_container_width=True):
             st.session_state.page = "home"
             st.rerun()
         
@@ -2054,6 +2100,12 @@ elif st.session_state.logged_in:
                 mime="application/pdf",
                 use_container_width=True
             )
+        
+        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
+        st.markdown("---")
+        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_bottom", use_container_width=True, type="secondary"):
+            st.session_state.page = "home"
+            st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
 

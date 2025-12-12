@@ -1582,6 +1582,37 @@ st.markdown("""
         background: linear-gradient(135deg, #475569, #334155) !important;
         border-color: #64748b !important;
     }
+    
+    /* أزرار الأكشن */
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+        justify-content: center;
+    }
+    .action-button {
+        flex: 1;
+        padding: 15px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    .action-button.primary {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+        color: white !important;
+    }
+    .action-button.secondary {
+        background: linear-gradient(135deg, #64748b, #475569) !important;
+        color: white !important;
+    }
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1775,13 +1806,6 @@ elif st.session_state.logged_in:
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
         
-        # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_teacher_top", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-        
-        st.markdown("---")
-        
         # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
         if not st.session_state.selected_class:
             st.markdown('<div class="home-title">🎯 اختر الفصل</div>', unsafe_allow_html=True)
@@ -1812,7 +1836,7 @@ elif st.session_state.logged_in:
                 st.markdown(f'<div class="home-title">📝 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
                 
                 # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_record"):
+                if st.button("🔄 اختيار فصل آخر", key="change_class_record", use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
@@ -1893,24 +1917,8 @@ elif st.session_state.logged_in:
                                         if telegram_status == "✅ تم الإرسال بنجاح":
                                             st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
                                     
-                                    # زر لتسجيل غياب جديد لنفس الفصل
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        if st.button("➕ تسجيل غياب جديد", key="new_record"):
-                                            st.rerun()
-                                    with col2:
-                                        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_after_record"):
-                                            st.session_state.page = "home"
-                                            st.session_state.selected_class = None
-                                            st.session_state.teacher_mode = None
-                                            st.rerun()
-                                elif not selected:
-                                    st.info("ℹ️ لم يتم اختيار أي طالب غائب. تم تسجيل جميع الطلاب كحاضرين.")
-                                else:
-                                    st.warning("⚠️ حدث خطأ في حفظ البيانات")
-                                
-                                if failed:
-                                    st.error(f"⚠️ حدثت أخطاء: {failed}")
+                                    # 🆕 **تعديل: حذف الزر الثاني وإضافة أزرار في الأسفل فقط**
+                                    # لا نضيف أي أزرار هنا، سنضيفها في الأسفل فقط
                 else:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             
@@ -1919,7 +1927,7 @@ elif st.session_state.logged_in:
                 st.markdown(f'<div class="home-title">📊 إحصائيات {selected_class}</div>', unsafe_allow_html=True)
                 
                 # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_stats"):
+                if st.button("🔄 اختيار فصل آخر", key="change_class_stats", use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
@@ -2032,14 +2040,26 @@ elif st.session_state.logged_in:
                     })
                     
                     st.dataframe(all_history, use_container_width=True, hide_index=True)
-            
+                    
+                    # ملاحظة عن عدد السجلات
+                    st.info(f"✅ تم تحميل {len(all_history)} سجل حضرور.")
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
         
-        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
+        # 🆕 **أزرار الأكشن في الأسفل فقط**
         st.markdown("---")
+        
+        # إذا كان في وضع تسجيل الغياب، نعرض زر "تسجيل غياب جديد"
+        if st.session_state.teacher_mode == "record" and st.session_state.selected_class:
+            # زر تسجيل غياب جديد
+            if st.button("➕ تسجيل غياب جديد", key="new_record_bottom", use_container_width=True):
+                st.rerun()
+        
+        # زر العودة للصفحة الرئيسية في الأسفل
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
+            st.session_state.selected_class = None
+            st.session_state.teacher_mode = None
             st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -2111,4 +2131,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

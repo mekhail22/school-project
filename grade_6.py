@@ -38,15 +38,15 @@ st.set_page_config(page_title="نظام الغياب", layout="wide")
 # ------------------ App settings ------------------
 # قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
 CLASSES = {
-    "فصل C": [
-        "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
-        "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
-        "هشام نبيل هشام", "وليد جمال وليد"
-    ],
     "فصل B": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
+    ],
+    "فصل C": [
+        "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
+        "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
+        "هشام نبيل هشام", "وليد جمال وليد"
     ],
     "فصل D": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
@@ -758,21 +758,18 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
     display_class_name = str(class_name)
     
-    # إذا كانت القيمة غير صحيحة (فقط "فصل" بدون الحرف)
-    if display_class_name == "فصل" or len(display_class_name.strip()) < 4:
-        # نبحث عن القيمة الصحيحة في session_state
-        try:
-            if hasattr(st, 'session_state') and hasattr(st.session_state, 'selected_class'):
-                session_class = st.session_state.selected_class
-                if session_class and session_class != "فصل" and len(str(session_class).strip()) >= 4:
-                    display_class_name = session_class
-        except:
-            pass
-        
-        # إذا مازالت المشكلة قائمة، نبحث في قائمة الفصول
-        if display_class_name == "فصل" or len(display_class_name.strip()) < 4:
+    # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
+    # المشكلة: class_name قد تأتي كـ "فصل" فقط وليس "فصل B" أو "فصل C"
+    if display_class_name == "فصل" or display_class_name.strip() == "فصل" or len(display_class_name.strip()) <= 3:
+        # نبحث عن القيمة الصحيحة في قائمة الفصول
+        # نبحث أولاً في قائمة الفصول التي يدرسها المعلم
+        teacher_classes = st.session_state.get('teacher_classes', [])
+        if teacher_classes and len(teacher_classes) > 0:
+            display_class_name = teacher_classes[0]  # نأخذ أول فصل من فصول المعلم
+        else:
+            # إذا لم نجد، نبحث في قائمة الفصول الكاملة
             for key in CLASSES.keys():
-                if key.startswith("فصل"):
+                if key.startswith("فصل "):
                     display_class_name = key
                     break
     
@@ -787,7 +784,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **استخدام القيمة المصححة لاسم الفصل**
+    # ✅ **استخدام القيمة المصححة لاسم الفصل - التصحيح هنا**
     elements.append(Paragraph(reshape_arabic_text(f"الفصل: {display_class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
@@ -863,7 +860,6 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(PageBreak())
     
     # سجل الحضور
-    # ✅ **التصحيح: تغيير العنوان من "آخر السجلات" إلى "سجل الحضور التفصيلي"**
     elements.append(Paragraph(reshape_arabic_text("سجل الحضور التفصيلي"), subtitle_style))
     elements.append(Spacer(1, 10))
     
@@ -2035,9 +2031,6 @@ elif st.session_state.logged_in:
                     })
                     
                     st.dataframe(all_history, use_container_width=True, hide_index=True)
-                    
-                    # 🆕 **حذف الرسالة: ✅ تم تحميل {len(all_history)} سجل حضرور.**
-                    # لا نعرض أي رسالة، فقط الجدول
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
         

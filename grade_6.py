@@ -73,24 +73,24 @@ for class_name, students in CLASSES.items():
 
 # قائمة المعلمين والفصول التي يدرسونها
 TEACHER_CLASSES = {
-    "مينا سمير": ["فصل B", "فصل C"],  # مينا سمير يدرس فصل B و C
-    "فادي حبيب": ["فصل D", "فصل E"]   # فادي حبيب يدرس فصل D و E
+    "مينا سمير": ["فصل B", "فصل C"],
+    "فادي حبيب": ["فصل D", "فصل E"]
 }
 
 # مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
 USERS = {
     # معلمون - لهم صلاحية تسجيل الغياب
     "مينا سمير": {
-        "password": "mina1234",  # كلمة مرور مختلفة
+        "password": "mina1234",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["فصل B", "فصل C"]  # الفصول التي يدرسها
+        "classes": ["فصل B", "فصل C"]  # ✅ **تم التصحيح: أسماء الفصول الكاملة**
     },
     "فادي حبيب": {
-        "password": "fady5678",  # كلمة مرور مختلفة
+        "password": "fady5678",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["فصل D", "فصل E"]  # الفصول التي يدرسها
+        "classes": ["فصل D", "فصل E"]  # ✅ **تم التصحيح: أسماء الفصول الكاملة**
     },
 }
 
@@ -154,9 +154,8 @@ for student in ALL_STUDENTS:
             "student_name": student
         }
     else:
-        # إذا لم يكن هناك كلمة مرور محددة، نستخدم كلمة مرور افتراضية
         USERS[student] = {
-            "password": f"stu{hash(student) % 10000:04d}",  # كلمة مرور فريدة بناءً على الاسم
+            "password": f"stu{hash(student) % 10000:04d}",
             "role": "student",
             "student_name": student
         }
@@ -759,19 +758,12 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     display_class_name = str(class_name)
     
     # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
-    # المشكلة: class_name قد تأتي كـ "فصل" فقط وليس "فصل B" أو "فصل C"
     if display_class_name == "فصل" or display_class_name.strip() == "فصل" or len(display_class_name.strip()) <= 3:
         # نبحث عن القيمة الصحيحة في قائمة الفصول
-        # نبحث أولاً في قائمة الفصول التي يدرسها المعلم
-        teacher_classes = st.session_state.get('teacher_classes', [])
-        if teacher_classes and len(teacher_classes) > 0:
-            display_class_name = teacher_classes[0]  # نأخذ أول فصل من فصول المعلم
-        else:
-            # إذا لم نجد، نبحث في قائمة الفصول الكاملة
-            for key in CLASSES.keys():
-                if key.startswith("فصل "):
-                    display_class_name = key
-                    break
+        for full_class_name in CLASSES.keys():
+            if full_class_name.startswith("فصل"):
+                display_class_name = full_class_name
+                break
     
     # أنماط النصوص
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
@@ -784,7 +776,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **استخدام القيمة المصححة لاسم الفصل - التصحيح هنا**
+    # ✅ **استخدام القيمة المصححة لاسم الفصل**
     elements.append(Paragraph(reshape_arabic_text(f"الفصل: {display_class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
@@ -1687,9 +1679,10 @@ if st.session_state.page == "login":
                         if USERS[username]["role"] == "teacher":
                             st.session_state.page = "home"
                             st.session_state.teacher_name = USERS[username]["teacher_name"]
+                            # ✅ **تصحيح: استخدام أسماء الفصول الكاملة مباشرة**
                             st.session_state.teacher_classes = USERS[username]["classes"]
-                            st.session_state.teacher_mode = None  # إعادة تعيين الوضع
-                            st.session_state.selected_class = None  # إعادة تعيين الفصل
+                            st.session_state.teacher_mode = None
+                            st.session_state.selected_class = None
                         else:  # student
                             st.session_state.page = "home"
                             st.session_state.student_name = USERS[username]["student_name"]
@@ -1751,14 +1744,14 @@ elif st.session_state.logged_in:
                 if st.button("📝 تسجيل الغياب", key="main_record", use_container_width=True):
                     st.session_state.page = "teacher_attendance"
                     st.session_state.teacher_mode = "record"
-                    st.session_state.selected_class = None  # سيختار الفصل لاحقاً
+                    st.session_state.selected_class = None
                     st.rerun()
             
             with col2:
                 if st.button("📊 عرض الإحصائيات", key="main_stats", use_container_width=True):
                     st.session_state.page = "teacher_attendance"
                     st.session_state.teacher_mode = "statistics"
-                    st.session_state.selected_class = None  # سيختار الفصل لاحقاً
+                    st.session_state.selected_class = None
                     st.rerun()
             
             st.markdown("---")
@@ -1797,6 +1790,8 @@ elif st.session_state.logged_in:
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
         
+        # ✅ **تصحيح: استخدام teacher_classes مباشرة (لأنها الآن تحتوي على أسماء الفصول الكاملة)**
+        
         # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
         if not st.session_state.selected_class:
             st.markdown('<div class="home-title">🎯 اختر الفصل</div>', unsafe_allow_html=True)
@@ -1821,6 +1816,15 @@ elif st.session_state.logged_in:
         # إذا تم اختيار فصل، عرض الخيارات حسب الوضع
         else:
             selected_class = st.session_state.selected_class
+            
+            # ✅ **تصحيح: التأكد من أن اسم الفصل هو الاسم الكامل**
+            if selected_class == "فصل" or len(selected_class.strip()) < 4:
+                # البحث عن اسم الفصل الكامل في قائمة الفصول
+                for full_class_name in CLASSES.keys():
+                    if full_class_name.startswith("فصل"):
+                        selected_class = full_class_name
+                        st.session_state.selected_class = selected_class
+                        break
             
             # إذا اختار تسجيل الغياب
             if st.session_state.teacher_mode == "record":
@@ -1907,9 +1911,6 @@ elif st.session_state.logged_in:
                                         
                                         if telegram_status == "✅ تم الإرسال بنجاح":
                                             st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
-                                    
-                                    # 🆕 **حذف الزر: لا نضيف زر "تسجيل غياب جديد"**
-                                    # بعد التسجيل، نعرض فقط زر العودة للصفحة الرئيسية
                 else:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             

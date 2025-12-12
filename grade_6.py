@@ -661,7 +661,7 @@ def get_student_records(student_name):
     df_matches["status_clean"] = df_matches["status"].apply(clean_status)
     df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
-    # إعادة ترتيب الصفوقات
+    # إعادة ترتيب الصفوف
     df_matches = df_matches.sort_values("date", ascending=False)
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
@@ -765,8 +765,12 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
+    
     # ✅ **التصحيح: عرض اسم الفصل بشكل صحيح**
-    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), subtitle_style))
+    # نستخدم class_name مباشرة لأنه يجب أن يكون بالصيغة الصحيحة
+    full_class_name = class_name  # هذا يجب أن يكون "فصل C" أو "فصل B" إلخ
+    
+    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {full_class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
     elements.append(Spacer(1, 10))

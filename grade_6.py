@@ -765,6 +765,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
+    # 🆕 **تصحيح: الفصل: فصل C**
     elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
@@ -840,6 +841,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(PageBreak())
     
     # سجل الحضور
+    # 🆕 **تعديل: "سجل الحضور التفصيلي" بدلاً من "آخر السجلات"**
     elements.append(Paragraph(reshape_arabic_text("سجل الحضور التفصيلي"), subtitle_style))
     elements.append(Spacer(1, 10))
     
@@ -1582,37 +1584,6 @@ st.markdown("""
         background: linear-gradient(135deg, #475569, #334155) !important;
         border-color: #64748b !important;
     }
-    
-    /* أزرار الأكشن */
-    .action-buttons {
-        display: flex;
-        gap: 15px;
-        margin-top: 20px;
-        justify-content: center;
-    }
-    .action-button {
-        flex: 1;
-        padding: 15px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 16px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: center;
-    }
-    .action-button.primary {
-        background: linear-gradient(135deg, #10b981, #059669) !important;
-        color: white !important;
-    }
-    .action-button.secondary {
-        background: linear-gradient(135deg, #64748b, #475569) !important;
-        color: white !important;
-    }
-    .action-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1917,8 +1888,8 @@ elif st.session_state.logged_in:
                                         if telegram_status == "✅ تم الإرسال بنجاح":
                                             st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
                                     
-                                    # 🆕 **تعديل: حذف الزر الثاني وإضافة أزرار في الأسفل فقط**
-                                    # لا نضيف أي أزرار هنا، سنضيفها في الأسفل فقط
+                                    # 🆕 **حذف الزر: لا نضيف زر "تسجيل غياب جديد"**
+                                    # بعد التسجيل، نعرض فقط زر العودة للصفحة الرئيسية
                 else:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             
@@ -2025,9 +1996,9 @@ elif st.session_state.logged_in:
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
                 
-                # 🆕 **تعديل: عرض جميع السجلات**
+                # 🆕 **تعديل: عرض جميع السجلات في آخر جزء**
                 st.markdown("---")
-                st.markdown("### 📅 جميع سجلات الحضور")
+                st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
                 
                 if not history_df.empty:
                     # عرض كل السجلات مع دعم التمرير
@@ -2041,21 +2012,13 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(all_history, use_container_width=True, hide_index=True)
                     
-                    # ملاحظة عن عدد السجلات
-                    st.info(f"✅ تم تحميل {len(all_history)} سجل حضرور.")
+                    # 🆕 **حذف الرسالة: ✅ تم تحميل {len(all_history)} سجل حضرور.**
+                    # لا نعرض أي رسالة، فقط الجدول
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
         
-        # 🆕 **أزرار الأكشن في الأسفل فقط**
+        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
         st.markdown("---")
-        
-        # إذا كان في وضع تسجيل الغياب، نعرض زر "تسجيل غياب جديد"
-        if st.session_state.teacher_mode == "record" and st.session_state.selected_class:
-            # زر تسجيل غياب جديد
-            if st.button("➕ تسجيل غياب جديد", key="new_record_bottom", use_container_width=True):
-                st.rerun()
-        
-        # زر العودة للصفحة الرئيسية في الأسفل
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
             st.session_state.selected_class = None

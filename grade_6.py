@@ -36,31 +36,31 @@ logger = logging.getLogger("attendance_app")
 st.set_page_config(page_title="نظام الغياب", layout="wide")
 
 # ------------------ App settings ------------------
-# قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
+# قائمة الطلاب مقسمة على 4 صفوف (40 طالب - 10 لكل صف)
 CLASSES = {
-    "فصل B": [
+    "الصف B": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
     ],
-    "فصل C": [
+    "الصف C": [
         "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
         "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
         "هشام نبيل هشام", "وليد جمال وليد"
     ],
-    "فصل D": [
+    "الصف D": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
         "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
         "مجدي جمال مجدي", "سليمان هشام سليمان"
     ],
-    "فصل E": [
+    "الصف E": [
         "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
         "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
         "فاروق جمال فاروق", "أنور هشام أنور"
     ]
 }
 
-# إنشاء قاموس عكسي للبحث عن الفصل من اسم الطالب
+# إنشاء قاموس عكسي للبحث عن الصف من اسم الطالب
 STUDENT_TO_CLASS = {}
 for class_name, students in CLASSES.items():
     for student in students:
@@ -71,10 +71,10 @@ ALL_STUDENTS = []
 for class_name, students in CLASSES.items():
     ALL_STUDENTS.extend(students)
 
-# قائمة المعلمين والفصول التي يدرسونها
+# قائمة المعلمين والصفوف التي يدرسونها
 TEACHER_CLASSES = {
-    "مينا سمير": ["فصل B", "فصل C"],
-    "فادي حبيب": ["فصل D", "فصل E"]
+    "مينا سمير": ["الصف B", "الصف C"],
+    "فادي حبيب": ["الصف D", "الصف E"]
 }
 
 # مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
@@ -84,19 +84,19 @@ USERS = {
         "password": "mina1234",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["فصل B", "فصل C"]  # ✅ **تم التصحيح: أسماء الفصول الكاملة**
+        "classes": ["الصف B", "الصف C"]
     },
     "فادي حبيب": {
         "password": "fady5678",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["فصل D", "فصل E"]  # ✅ **تم التصحيح: أسماء الفصول الكاملة**
+        "classes": ["الصف D", "الصف E"]
     },
 }
 
 # إضافة الطلاب مع كلمات مرور مختلفة لكل طالب
 student_passwords = {
-    # فصل C
+    # الصف C
     "أحمد محمد أحمد": "c1001",
     "محمود سعيد حسين": "c1002",
     "علي كمال علي": "c1003",
@@ -108,7 +108,7 @@ student_passwords = {
     "هشام نبيل هشام": "c1009",
     "وليد جمال وليد": "c1010",
     
-    # فصل B
+    # الصف B
     "محمد علي محمد": "b1001",
     "حسن أحمد حسن": "b1002",
     "محمود حسين محمود": "b1003",
@@ -120,7 +120,7 @@ student_passwords = {
     "نبيل جمال نبيل": "b1009",
     "جمال هشام جمال": "b1010",
     
-    # فصل D
+    # الصف D
     "فؤاد محمد فؤاد": "d1001",
     "رشاد أحمد رشاد": "d1002",
     "صابر حسين صابر": "d1003",
@@ -132,7 +132,7 @@ student_passwords = {
     "مجدي جمال مجدي": "d1009",
     "سليمان هشام سليمان": "d1010",
     
-    # فصل E
+    # الصف E
     "نبيل محمد نبيل": "e1001",
     "رامي أحمد رامي": "e1002",
     "عماد حسين عماد": "e1003",
@@ -407,11 +407,11 @@ def normalize_date_for_display(src_date_str):
     return s
 
 def get_student_class(student_name):
-    """الحصول على فصل الطالب تلقائياً"""
+    """الحصول على صف الطالب تلقائياً"""
     return STUDENT_TO_CLASS.get(student_name, "")
 
 def get_class_statistics(class_name):
-    """الحصول على إحصائيات الفصل"""
+    """الحصول على إحصائيات الصف"""
     df = read_sheet()
     
     if df.empty or "class" not in df.columns:
@@ -424,7 +424,7 @@ def get_class_statistics(class_name):
             "students": []
         }
     
-    # تصفية البيانات للفصل المحدد
+    # تصفية البيانات للصف المحدد
     class_df = df[df["class"] == class_name].copy()
     
     if class_df.empty:
@@ -474,13 +474,13 @@ def get_class_statistics(class_name):
     }
 
 def get_class_attendance_history(class_name):
-    """الحصول على سجل الحضور للفصل"""
+    """الحصول على سجل الحضور للصف"""
     df = read_sheet()
     
     if df.empty or "class" not in df.columns:
         return pd.DataFrame()
     
-    # تصفية البيانات للفصل المحدد
+    # تصفية البيانات للصف المحدد
     class_df = df[df["class"] == class_name].copy()
     
     if class_df.empty:
@@ -534,10 +534,10 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     date_display = datetime.now().strftime("%d / %m / %Y")
     rows = []
     
-    # الحصول على جميع طلاب الفصل المحدد
+    # الحصول على جميع طلاب الصف المحدد
     class_students = CLASSES.get(class_name, [])
     
-    # تسجيل جميع طلاب الفصل
+    # تسجيل جميع طلاب الصف
     for student in class_students:
         # تحديد حالة الطالب
         if student in selected_absent:
@@ -547,7 +547,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
             # إذا لم يكن في القائمة، فهو حاضر
             status = "حاضر"
         
-        # الحصول على فصل الطالب تلقائياً من القاموس
+        # الحصول على صف الطالب تلقائياً من القاموس
         student_class = get_student_class(student)
         rows.append([student, teacher_name, student_class, status, date_display])
     
@@ -566,9 +566,9 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
                     worksheet.append_row(r, value_input_option="USER_ENTERED")
                     success_count += 1
             except Exception as ex:
-                failed.append((f"فصل {class_name}", str(ex)))
+                failed.append((f"صف {class_name}", str(ex)))
     elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
-        failed.append((f"فصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
+        failed.append((f"صف {class_name}", "لا يوجد اتصال بـ Google Sheets"))
     
     # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
     telegram_status = "لم يتم الإرسال"
@@ -581,7 +581,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
         present_count = len(class_students) - len(selected_absent)
         
         # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
-        message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
+        message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الصف: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
             ok, info = send_telegram_message(message)
@@ -595,14 +595,14 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
             telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
     else:
         telegram_status = "لم يتم الإرسال (لا يوجد طلاب)"
-        telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب في الفصل"
+        telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب في الصف"
     
     return failed, telegram_status, telegram_details, success_count
 
 def get_student_records(student_name):
     df = read_sheet()
     if "student" not in df.columns or df.empty:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الصف", "التاريخ", "الحالة"])
     
     try:
         # البحث بدقة أكبر - مطابقة كاملة للاسم
@@ -615,7 +615,7 @@ def get_student_records(student_name):
             df_matches = pd.DataFrame(columns=df.columns)
     
     if df_matches.empty:
-        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
+        return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الصف", "التاريخ", "الحالة"])
     
     # تنظيف البيانات
     df_matches = df_matches.copy()
@@ -627,7 +627,7 @@ def get_student_records(student_name):
     
     # إصلاح البيانات المختلطة
     def fix_mixed_data(row):
-        # إذا كان التاريخ في خانة الفصل
+        # إذا كان التاريخ في خانة الصف
         if pd.notna(row.get("class")) and "/" in str(row.get("class")) and "غياب" not in str(row.get("class")) and "حاضر" not in str(row.get("class")):
             if pd.isna(row.get("date")) or str(row.get("date")).strip() == "":
                 row["date"] = row["class"]
@@ -639,7 +639,7 @@ def get_student_records(student_name):
                 row["status"] = row["date"]
                 row["date"] = ""
         
-        # إذا كان الفصل فارغاً، نضيفه من اسم الطالب
+        # إذا كان الصف فارغاً، نضيفه من اسم الطالب
         if pd.isna(row.get("class")) or str(row.get("class")).strip() == "":
             row["class"] = get_student_class(row["student"])
         
@@ -669,12 +669,12 @@ def get_student_records(student_name):
     df_matches = df_matches.rename(columns={
         "student": "الطالب", 
         "teacher": "المعلم", 
-        "class": "الفصل", 
+        "class": "الصف", 
         "date_clean": "التاريخ",
         "status_clean": "الحالة"
     })
     
-    return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
+    return df_matches[["المرة", "الطالب", "المعلم", "الصف", "التاريخ", "الحالة"]]
 
 def generate_student_pdf(student_name, df_records):
     buffer = io.BytesIO()
@@ -713,14 +713,14 @@ def generate_student_pdf(student_name, df_records):
         
         elements.append(Spacer(1, 10))
 
-        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
+        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "الصف", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
                 reshape_arabic_text(str(row.get("المرة", ""))),
                 reshape_arabic_text(str(row.get("الطالب", ""))),
                 reshape_arabic_text(str(row.get("المعلم", ""))),
-                reshape_arabic_text(str(row.get("الفصل", ""))),
+                reshape_arabic_text(str(row.get("الصف", ""))),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
                 reshape_arabic_text(str(row.get("الحالة", "")))
             ])
@@ -743,7 +743,7 @@ def generate_student_pdf(student_name, df_records):
     buffer.seek(0)
     return buffer
 
-# 🆕 **دالة جديدة: توليد تقرير PDF كامل للفصل**
+# 🆕 **دالة جديدة: توليد تقرير PDF كامل للصف**
 def generate_class_full_report(class_name, teacher_name, stats, history_df):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -753,17 +753,6 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     font_for_style = "Helvetica"
     if REGISTERED_FONT:
         font_for_style = REGISTERED_FONT
-    
-    # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
-    display_class_name = str(class_name)
-    
-    # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
-    if display_class_name == "فصل" or display_class_name.strip() == "فصل" or len(display_class_name.strip()) <= 3:
-        # نبحث عن القيمة الصحيحة في قائمة الفصول
-        for full_class_name in CLASSES.keys():
-            if full_class_name.startswith("فصل"):
-                display_class_name = full_class_name
-                break
     
     # أنماط النصوص
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
@@ -776,8 +765,8 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **استخدام القيمة المصححة لاسم الفصل**
-    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {display_class_name}"), subtitle_style))
+    # ✅ **استخدام اسم الصف مباشرة**
+    elements.append(Paragraph(reshape_arabic_text(f"الصف: {class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
     elements.append(Spacer(1, 10))
@@ -920,7 +909,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
             ]))
             elements.append(history_table)
     else:
-        elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات حضرور لهذا الفصل بعد."), normal_style))
+        elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات حضرور لهذا الصف بعد."), normal_style))
     
     # الصفحة الأخيرة - التوقيعات
     elements.append(PageBreak())
@@ -1387,7 +1376,7 @@ st.markdown("""
         font-size: 18px !important;
     }
     
-    /* أزرار الفصول */
+    /* أزرار الصفوف */
     .class-buttons {
         display: flex;
         flex-wrap: wrap;
@@ -1679,7 +1668,6 @@ if st.session_state.page == "login":
                         if USERS[username]["role"] == "teacher":
                             st.session_state.page = "home"
                             st.session_state.teacher_name = USERS[username]["teacher_name"]
-                            # ✅ **تصحيح: استخدام أسماء الفصول الكاملة مباشرة**
                             st.session_state.teacher_classes = USERS[username]["classes"]
                             st.session_state.teacher_mode = None
                             st.session_state.selected_class = None
@@ -1707,10 +1695,10 @@ if st.session_state.page == "login":
                 <br>
                 <p><strong>الطلاب:</strong></p>
                 <p>• كلمة المرور لكل طالب فريدة</p>
-                <p>• الطلاب من فصل C: c1001 إلى c1010</p>
-                <p>• الطلاب من فصل B: b1001 إلى b1010</p>
-                <p>• الطلاب من فصل D: d1001 إلى d1010</p>
-                <p>• الطلاب من فصل E: e1001 إلى e1010</p>
+                <p>• الطلاب من الصف C: c1001 إلى c1010</p>
+                <p>• الطلاب من الصف B: b1001 إلى b1010</p>
+                <p>• الطلاب من الصف D: d1001 إلى d1010</p>
+                <p>• الطلاب من الصف E: e1001 إلى e1010</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1790,17 +1778,15 @@ elif st.session_state.logged_in:
         teacher_name = st.session_state.get('teacher_name', st.session_state.user_name)
         teacher_classes = st.session_state.get('teacher_classes', [])
         
-        # ✅ **تصحيح: استخدام teacher_classes مباشرة (لأنها الآن تحتوي على أسماء الفصول الكاملة)**
-        
-        # إذا لم يتم اختيار فصل بعد، عرض أزرار الفصول
+        # إذا لم يتم اختيار صف بعد، عرض أزرار الصفوف
         if not st.session_state.selected_class:
-            st.markdown('<div class="home-title">🎯 اختر الفصل</div>', unsafe_allow_html=True)
+            st.markdown('<div class="home-title">🎯 اختر الصف</div>', unsafe_allow_html=True)
             
-            # عرض اسم المعلم والفصول التي يدرسها
+            # عرض اسم المعلم والصفوف التي يدرسها
             st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
-            st.markdown(f"### 📚 اختر الفصل:")
+            st.markdown(f"### 📚 اختر الصف:")
             
-            # عرض أزرار الفصول التي يدرسها المعلم فقط
+            # عرض أزرار الصفوف التي يدرسها المعلم فقط
             if teacher_classes:
                 col1, col2 = st.columns(2)
                 cols = [col1, col2]
@@ -1811,42 +1797,33 @@ elif st.session_state.logged_in:
                             st.session_state.selected_class = class_name
                             st.rerun()
             else:
-                st.warning("⚠️ لا يوجد فصول موكلة إليك. الرجاء التواصل مع الإدارة.")
+                st.warning("⚠️ لا يوجد صفوف موكلة إليك. الرجاء التواصل مع الإدارة.")
         
-        # إذا تم اختيار فصل، عرض الخيارات حسب الوضع
+        # إذا تم اختيار صف، عرض الخيارات حسب الوضع
         else:
             selected_class = st.session_state.selected_class
-            
-            # ✅ **تصحيح: التأكد من أن اسم الفصل هو الاسم الكامل**
-            if selected_class == "فصل" or len(selected_class.strip()) < 4:
-                # البحث عن اسم الفصل الكامل في قائمة الفصول
-                for full_class_name in CLASSES.keys():
-                    if full_class_name.startswith("فصل"):
-                        selected_class = full_class_name
-                        st.session_state.selected_class = selected_class
-                        break
             
             # إذا اختار تسجيل الغياب
             if st.session_state.teacher_mode == "record":
                 st.markdown(f'<div class="home-title">📝 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
                 
-                # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_record", use_container_width=True):
+                # زر العودة لاختيار صف آخر
+                if st.button("🔄 اختيار صف آخر", key="change_class_record", use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
                 st.markdown("---")
                 
-                # عرض قائمة الطلاب للفصل المحدد
+                # عرض قائمة الطلاب للصف المحدد
                 class_students = CLASSES.get(selected_class, [])
                 
                 if class_students:
-                    # عرض معلومات الفصل
+                    # عرض معلومات الصف
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("اسم المعلم", teacher_name)
                     with col2:
-                        st.metric("اسم الفصل", selected_class)
+                        st.metric("اسم الصف", selected_class)
                     with col3:
                         st.metric("عدد الطلاب", len(class_students))
                     
@@ -1897,7 +1874,7 @@ elif st.session_state.logged_in:
                                     with st.expander("📊 ملخص التسجيل", expanded=True):
                                         st.markdown(f"""
                                         **تفاصيل التسجيل:**
-                                        - **الفصل:** {selected_class}
+                                        - **الصف:** {selected_class}
                                         - **المعلم:** {teacher_name}
                                         - **عدد الطلاب الكلي:** {len(class_students)}
                                         - **عدد الغائبين:** {len(selected)}
@@ -1918,14 +1895,14 @@ elif st.session_state.logged_in:
             elif st.session_state.teacher_mode == "statistics":
                 st.markdown(f'<div class="home-title">📊 إحصائيات {selected_class}</div>', unsafe_allow_html=True)
                 
-                # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_stats", use_container_width=True):
+                # زر العودة لاختيار صف آخر
+                if st.button("🔄 اختيار صف آخر", key="change_class_stats", use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
                 st.markdown("---")
                 
-                # الحصول على إحصائيات الفصل
+                # الحصول على إحصائيات الصف
                 stats = get_class_statistics(selected_class)
                 history_df = get_class_attendance_history(selected_class)
                 
@@ -1976,9 +1953,9 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(student_stats_df, use_container_width=True, hide_index=True)
                 else:
-                    st.info("لا توجد سجلات لهذا الفصل بعد.")
+                    st.info("لا توجد سجلات لهذا الصف بعد.")
                 
-                # 🆕 **زر تحميل تقرير الفصل الكامل**
+                # 🆕 **زر تحميل تقرير الصف الكامل**
                 st.markdown("---")
                 st.markdown("### 📥 تحميل تقرير كامل")
                 
@@ -1988,9 +1965,9 @@ elif st.session_state.logged_in:
                     
                     # زر تحميل التقرير
                     st.download_button(
-                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
+                        label="📄 تحميل تقرير الصف الكامل (PDF)",
                         data=pdf_buffer,
-                        file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        file_name=f"تقرير_الصف_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         use_container_width=True,
                         help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
@@ -2000,7 +1977,7 @@ elif st.session_state.logged_in:
                     with st.expander("📋 محتويات التقرير"):
                         st.markdown("""
                         **يحتوي التقرير الكامل على:**
-                        1. **صفحة الغلاف**: معلومات الفصل والمعلم
+                        1. **صفحة الغلاف**: معلومات الصف والمعلم
                         2. **الإحصائيات العامة**: 
                            - عدد الطلاب
                            - إجمالي السجلات
@@ -2019,7 +1996,7 @@ elif st.session_state.logged_in:
                 
                 # 🆕 **تعديل: عرض جميع السجلات في آخر جزء**
                 st.markdown("---")
-                st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
+                st.markdown(f"### 📅 سجل الحضور للصف {selected_class}")
                 
                 if not history_df.empty:
                     # عرض كل السجلات مع دعم التمرير
@@ -2033,7 +2010,7 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(all_history, use_container_width=True, hide_index=True)
                 else:
-                    st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
+                    st.info("لا توجد سجلات حضرور لهذا الصف بعد.")
         
         # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
         st.markdown("---")

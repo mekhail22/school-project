@@ -755,6 +755,27 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     if REGISTERED_FONT:
         font_for_style = REGISTERED_FONT
     
+    # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
+    display_class_name = str(class_name)
+    
+    # إذا كانت القيمة غير صحيحة (فقط "فصل" بدون الحرف)
+    if display_class_name == "فصل" or len(display_class_name.strip()) < 4:
+        # نبحث عن القيمة الصحيحة في session_state
+        try:
+            if hasattr(st, 'session_state') and hasattr(st.session_state, 'selected_class'):
+                session_class = st.session_state.selected_class
+                if session_class and session_class != "فصل" and len(str(session_class).strip()) >= 4:
+                    display_class_name = session_class
+        except:
+            pass
+        
+        # إذا مازالت المشكلة قائمة، نبحث في قائمة الفصول
+        if display_class_name == "فصل" or len(display_class_name.strip()) < 4:
+            for key in CLASSES.keys():
+                if key.startswith("فصل"):
+                    display_class_name = key
+                    break
+    
     # أنماط النصوص
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
     subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
@@ -766,11 +787,8 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **التصحيح: عرض اسم الفصل بشكل صحيح**
-    # نستخدم class_name مباشرة لأنه يجب أن يكون بالصيغة الصحيحة
-    full_class_name = class_name  # هذا يجب أن يكون "فصل C" أو "فصل B" إلخ
-    
-    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {full_class_name}"), subtitle_style))
+    # ✅ **استخدام القيمة المصححة لاسم الفصل**
+    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {display_class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
     elements.append(Spacer(1, 10))
@@ -1706,7 +1724,7 @@ if st.session_state.page == "login":
                 <p>• الطلاب من فصل E: e1001 إلى e1010</p>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        ""', unsafe_allow_html=True)
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:

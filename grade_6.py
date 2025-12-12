@@ -1724,7 +1724,7 @@ if st.session_state.page == "login":
                 <p>• الطلاب من فصل E: e1001 إلى e1010</p>
             </div>
         </div>
-        ""', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
@@ -1739,12 +1739,13 @@ elif st.session_state.logged_in:
         # 🆕 **الزرارين الجديدين للمعلم في الصفحة الرئيسية**
         if st.session_state.user_role == "teacher":
             # رسالة ترحيب
-            st.markdown(f"""
+            welcome_html = f"""
             <div class="welcome-message">
                 <div class="welcome-text">مرحباً بك 👨‍🏫 {st.session_state.user_name}</div>
                 <div class="user-info">يمكنك اختيار المهمة التي تريد تنفيذها:</div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+            st.markdown(welcome_html, unsafe_allow_html=True)
             
             # أزرار المهام الرئيسية
             st.markdown("### 📋 اختر المهمة:")
@@ -1768,12 +1769,13 @@ elif st.session_state.logged_in:
         
         elif st.session_state.user_role == "student":
             # رسالة ترحيب للطالب
-            st.markdown(f"""
+            welcome_html = f"""
             <div class="welcome-message">
                 <div class="welcome-text">مرحباً بك 👨‍🎓 {st.session_state.user_name}</div>
                 <div class="user-info">يمكنك عرض تقرير الغياب الخاص بك:</div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+            st.markdown(welcome_html, unsafe_allow_html=True)
             
             if st.button("👨‍🎓 تقرير الغياب الخاص بي", key="student_dashboard_btn", use_container_width=True):
                 st.session_state.page = "student_dashboard"

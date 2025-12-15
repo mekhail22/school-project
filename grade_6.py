@@ -1696,25 +1696,6 @@ if st.session_state.page == "login":
             else:
                 st.error("❌ من فضلك أدخل اسم المستخدم وكلمة المرور")
         
-        # معلومات مساعدة
-        st.markdown("""
-        <div class="help-info">
-            <div class="help-title">معلومات تسجيل الدخول</div>
-            <div class="help-text">
-                <p><strong>المعلمون:</strong></p>
-                <p>• مينا سمير - كلمة المرور: <strong>mina1234</strong></p>
-                <p>• فادي حبيب - كلمة المرور: <strong>fady5678</strong></p>
-                <br>
-                <p><strong>الطلاب:</strong></p>
-                <p>• كلمة المرور لكل طالب فريدة</p>
-                <p>• الطلاب من فصل C: c1001 إلى c1010</p>
-                <p>• الطلاب من فصل B: b1001 إلى b1010</p>
-                <p>• الطلاب من فصل D: d1001 إلى d1010</p>
-                <p>• الطلاب من فصل E: e1001 إلى e1010</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
     show_toolbar()
@@ -2112,3 +2093,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

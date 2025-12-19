@@ -1134,17 +1134,14 @@ def generate_system_report_pdf():
     
     # معلومات المعلمين
     elements.append(Paragraph(reshape_arabic_text("معلومات المعلمين"), subtitle_style))
-    elements.append(Paragraph("Teachers Information", english_style))
     elements.append(Spacer(1, 10))
     
     for teacher, classes in TEACHER_CLASSES.items():
         elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), normal_style))
-        elements.append(Paragraph(f"Teacher: {teacher}", english_style))
         elements.append(Spacer(1, 5))
         
         # أسماء الفصول بالإنجليزية
         english_classes = [c.replace("فصل", "Class").strip() for c in classes]
-        elements.append(Paragraph(reshape_arabic_text(f"الفصول المسؤول عنها: {', '.join(classes)}"), normal_style))
         elements.append(Paragraph(f"Assigned Classes: {', '.join(english_classes)}", english_style))
         
         # حساب إحصائيات كل فصل يدرسه المعلم
@@ -1159,18 +1156,13 @@ def generate_system_report_pdf():
     # الصفحة الأخيرة
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text("ملاحظات:"), subtitle_style))
-    elements.append(Paragraph("Notes:", english_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text("• هذا التقرير تم إنشاؤه تلقائياً من نظام الغياب الإلكتروني."), normal_style))
-    elements.append(Paragraph("• This report was automatically generated from the electronic attendance system.", english_style))
     elements.append(Paragraph(reshape_arabic_text("• البيانات محدثة حتى تاريخ إنشاء التقرير."), normal_style))
-    elements.append(Paragraph("• Data is updated until the report creation date.", english_style))
     
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
-    elements.append(Paragraph("System Administrator Signature:", english_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("________________________", english_style))
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), normal_style))
     
     doc.build(elements)
@@ -1219,7 +1211,6 @@ def generate_teachers_report_pdf():
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير المعلمين"), title_style))
-    elements.append(Paragraph("Teachers Report", english_style))
     elements.append(Spacer(1, 20))
     
     today = datetime.now()
@@ -1230,10 +1221,9 @@ def generate_teachers_report_pdf():
     # معلومات المعلمين
     for teacher, classes in TEACHER_CLASSES.items():
         elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), subtitle_style))
-        elements.append(Paragraph(f"Teacher: {teacher}", english_style))
         elements.append(Spacer(1, 10))
         
-        elements.append(Paragraph(reshape_arabic_text("الفصول المسؤول عنها:"), normal_style))
+
         elements.append(Paragraph("Assigned Classes:", english_style))
         
         # عرض الفصول التي يدرسها المعلم
@@ -2664,4 +2654,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

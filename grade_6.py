@@ -1230,8 +1230,6 @@ def generate_teachers_report_pdf():
             stats = get_class_statistics(class_name)
             class_students = CLASSES.get(class_name, [])
             
-            # اسم الفصل بالإنجليزية
-            english_class_name = class_name.replace("فصل", "Class").strip()
             
             # معلومات الفصل
             elements.append(Paragraph(reshape_arabic_text(f"{class_name}"), normal_style))
@@ -1294,7 +1292,6 @@ def generate_teachers_report_pdf():
     # الصفحة الأخيرة
     elements.append(Spacer(1, 30))
     elements.append(Paragraph(reshape_arabic_text("ملاحظات:"), subtitle_style))
-    elements.append(Paragraph("Notes:", english_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text("• هذا التقرير يوضح أداء المعلمين والفصول المسؤولين عنها."), normal_style))
     elements.append(Paragraph(reshape_arabic_text("• النسب تعتمد على البيانات المسجلة في النظام حتى تاريخ التقرير."), normal_style))
@@ -2647,4 +2644,5 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 

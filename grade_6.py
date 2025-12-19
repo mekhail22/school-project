@@ -1097,7 +1097,6 @@ def generate_system_report_pdf():
     
     # تفاصيل الفصول
     elements.append(Paragraph(reshape_arabic_text("تفاصيل الفصول"), subtitle_style))
-    elements.append(Paragraph("Class Details", english_style))
     elements.append(Spacer(1, 10))
     
     for class_name, students in CLASSES.items():
@@ -1108,7 +1107,6 @@ def generate_system_report_pdf():
         english_class_name = class_name.replace("فصل", "Class").strip()
         
         # معلومات الفصل
-        elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), normal_style))
         elements.append(Paragraph(f"Class: {english_class_name}", english_style))
         elements.append(Spacer(1, 5))
         
@@ -2335,7 +2333,6 @@ elif st.session_state.logged_in:
                     use_container_width=True
                 )
                 
-                st.success("✅ جاهز للتحميل")
                 st.info("""
                 **محتويات التقرير الشامل:**
                 1. الإحصائيات العامة للنظام
@@ -2363,7 +2360,6 @@ elif st.session_state.logged_in:
                     use_container_width=True
                 )
                 
-                st.success("✅ جاهز للتحميل")
                 st.info("""
                 **محتويات تقرير المعلمين:**
                 1. معلومات كل معلم والفصول المسؤول عنها
@@ -2408,7 +2404,6 @@ elif st.session_state.logged_in:
                         use_container_width=True
                     )
                     
-                    st.success("✅ جاهز للتحميل")
                     st.info(f"""
                     **محتويات تقرير {selected_class}:**
                     1. الإحصائيات العامة للفصل
@@ -2669,3 +2664,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

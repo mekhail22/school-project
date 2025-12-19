@@ -7,6 +7,7 @@ import json
 import logging
 import base64
 import requests
+import sys
 
 # Arabic/RTL PDF support
 import arabic_reshaper
@@ -21,6 +22,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Google Sheets / Auth
 import gspread
 from google.oauth2.service_account import Credentials
+
+# Excel writer
+import xlsxwriter  # ✅ تمت إضافة استيراد المكتبة المفقودة
 
 # Optional date parser
 try:
@@ -1111,7 +1115,7 @@ st.markdown("""
         margin-left: 10px;
     }
     .badge-admin {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
     }
     .badge-teacher {
@@ -1173,7 +1177,7 @@ st.markdown("""
         background: linear-gradient(135deg, #3b82f6, #2563eb);
     }
     .main-button.admin {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
     }
     .main-button.logout {
         background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -1211,7 +1215,7 @@ st.markdown("""
         border: 2px solid #e2e8f0;
     }
     .admin-section-title {
-        color: #7c3aed !important;
+        color: #1e40af !important;
         font-size: 24px !important;
         border-bottom: 3px solid #ddd6fe;
         padding-bottom: 10px;
@@ -1225,7 +1229,7 @@ st.markdown("""
     }
     .admin-button {
         padding: 12px 25px;
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white !important;
         border: none;
         border-radius: 10px;
@@ -1236,9 +1240,9 @@ st.markdown("""
         text-align: center;
     }
     .admin-button:hover {
-        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(123, 92, 246, 0.3);
+        box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
     }
     .admin-button.delete {
         background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -1258,7 +1262,7 @@ st.markdown("""
         margin: 20px 0;
     }
     .student-management-table th {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white;
         padding: 15px;
         text-align: right;
@@ -1276,136 +1280,78 @@ st.markdown("""
     .student-management-table tr:hover {
         background-color: #f3f4f6;
     }
-    /* تحسين ألوان المتركس */
-    .stMetric {
-        background: white !important;
+    /* جميع أزرار Streamlit الأساسية - أزرق */
+    .stButton > button {
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+        color: white !important;
+        border: none !important;
         border-radius: 12px !important;
-        padding: 20px !important;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
-        border: 2px solid #e2e8f0 !important;
-    }
-    .stMetric label {
-        color: #1e293b !important;
-        font-weight: 600 !important;
-        font-size: 18px !important;
-    }
-    .stMetric div {
-        color: #1e40af !important;
-        font-weight: 700 !important;
-        font-size: 28px !important;
     }
     
-    /* جميع نصوص الأزرار - نص أبيض */
-    button, 
-    button span,
-    button div,
-    button p,
-    button label,
-    .stButton button,
-    .stButton button span,
-    .stButton button p,
-    .stButton button div,
-    .stButton button label,
-    div[data-testid="stButton"] button,
-    div[data-testid="stButton"] button span,
-    div[data-testid="stButton"] button p,
-    div[data-testid="stButton"] button div,
-    div[data-testid="stButton"] button label,
-    div[data-testid="column"] button,
-    div[data-testid="column"] button span,
-    div[data-testid="column"] button p,
-    div[data-testid="column"] button div,
-    div[data-testid="column"] button label {
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
         color: white !important;
     }
     
-    /* hover states - نص أبيض */
-    button:hover,
-    button:hover span,
-    button:hover div,
-    button:hover p,
-    button:hover label,
-    .stButton button:hover,
-    .stButton button:hover span,
-    .stButton button:hover p,
-    .stButton button:hover div,
-    .stButton button:hover label,
-    div[data-testid="stButton"] button:hover,
-    div[data-testid="stButton"] button:hover span,
-    div[data-testid="stButton"] button:hover p,
-    div[data-testid="stButton"] button:hover div,
-    div[data-testid="stButton"] button:hover label,
-    div[data-testid="column"] button:hover,
-    div[data-testid="column"] button:hover span,
-    div[data-testid="column"] button:hover p,
-    div[data-testid="column"] button:hover div,
-    div[data-testid="column"] button:hover label {
+    /* زر تسجيل الدخول */
+    button[kind="primary"] {
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
     }
     
-    /* أزرار العودة - نص أبيض */
-    button.back-button,
-    button.back-button span,
-    button.back-button p,
-    button.back-button div {
+    button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        color: white !important;
+    }
+    
+    /* زر تسجيل الغياب بلون أخضر */
+    button.attendance-button {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+        color: white !important;
+    }
+    
+    button.attendance-button:hover {
+        background: linear-gradient(135deg, #059669, #047857) !important;
+        color: white !important;
+    }
+    
+    /* أزرار العودة - رمادي */
+    button.back-button {
         background: linear-gradient(135deg, #64748b, #475569) !important;
         color: white !important;
     }
     
-    button.back-button:hover,
-    button.back-button:hover span,
-    button.back-button:hover p,
-    button.back-button:hover div {
+    button.back-button:hover {
         background: linear-gradient(135deg, #475569, #334155) !important;
         color: white !important;
     }
     
-    /* زر تسجيل الخروج - نص أبيض */
-    button.logout-button,
-    button.logout-button span,
-    button.logout-button p,
-    button.logout-button div {
+    /* زر تسجيل الخروج - أحمر */
+    button.logout-button {
         background: linear-gradient(135deg, #ef4444, #dc2626) !important;
         color: white !important;
     }
     
-    button.logout-button:hover,
-    button.logout-button:hover span,
-    button.logout-button:hover p,
-    button.logout-button:hover div {
+    button.logout-button:hover {
         background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
         color: white !important;
     }
     
-    /* تحسين الملتيسيليكت */
-    .stMultiSelect > div > div {
-        background: white !important;
-        border: 3px solid #3b82f6 !important;
-        border-radius: 12px !important;
-        color: #1e293b !important;
-        font-size: 16px !important;
+    /* أزرار التنزيل - أزرق */
+    div[data-testid="stDownloadButton"] button {
+        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+        color: white !important;
     }
-    .stMultiSelect > div > div:hover {
-        border-color: #2563eb !important;
-    }
-    .stMultiSelect label {
-        color: #1e293b !important;
-        font-weight: 600 !important;
-        font-size: 18px !important;
+    
+    div[data-testid="stDownloadButton"] button:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        color: white !important;
     }
     
     /* أزرار الفصول */
-    .class-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin: 20px 0;
-        justify-content: center;
-    }
-    
     .class-button {
         padding: 15px 30px;
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white !important;
         border: none;
         border-radius: 12px;
@@ -1418,9 +1364,9 @@ st.markdown("""
     }
     
     .class-button:hover {
-        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(123, 92, 246, 0.3);
+        box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
     }
     
     .student-list-container {
@@ -1542,9 +1488,9 @@ st.markdown("""
         border: 2px solid transparent;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #7c3aed;
+        background-color: #2563eb !important;
         color: white !important;
-        border-color: #7c3aed;
+        border-color: #2563eb !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -2056,6 +2002,12 @@ elif st.session_state.logged_in:
                 total_teachers = len(TEACHER_CLASSES)
                 st.metric("عدد المعلمين", total_teachers)
             
+            # معلومات الاتصال (مخفية في الشريط الجانبي)
+            with st.sidebar.expander("🔗 حالة الاتصال"):
+                st.info(f"**حالة الاتصال:** {connection_status}")
+                if connection_details:
+                    st.info(f"**تفاصيل:** {connection_details}")
+            
             # رسم بياني لتوزيع الغياب حسب الفصل
             st.markdown("### 📈 توزيع الغياب حسب الفصول")
             
@@ -2086,8 +2038,6 @@ elif st.session_state.logged_in:
                     st.info("لا توجد سجلات للعرض بعد.")
             else:
                 st.info("لا توجد بيانات كافية للعرض.")
-            
-       
         
         with tab2:
             st.markdown("### 👥 إدارة الطلاب")
@@ -2468,19 +2418,37 @@ elif st.session_state.logged_in:
                         use_container_width=True
                     )
                     
-                    # تحميل كـ Excel
-                    excel_buffer = io.BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                        df_all.to_excel(writer, index=False, sheet_name='الغياب')
-                        writer.close()
-                    
-                    st.download_button(
-                        label="📥 تحميل جميع البيانات (Excel)",
-                        data=excel_buffer.getvalue(),
-                        file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        mime="application/vnd.ms-excel",
-                        use_container_width=True
-                    )
+                    # ✅ **تم التصحيح: تصدير كـ Excel باستخدام xlsxwriter**
+                    try:
+                        # تحميل كـ Excel
+                        excel_buffer = io.BytesIO()
+                        
+                        # ✅ **استخدام xlsxwriter بدلاً من pd.ExcelWriter**
+                        workbook = xlsxwriter.Workbook(excel_buffer, {'in_memory': True})
+                        worksheet_excel = workbook.add_worksheet('الغياب')
+                        
+                        # كتابة العناوين
+                        headers = list(df_all.columns)
+                        for col_num, header in enumerate(headers):
+                            worksheet_excel.write(0, col_num, header)
+                        
+                        # كتابة البيانات
+                        for row_num, row_data in enumerate(df_all.values, 1):
+                            for col_num, cell_data in enumerate(row_data):
+                                worksheet_excel.write(row_num, col_num, cell_data)
+                        
+                        workbook.close()
+                        excel_buffer.seek(0)
+                        
+                        st.download_button(
+                            label="📥 تحميل جميع البيانات (Excel)",
+                            data=excel_buffer.getvalue(),
+                            file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"❌ خطأ في إنشاء ملف Excel: {str(e)}")
                 else:
                     st.info("📭 لا توجد بيانات للتصدير.")
         
@@ -2530,6 +2498,7 @@ elif st.session_state.logged_in:
                             "classes": CLASSES,
                             "teacher_classes": TEACHER_CLASSES,
                             "users": USERS,
+                            "student_passwords": student_passwords,
                             "timestamp": datetime.now().isoformat()
                         }
                         
@@ -2552,4 +2521,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

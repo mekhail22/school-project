@@ -1653,7 +1653,7 @@ if st.session_state.page == "login":
         # حقل إدخال اسم المستخدم مع تسمية واضحة
         st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
-                                placeholder="أدخل اسمك (مثال: مينا سمير أو أحمد محمد أحمد)",
+                                placeholder="أدخل اسمك ",
                                 label_visibility="collapsed")
         
         # حقل إدخال كلمة السر مع تسمية واضحة
@@ -2091,5 +2091,6 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 
 

@@ -1,10 +1,10 @@
 streamlit
 pandas
+gspread
+google-auth
+oauth2client
+requests
 arabic-reshaper
 python-bidi
 reportlab
-requests
-gspread
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
+xlsxwriter==3.2.0

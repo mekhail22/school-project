@@ -1483,7 +1483,7 @@ st.markdown("""
     .student-management-table tr:hover {
         background-color: #f3f4f6;
     }
-    /* جميع أزرار Streamlit الأساسية - أزرق */
+    /* جميع أزرار Streamlit الأساسية - أبيض */
     .stButton > button {
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
@@ -1497,7 +1497,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* زر تسجيل الدخول */
+    /* زر تسجيل الدخول - أبيض */
     button[kind="primary"] {
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
@@ -1508,7 +1508,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* زر تسجيل الغياب بلون أخضر */
+    /* زر تسجيل الغياب - أبيض */
     button.attendance-button {
         background: linear-gradient(135deg, #10b981, #059669) !important;
         color: white !important;
@@ -1519,7 +1519,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* أزرار العودة - رمادي */
+    /* أزرار العودة - أبيض */
     button.back-button {
         background: linear-gradient(135deg, #64748b, #475569) !important;
         color: white !important;
@@ -1530,7 +1530,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* زر تسجيل الخروج - أحمر */
+    /* زر تسجيل الخروج - أبيض */
     button.logout-button {
         background: linear-gradient(135deg, #ef4444, #dc2626) !important;
         color: white !important;
@@ -1541,7 +1541,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* أزرار التنزيل - أزرق */
+    /* أزرار التنزيل - أبيض */
     div[data-testid="stDownloadButton"] button {
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
         color: white !important;
@@ -1552,7 +1552,7 @@ st.markdown("""
         color: white !important;
     }
     
-    /* أزرار الفصول */
+    /* أزرار الفصول - أبيض */
     .class-button {
         padding: 15px 30px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
@@ -1704,6 +1704,18 @@ st.markdown("""
     /* تحسين الـ metric */
     [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
         color: #1e293b !important;
+    }
+    /* إصلاح الأزرار داخل النماذج */
+    .stForm button {
+        color: white !important;
+    }
+    /* إصلاح نص الأزرار داخل التنزيل */
+    .stDownloadButton button {
+        color: white !important;
+    }
+    /* تحسين لون النصوص داخل الرسائل */
+    .stAlert [data-testid="stMarkdownContainer"] {
+        color: inherit !important;
     }
 </style>
 """, unsafe_allow_html=True)

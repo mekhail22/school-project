@@ -2087,11 +2087,7 @@ elif st.session_state.logged_in:
             else:
                 st.info("لا توجد بيانات كافية للعرض.")
             
-            # معلومات الاتصال
-            st.markdown("### 🔗 حالة الاتصال")
-            st.info(f"**حالة الاتصال:** {connection_status}")
-            if connection_details:
-                st.info(f"**تفاصيل:** {connection_details}")
+       
         
         with tab2:
             st.markdown("### 👥 إدارة الطلاب")
@@ -2556,3 +2552,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

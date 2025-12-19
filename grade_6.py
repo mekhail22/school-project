@@ -777,7 +777,6 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Spacer(1, 20))
     
     # ✅ **استخدام القيمة المصححة لاسم الفصل**
-    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {display_class_name}"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
     elements.append(Spacer(1, 10))
@@ -1872,13 +1871,12 @@ elif st.session_state.logged_in:
                                 st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
                             else:
                                 if success_count > 0:
-                                    st.success(f"✅ تم تسجيل الغياب بنجاح لـ {success_count} طالب")
+                                    st.success(f"✅ تم تسجيل الغياب بنجاح")
                                     
                                     # عرض ملخص
                                     with st.expander("📊 ملخص التسجيل", expanded=True):
                                         st.markdown(f"""
                                         **تفاصيل التسجيل:**
-                                        - **الفصل:** {selected_class}
                                         - **المعلم:** {teacher_name}
                                         - **عدد الطلاب الكلي:** {len(class_students)}
                                         - **عدد الغائبين:** {len(selected)}
@@ -2093,4 +2091,5 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
 

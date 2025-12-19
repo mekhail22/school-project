@@ -998,14 +998,12 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Spacer(1, 50))
     elements.append(Paragraph(reshape_arabic_text("توقيع المعلم:"), header_style))
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph("________________________", english_style))
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text(f"{teacher_name}"), normal_style))
     
     elements.append(Spacer(1, 50))
     elements.append(Paragraph(reshape_arabic_text("توقيع مدير المدرسة:"), header_style))
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph("________________________", english_style))
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text("مدير مدرسة السلام الإعدادية الثانويه المشتركه"), normal_style))
     
@@ -1269,7 +1267,6 @@ def generate_teachers_report_pdf():
     # إحصائيات عامة
     elements.append(PageBreak())
     elements.append(Paragraph(reshape_arabic_text("إحصائيات عامة"), subtitle_style))
-    elements.append(Paragraph("General Statistics", english_style))
     elements.append(Spacer(1, 10))
     
     # حساب إجماليات
@@ -1300,15 +1297,11 @@ def generate_teachers_report_pdf():
     elements.append(Paragraph("Notes:", english_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text("• هذا التقرير يوضح أداء المعلمين والفصول المسؤولين عنها."), normal_style))
-    elements.append(Paragraph("• This report shows the performance of teachers and their assigned classes.", english_style))
     elements.append(Paragraph(reshape_arabic_text("• النسب تعتمد على البيانات المسجلة في النظام حتى تاريخ التقرير."), normal_style))
-    elements.append(Paragraph("• Rates are based on data recorded in the system until the report date.", english_style))
     
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
-    elements.append(Paragraph("System Administrator Signature:", english_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("________________________", english_style))
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), normal_style))
     
     doc.build(elements)
@@ -2654,3 +2647,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

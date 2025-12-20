@@ -1717,6 +1717,91 @@ st.markdown("""
     .stAlert [data-testid="stMarkdownContainer"] {
         color: inherit !important;
     }
+    
+    /* جميع أزرار Streamlit في جميع الصفحات - أبيض */
+    .stButton button, button {
+        color: white !important;
+    }
+    
+    /* أزرار متعددة الاستخدامات */
+    .primary-button, .secondary-button, .success-button, .danger-button {
+        color: white !important;
+    }
+    
+    /* أزرار داخل النماذج */
+    .stForm button, .stForm .stButton button {
+        color: white !important;
+    }
+    
+    /* أزرار اختيار الفصول */
+    button[kind="secondary"] {
+        color: white !important;
+    }
+    
+    /* أزرار العودة */
+    .stButton button[kind="secondary"] {
+        color: white !important;
+    }
+    
+    /* أزرار التبويبات */
+    .stTabs button {
+        color: white !important;
+    }
+    
+    /* أزرار متعددة الاستخدامات */
+    div.stButton > button, div[data-testid="stButton"] button {
+        color: white !important;
+    }
+    
+    /* أزرار داخل الحاويات */
+    .stButton > button > div > p, .stButton > button > div {
+        color: white !important;
+    }
+    
+    /* أزرار كبيرة */
+    button[data-testid="baseButton-primary"] {
+        color: white !important;
+    }
+    
+    button[data-testid="baseButton-secondary"] {
+        color: white !important;
+    }
+    
+    /* جميع الأزرار في النظام */
+    .stButton > button span, button span, .stButton > button div, button div {
+        color: white !important;
+    }
+    
+    /* أزرار خاصة */
+    .stButton > button > div > div {
+        color: white !important;
+    }
+    
+    /* إصلاح جميع حالات النصوص داخل الأزرار */
+    button *, .stButton > button * {
+        color: white !important;
+    }
+    
+    /* تنسيق إضافي لضمان ظهور النص أبيض */
+    .stButton > button {
+        color: white !important;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* أزرار داخل الجداول */
+    td .stButton > button {
+        color: white !important;
+    }
+    
+    /* أزرار داخل المودال */
+    .modal button, .modal .stButton > button {
+        color: white !important;
+    }
+    
+    /* إضافة تظليل للنصوص للمساعدة في الرؤية */
+    .stButton > button span, button span {
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 

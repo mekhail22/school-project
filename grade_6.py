@@ -15,7 +15,7 @@ from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -39,22 +39,22 @@ st.set_page_config(page_title="نظام الغياب", layout="wide")
 # ------------------ App settings ------------------
 # قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
 CLASSES = {
-    "فصل B": [
+    "Class B": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
     ],
-    "فصل C": [
+    "Class C": [
         "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
         "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
         "هشام نبيل هشام", "وليد جمال وليد"
     ],
-    "فصل D": [
+    "Class D": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
         "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
         "مجدي جمال مجدي", "سليمان هشام سليمان"
     ],
-    "فصل E": [
+    "Class E": [
         "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
         "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
         "فاروق جمال فاروق", "أنور هشام أنور"
@@ -74,8 +74,8 @@ for class_name, students in CLASSES.items():
 
 # قائمة المعلمين والفصول التي يدرسونها
 TEACHER_CLASSES = {
-    "مينا سمير": ["فصل B", "فصل C"],
-    "فادي حبيب": ["فصل D", "فصل E"]
+    "مينا سمير": ["Class B", "Class C"],
+    "فادي حبيب": ["Class D", "Class E"]
 }
 
 # مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
@@ -91,13 +91,13 @@ USERS = {
         "password": "mina1234",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["فصل B", "فصل C"]
+        "classes": ["Class B", "Class C"]
     },
     "فادي حبيب": {
         "password": "fady5678",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["فصل D", "فصل E"]
+        "classes": ["Class D", "Class E"]
     },
 }
 
@@ -274,39 +274,53 @@ else:
     connection_status = "❌ إعدادات الاتصال غير كاملة"
 
 # ------------------ باقي الكود ------------------
-# Arabic font for PDF
-FONT_PATH = "NotoNaskhArabic-Regular.ttf"
-FONT_NAME = "ArabicCustom"
+# Font paths
+ARABIC_FONT_PATH = "NotoNaskhArabic-Regular.ttf"
+ENGLISH_FONT_PATH = "DejaVuSans.ttf"
+ARABIC_FONT_NAME = "ArabicCustom"
+ENGLISH_FONT_NAME = "EnglishCustom"
 
-def ensure_font():
-    if not os.path.exists(FONT_PATH):
+def ensure_fonts():
+    """تأكد من وجود الخطوط العربية والإنجليزية"""
+    # تحميل الخط العربي
+    if not os.path.exists(ARABIC_FONT_PATH):
         url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
         try:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
-            with open(FONT_PATH, "wb") as f:
+            with open(ARABIC_FONT_PATH, "wb") as f:
                 f.write(r.content)
         except Exception:
             pass
+    
+    # تحميل الخط الإنجليزي
+    if not os.path.exists(ENGLISH_FONT_PATH):
+        try:
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+            # استخدام خط إنجليزي افتراضي
+            try:
+                from reportlab.lib.fonts import addMapping
+                from reportlab.lib.styles import getSampleStyleSheet
+                styles = getSampleStyleSheet()
+                return ARABIC_FONT_NAME if os.path.exists(ARABIC_FONT_PATH) else None
+            except Exception:
+                pass
+        except Exception:
+            pass
+    
+    # تسجيل الخطوط
     try:
-        if os.path.exists(FONT_PATH):
-            pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
-            return FONT_NAME
-        else:
-            return None
+        if os.path.exists(ARABIC_FONT_PATH):
+            pdfmetrics.registerFont(TTFont(ARABIC_FONT_NAME, ARABIC_FONT_PATH))
+        if os.path.exists(ENGLISH_FONT_PATH):
+            pdfmetrics.registerFont(TTFont(ENGLISH_FONT_NAME, ENGLISH_FONT_PATH))
     except Exception:
         pass
+    
+    return ARABIC_FONT_NAME if os.path.exists(ARABIC_FONT_PATH) else None
 
-    for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
-        try:
-            pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
-            return FONT_NAME
-        except Exception:
-            continue
-
-    return None
-
-REGISTERED_FONT = ensure_font()
+REGISTERED_ARABIC_FONT = ensure_fonts()
 
 # Helper functions
 def reshape_arabic_text(text):
@@ -589,14 +603,14 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
                     success_count += 1
             except Exception as ex:
                 failed.append((f"الفصل {class_name}", str(ex)))
-    elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
+    elif rows:  # إذا كان هناك صفور ولكن لا يوجد اتصال
         failed.append((f"الفصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
     
     # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+    if rows:  # فقط إذا كان هناك صفور (وهذا يعني دائماً يوجد صفور لأننا نسجل جميع الطلاب)
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
@@ -703,64 +717,86 @@ def generate_student_pdf(student_name, df_records):
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
+    # استخدام أنماط النصوص
+    styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=18, alignment=1, textColor=colors.darkblue)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
-
-    elements.append(Paragraph(reshape_arabic_text("تقرير الغياب"), title_style))
+    # إنشاء أنماط مخصصة
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=18,
+        alignment=1,  # Center
+        textColor=colors.darkblue,
+        spaceAfter=12
+    )
+    
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=2,  # Right
+        spaceAfter=6
+    )
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=2,  # Right
+        textColor=colors.darkblue
+    )
+    
+    # العنوان - باللغة العربية
+    elements.append(Paragraph("Attendance Report", title_style))
     elements.append(Spacer(1, 8))
-    elements.append(Paragraph(reshape_arabic_text(f"الاسم: {student_name}"), normal_style))
+    elements.append(Paragraph(f"Student Name: {student_name}", normal_style))
     elements.append(Spacer(1, 8))
 
     if df_records.empty:
-        elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات لهذا الطالب."), normal_style))
+        elements.append(Paragraph("No records found for this student.", normal_style))
     else:
         # حساب الغياب بغض النظر عن نوعه (بعذر أو بدون عذر)
         absent_count = int((df_records["الحالة"] == "غياب").sum())
         present_count = int((df_records["الحالة"] == "حاضر").sum())
         total_count = len(df_records)
         
-        elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الغياب: {absent_count}"), normal_style))
-        elements.append(Paragraph(reshape_arabic_text(f"عدد مرات الحضور: {present_count}"), normal_style))
-        elements.append(Paragraph(reshape_arabic_text(f"إجمالي عدد السجلات: {total_count}"), normal_style))
+        elements.append(Paragraph(f"Total Absences: {absent_count}", normal_style))
+        elements.append(Paragraph(f"Total Attendances: {present_count}", normal_style))
+        elements.append(Paragraph(f"Total Records: {total_count}", normal_style))
         
         if total_count > 0:
             attendance_rate = (present_count / total_count) * 100
-            elements.append(Paragraph(reshape_arabic_text(f"نسبة الحضور: {attendance_rate:.1f}%"), normal_style))
+            elements.append(Paragraph(f"Attendance Rate: {attendance_rate:.1f}%", normal_style))
         
         elements.append(Spacer(1, 10))
 
-        header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
+        # Header with English column names
+        header = ["#", "Student Name", "Teacher", "Class", "Date", "Status"]
         data = [header]
         for _, row in df_records.iterrows():
             data.append([
-                reshape_arabic_text(str(row.get("المرة", ""))),
-                reshape_arabic_text(str(row.get("الطالب", ""))),
-                reshape_arabic_text(str(row.get("المعلم", ""))),
-                reshape_arabic_text(str(row.get("الفصل", ""))),
-                reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
-                reshape_arabic_text(str(row.get("الحالة", "")))
+                str(row.get("المرة", "")),
+                str(row.get("الطالب", "")),
+                str(row.get("المعلم", "")),
+                str(row.get("الفصل", "")),
+                normalize_date_for_pdf(row.get("التاريخ", "")),
+                str(row.get("الحالة", ""))
             ])
-        table = Table(data, hAlign='CENTER', colWidths=[50, 130, 100, 80, 100, 70])
+        table = Table(data, hAlign='CENTER', colWidths=[40, 150, 100, 80, 100, 70])
         table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOLD', (0, 0), (-1, 0), True)  # Bold header
         ]))
         elements.append(table)
 
     elements.append(Spacer(1, 14))
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ إنشاء التقرير: {current_date}"), footer_style))
+    elements.append(Paragraph(f"Report Generation Date: {current_date}", footer_style))
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -770,140 +806,155 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
-    
-    # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
-    display_class_name = str(class_name)
-    
-    # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
-    if display_class_name == "الفصل" or display_class_name.strip() == "الفصل" or len(display_class_name.strip()) <= 3:
-        # نبحث عن القيمة الصحيحة في قائمة الفصول
-        for full_class_name in CLASSES.keys():
-            if full_class_name.startswith("الفصل"):
-                display_class_name = full_class_name
-                break
-    
     # أنماط النصوص
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
-    header_style = ParagraphStyle('Header', fontName=font_for_style, fontSize=14, alignment=2, textColor=colors.black)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=22,
+        alignment=1,
+        textColor=colors.darkblue
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        alignment=1,
+        textColor=colors.navy
+    )
+    
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Heading3'],
+        fontSize=14,
+        alignment=2,
+        textColor=colors.black
+    )
+    
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=2,
+        spaceAfter=6
+    )
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=2,
+        textColor=colors.darkblue
+    )
     
     # صفحة الغلاف
-    elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
+    elements.append(Paragraph("Complete Attendance Report", title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **استخدام القيمة المصححة لاسم الفصل**
+    # معلومات الفصل باللغة الإنجليزية
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
-    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"Teacher: {teacher_name}", normal_style))
+    elements.append(Paragraph(f"Class: {class_name}", normal_style))
     
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ التقرير: {current_date}"), normal_style))
+    elements.append(Paragraph(f"Report Date: {current_date}", normal_style))
     elements.append(Spacer(1, 20))
     
     # الإحصائيات العامة
-    elements.append(Paragraph(reshape_arabic_text("الإحصائيات العامة"), subtitle_style))
+    elements.append(Paragraph("General Statistics", subtitle_style))
     elements.append(Spacer(1, 10))
     
-    # جدول الإحصائيات
+    # جدول الإحصائيات بالإنجليزية
     stats_data = [
-        [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(stats["total_students"]))],
-        [reshape_arabic_text("إجمالي السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-        [reshape_arabic_text("عدد الحضور"), reshape_arabic_text(str(stats["present_count"]))],
-        [reshape_arabic_text("عدد الغياب"), reshape_arabic_text(str(stats["absent_count"]))],
-        [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")]
+        ["Number of Students", str(stats["total_students"])],
+        ["Total Records", str(stats["total_records"])],
+        ["Present Count", str(stats["present_count"])],
+        ["Absent Count", str(stats["absent_count"])],
+        ["Attendance Rate", f"{stats['attendance_rate']:.1f}%"]
     ]
     
     stats_table = Table(stats_data, colWidths=[150, 100])
     stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOLD', (0, 0), (-1, 0), True)
     ]))
     elements.append(stats_table)
     
     elements.append(PageBreak())
     
     # إحصائيات الطلاب
-    elements.append(Paragraph(reshape_arabic_text("إحصائيات الطلاب"), subtitle_style))
+    elements.append(Paragraph("Student Statistics", subtitle_style))
     elements.append(Spacer(1, 10))
     
     if stats["students"]:
-        # جدول تفصيلي للطلاب
+        # جدول تفصيلي للطلاب بالإنجليزية
         student_header = [
-            reshape_arabic_text("اسم الطالب"),
-            reshape_arabic_text("عدد السجلات"),
-            reshape_arabic_text("الحضور"),
-            reshape_arabic_text("الغياب"),
-            reshape_arabic_text("نسبة الحضور %")
+            "Student Name",
+            "Total Records",
+            "Present",
+            "Absent",
+            "Attendance Rate %"
         ]
         
         student_data = [student_header]
         for student in stats["students"]:
             student_data.append([
-                reshape_arabic_text(student["name"]),
-                reshape_arabic_text(str(student["total"])),
-                reshape_arabic_text(str(student["present"])),
-                reshape_arabic_text(str(student["absent"])),
-                reshape_arabic_text(f"{student['rate']:.1f}%")
+                student["name"],
+                str(student["total"]),
+                str(student["present"]),
+                str(student["absent"]),
+                f"{student['rate']:.1f}%"
             ])
         
         student_table = Table(student_data, colWidths=[150, 70, 60, 60, 80])
         student_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),  # حجم خط أكبر للرأس
+            ('BOLD', (0, 0), (-1, 0), True)
         ]))
         elements.append(student_table)
     
     elements.append(PageBreak())
     
-    # سجل الحضور
-    elements.append(Paragraph(reshape_arabic_text("سجل الحضور التفصيلي"), subtitle_style))
+    # سجل الحضور بالإنجليزية
+    elements.append(Paragraph("Detailed Attendance Record", subtitle_style))
     elements.append(Spacer(1, 10))
     
     if not history_df.empty:
-        history_display = history_df.copy()  # عرض كل السجلات
-        
         history_header = [
-            reshape_arabic_text("الطالب"),
-            reshape_arabic_text("المعلم"),
-            reshape_arabic_text("التاريخ"),
-            reshape_arabic_text("الحالة")
+            "Student",
+            "Teacher",
+            "Date",
+            "Status"
         ]
         
         history_data = [history_header]
-        for _, row in history_display.iterrows():
+        for _, row in history_df.iterrows():
             history_data.append([
-                reshape_arabic_text(str(row.get("student", ""))),
-                reshape_arabic_text(str(row.get("teacher", ""))),
-                reshape_arabic_text(normalize_date_for_pdf(row.get("date_clean", ""))),
-                reshape_arabic_text(str(row.get("status_clean", "")))
+                str(row.get("student", "")),
+                str(row.get("teacher", "")),
+                normalize_date_for_pdf(row.get("date_clean", "")),
+                str(row.get("status_clean", ""))
             ])
         
-        # حساب عدد الصفوف في كل صفحة (تقريباً 35 صف في الصفحة)
         rows_per_page = 35
-        total_rows = len(history_data) - 1  # ناقص رأس الجدول
+        total_rows = len(history_data) - 1
         
         if total_rows > rows_per_page:
-            # تقسيم الجدول إلى صفحات متعددة
             for page_num in range(0, total_rows, rows_per_page):
                 if page_num > 0:
                     elements.append(PageBreak())
-                    elements.append(Paragraph(reshape_arabic_text(f"سجل الحضور التفصيلي - استكمال"), subtitle_style))
+                    elements.append(Paragraph("Detailed Attendance Record - Continued", subtitle_style))
                     elements.append(Spacer(1, 10))
                 
                 end_idx = min(page_num + rows_per_page, total_rows)
@@ -911,54 +962,52 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 
                 history_table = Table(page_data, colWidths=[150, 100, 100, 80])
                 history_table.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (-1, -1), font_for_style),
                     ('FONTSIZE', (0, 0), (-1, -1), 10),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
+                    ('BOLD', (0, 0), (-1, 0), True)
                 ]))
                 elements.append(history_table)
                 
-                # إضافة رقم الصفحة
                 elements.append(Spacer(1, 10))
-                elements.append(Paragraph(reshape_arabic_text(f"الصفحة {page_num//rows_per_page + 1} من {((total_rows - 1)//rows_per_page) + 1}"), 
-                                         ParagraphStyle('PageNumber', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
+                elements.append(Paragraph(f"Page {page_num//rows_per_page + 1} of {((total_rows - 1)//rows_per_page) + 1}", 
+                                         ParagraphStyle('PageNumber', fontSize=10, alignment=2, textColor=colors.gray)))
         else:
-            # إذا كان الجدول صغيراً يكفي لصفحة واحدة
             history_table = Table(history_data, colWidths=[150, 100, 100, 80])
             history_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), font_for_style),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
+                ('BOLD', (0, 0), (-1, 0), True)
             ]))
             elements.append(history_table)
     else:
-        elements.append(Paragraph(reshape_arabic_text("لا توجد سجلات حضرور لهذا الفصل بعد."), normal_style))
+        elements.append(Paragraph("No attendance records found for this class yet.", normal_style))
     
-    # الصفحة الأخيرة - التوقيعات
+    # الصفحة الأخيرة - التوقيعات بالإنجليزية
     elements.append(PageBreak())
     elements.append(Spacer(1, 50))
-    elements.append(Paragraph(reshape_arabic_text("توقيع المعلم:"), header_style))
+    elements.append(Paragraph("Teacher Signature:", header_style))
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
+    elements.append(Paragraph("________________________", normal_style))
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(reshape_arabic_text(f"{teacher_name}"), normal_style))
+    elements.append(Paragraph(f"{teacher_name}", normal_style))
     
     elements.append(Spacer(1, 50))
-    elements.append(Paragraph(reshape_arabic_text("توقيع مدير المدرسة:"), header_style))
+    elements.append(Paragraph("School Director Signature:", header_style))
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
+    elements.append(Paragraph("________________________", normal_style))
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(reshape_arabic_text("مدير مدرسة السلام الإعدادية الثانويه المشتركه"), normal_style))
+    elements.append(Paragraph("Al-Salam Secondary School Director", normal_style))
     
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
+    elements.append(Paragraph(f"Print Date: {current_date}", footer_style))
     
     doc.build(elements)
     buffer.seek(0)
@@ -970,55 +1019,79 @@ def generate_system_report_pdf():
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
+    # أنماط النصوص
+    styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=22,
+        alignment=1,
+        textColor=colors.darkblue
+    )
     
-    # صفحة الغلاف
-    elements.append(Paragraph(reshape_arabic_text("تقرير شامل لنظام الغياب"), title_style))
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        alignment=2,
+        textColor=colors.navy
+    )
+    
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=2
+    )
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=2,
+        textColor=colors.darkblue
+    )
+    
+    # صفحة الغلاف بالإنجليزية
+    elements.append(Paragraph("Comprehensive System Attendance Report", title_style))
     elements.append(Spacer(1, 20))
     
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ التقرير: {current_date}"), normal_style))
+    elements.append(Paragraph(f"Report Date: {current_date}", normal_style))
     elements.append(Spacer(1, 20))
     
-    # الإحصائيات العامة
-    elements.append(Paragraph(reshape_arabic_text("الإحصائيات العامة للنظام"), subtitle_style))
+    # الإحصائيات العامة بالإنجليزية
+    elements.append(Paragraph("General System Statistics", subtitle_style))
     elements.append(Spacer(1, 10))
     
     df_all = read_sheet()
     total_records = len(df_all) if not df_all.empty else 0
     
-    # جدول الإحصائيات العامة
+    # جدول الإحصائيات العامة بالإنجليزية
     stats_data = [
-        [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(ALL_STUDENTS)))],
-        [reshape_arabic_text("عدد الفصول"), reshape_arabic_text(str(len(CLASSES)))],
-        [reshape_arabic_text("عدد المعلمين"), reshape_arabic_text(str(len(TEACHER_CLASSES)))],
-        [reshape_arabic_text("إجمالي سجلات الغياب"), reshape_arabic_text(str(total_records))]
+        ["Total Students", str(len(ALL_STUDENTS))],
+        ["Total Classes", str(len(CLASSES))],
+        ["Total Teachers", str(len(TEACHER_CLASSES))],
+        ["Total Attendance Records", str(total_records)]
     ]
     
     stats_table = Table(stats_data, colWidths=[150, 100])
     stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOLD', (0, 0), (-1, 0), True)
     ]))
     elements.append(stats_table)
     
     elements.append(PageBreak())
     
-    # تفاصيل الفصول
-    elements.append(Paragraph(reshape_arabic_text("تفاصيل الفصول"), subtitle_style))
+    # تفاصيل الفصول بالإنجليزية
+    elements.append(Paragraph("Classes Details", subtitle_style))
     elements.append(Spacer(1, 10))
     
     for class_name, students in CLASSES.items():
@@ -1026,23 +1099,22 @@ def generate_system_report_pdf():
         stats = get_class_statistics(class_name)
         
         # معلومات الفصل
-        elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), normal_style))
+        elements.append(Paragraph(f"Class: {class_name}", normal_style))
         elements.append(Spacer(1, 5))
         
         # جدول إحصائيات الفصل
         class_stats_data = [
-            [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(students)))],
-            [reshape_arabic_text("عدد السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-            [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")],
-            [reshape_arabic_text("المعلم المسؤول"), reshape_arabic_text(', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين')]
+            ["Number of Students", str(len(students))],
+            ["Total Records", str(stats["total_records"])],
+            ["Attendance Rate", f"{stats['attendance_rate']:.1f}%"],
+            ["Responsible Teacher", ', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'Not Assigned']
         ]
         
         class_stats_table = Table(class_stats_data, colWidths=[100, 80])
         class_stats_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
         elements.append(class_stats_table)
@@ -1051,36 +1123,36 @@ def generate_system_report_pdf():
     
     elements.append(PageBreak())
     
-    # معلومات المعلمين
-    elements.append(Paragraph(reshape_arabic_text("معلومات المعلمين"), subtitle_style))
+    # معلومات المعلمين بالإنجليزية
+    elements.append(Paragraph("Teachers Information", subtitle_style))
     elements.append(Spacer(1, 10))
     
     for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), normal_style))
+        elements.append(Paragraph(f"Teacher: {teacher}", normal_style))
         elements.append(Spacer(1, 5))
-        elements.append(Paragraph(reshape_arabic_text(f"الفصول المسؤول عنها: {', '.join(classes)}"), normal_style))
+        elements.append(Paragraph(f"Responsible Classes: {', '.join(classes)}", normal_style))
         
         # حساب إحصائيات كل فصل يدرسه المعلم
         for class_name in classes:
             stats = get_class_statistics(class_name)
-            elements.append(Paragraph(reshape_arabic_text(f"  - {class_name}: {stats['total_records']} سجل، نسبة الحضور: {stats['attendance_rate']:.1f}%"), 
-                                     ParagraphStyle('Indent', fontName=font_for_style, fontSize=11, alignment=2, leftIndent=20)))
+            elements.append(Paragraph(f"  - {class_name}: {stats['total_records']} records, Attendance Rate: {stats['attendance_rate']:.1f}%", 
+                                     ParagraphStyle('Indent', fontSize=11, alignment=2, leftIndent=20)))
         
         elements.append(Spacer(1, 10))
     
-    # الصفحة الأخيرة
+    # الصفحة الأخيرة بالإنجليزية
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(reshape_arabic_text("ملاحظات:"), subtitle_style))
+    elements.append(Paragraph("Notes:", subtitle_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(reshape_arabic_text("• هذا التقرير تم إنشاؤه تلقائياً من نظام الغياب الإلكتروني."), normal_style))
-    elements.append(Paragraph(reshape_arabic_text("• البيانات محدثة حتى تاريخ إنشاء التقرير."), normal_style))
-    elements.append(Paragraph(reshape_arabic_text("• يمكن للمدير الوصول إلى البيانات التفصيلية من لوحة التحكم."), normal_style))
+    elements.append(Paragraph("• This report was automatically generated by the electronic attendance system.", normal_style))
+    elements.append(Paragraph("• Data is updated until the report generation date.", normal_style))
+    elements.append(Paragraph("• The administrator can access detailed data from the control panel.", normal_style))
     
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
+    elements.append(Paragraph("System Administrator Signature:", subtitle_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
+    elements.append(Paragraph("________________________", normal_style))
+    elements.append(Paragraph(f"Print Date: {current_date}", footer_style))
     
     doc.build(elements)
     buffer.seek(0)
@@ -1092,31 +1164,55 @@ def generate_teachers_report_pdf():
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
+    # أنماط النصوص
+    styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=22,
+        alignment=1,
+        textColor=colors.darkblue
+    )
     
-    # صفحة الغلاف
-    elements.append(Paragraph(reshape_arabic_text("تقرير المعلمين"), title_style))
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        alignment=2,
+        textColor=colors.navy
+    )
+    
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=2
+    )
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=2,
+        textColor=colors.darkblue
+    )
+    
+    # صفحة الغلاف بالإنجليزية
+    elements.append(Paragraph("Teachers Performance Report", title_style))
     elements.append(Spacer(1, 20))
     
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ التقرير: {current_date}"), normal_style))
+    elements.append(Paragraph(f"Report Date: {current_date}", normal_style))
     elements.append(Spacer(1, 20))
     
-    # معلومات المعلمين
+    # معلومات المعلمين بالإنجليزية
     for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(reshape_arabic_text(f"👨‍🏫 المعلم: {teacher}"), subtitle_style))
+        elements.append(Paragraph(f"👨‍🏫 Teacher: {teacher}", subtitle_style))
         elements.append(Spacer(1, 10))
         
-        elements.append(Paragraph(reshape_arabic_text("الفصول المسؤول عنها:"), normal_style))
+        elements.append(Paragraph("Responsible Classes:", normal_style))
         
         # عرض الفصول التي يدرسها المعلم
         for class_name in classes:
@@ -1125,26 +1221,26 @@ def generate_teachers_report_pdf():
             class_students = CLASSES.get(class_name, [])
             
             # معلومات الفصل
-            elements.append(Paragraph(reshape_arabic_text(f"📚 {class_name}"), 
-                                     ParagraphStyle('Bold', fontName=font_for_style, fontSize=13, alignment=2, textColor=colors.black)))
+            elements.append(Paragraph(f"📚 {class_name}", 
+                                     ParagraphStyle('Bold', fontSize=13, alignment=2, textColor=colors.black)))
             
             # جدول إحصائيات الفصل
             class_stats_data = [
-                [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(class_students)))],
-                [reshape_arabic_text("عدد السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-                [reshape_arabic_text("الحضور"), reshape_arabic_text(str(stats["present_count"]))],
-                [reshape_arabic_text("الغياب"), reshape_arabic_text(str(stats["absent_count"]))],
-                [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")]
+                ["Number of Students", str(len(class_students))],
+                ["Total Records", str(stats["total_records"])],
+                ["Present", str(stats["present_count"])],
+                ["Absent", str(stats["absent_count"])],
+                ["Attendance Rate", f"{stats['attendance_rate']:.1f}%"]
             ]
             
             class_stats_table = Table(class_stats_data, colWidths=[80, 70])
             class_stats_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), font_for_style),
                 ('FONTSIZE', (0, 0), (-1, -1), 11),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOLD', (0, 0), (-1, 0), True)
             ]))
             elements.append(class_stats_table)
             
@@ -1152,12 +1248,12 @@ def generate_teachers_report_pdf():
         
         # فصل بين المعلمين
         elements.append(Spacer(1, 15))
-        elements.append(Paragraph(reshape_arabic_text("________________________________________"), normal_style))
+        elements.append(Paragraph("________________________________________", normal_style))
         elements.append(Spacer(1, 15))
     
-    # إحصائيات عامة
+    # إحصائيات عامة بالإنجليزية
     elements.append(PageBreak())
-    elements.append(Paragraph(reshape_arabic_text("إحصائيات عامة"), subtitle_style))
+    elements.append(Paragraph("General Statistics", subtitle_style))
     elements.append(Spacer(1, 10))
     
     # حساب إجماليات
@@ -1166,35 +1262,35 @@ def generate_teachers_report_pdf():
     total_students = len(ALL_STUDENTS)
     
     total_stats_data = [
-        [reshape_arabic_text("إجمالي عدد المعلمين"), reshape_arabic_text(str(total_teachers))],
-        [reshape_arabic_text("إجمالي عدد الفصول"), reshape_arabic_text(str(total_classes))],
-        [reshape_arabic_text("إجمالي عدد الطلاب"), reshape_arabic_text(str(total_students))]
+        ["Total Teachers", str(total_teachers)],
+        ["Total Classes", str(total_classes)],
+        ["Total Students", str(total_students)]
     ]
     
     total_stats_table = Table(total_stats_data, colWidths=[120, 80])
     total_stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
         ('FONTSIZE', (0, 0), (-1, -1), 13),
         ('GRID', (0, 0), (-1, -1), 1, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOLD', (0, 0), (-1, 0), True)
     ]))
     elements.append(total_stats_table)
     
-    # الصفحة الأخيرة
+    # الصفحة الأخيرة بالإنجليزية
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph(reshape_arabic_text("ملاحظات:"), subtitle_style))
+    elements.append(Paragraph("Notes:", subtitle_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(reshape_arabic_text("• هذا التقرير يوضح أداء المعلمين والفصول المسؤولين عنها."), normal_style))
-    elements.append(Paragraph(reshape_arabic_text("• النسب تعتمد على البيانات المسجلة في النظام حتى تاريخ التقرير."), normal_style))
-    elements.append(Paragraph(reshape_arabic_text("• يمكن تحديث البيانات من خلال لوحة تحكم المدير."), normal_style))
+    elements.append(Paragraph("• This report shows the performance of teachers and the classes they are responsible for.", normal_style))
+    elements.append(Paragraph("• Rates are based on data recorded in the system until the report date.", normal_style))
+    elements.append(Paragraph("• Data can be updated through the administrator control panel.", normal_style))
     
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
+    elements.append(Paragraph("System Administrator Signature:", subtitle_style))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
-    elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
+    elements.append(Paragraph("________________________", normal_style))
+    elements.append(Paragraph(f"Print Date: {current_date}", footer_style))
     
     doc.build(elements)
     buffer.seek(0)
@@ -1506,12 +1602,13 @@ st.markdown("""
     .student-management-table tr:hover {
         background-color: #f3f4f6;
     }
-    /* جميع أزرار Streamlit الأساسية - أزرق */
+    /* جميع أزرار Streamlit الأساسية - أبيض نص */
     .stButton > button {
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-        color: white !important;
         border: none !important;
         border-radius: 12px !important;
+        color: white !important;
+        font-weight: 600 !important;
     }
     
     .stButton > button:hover {
@@ -1712,11 +1809,18 @@ st.markdown("""
         padding: 10px 20px;
         font-weight: 600;
         border: 2px solid transparent;
+        color: #475569 !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #2563eb !important;
         color: white !important;
         border-color: #2563eb !important;
+    }
+    
+    /* إزالة الحواف الزرقاء من الـ badges */
+    .badge-admin {
+        border: none !important;
+        box-shadow: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1827,11 +1931,11 @@ elif st.session_state.logged_in:
         # عرض نوع المستخدم
         role_badge = ""
         if st.session_state.user_role == "admin":
-            role_badge = '<span class="badge-admin">👑 مدير النظام</span>'
+            role_badge = '<span class="user-type-badge badge-admin">مدير النظام</span>'
         elif st.session_state.user_role == "teacher":
-            role_badge = '<span class="badge-teacher">👨‍🏫 معلم</span>'
+            role_badge = '<span class="user-type-badge badge-teacher">معلم</span>'
         else:
-            role_badge = '<span class="badge-student">👨‍🎓 طالب</span>'
+            role_badge = '<span class="user-type-badge badge-student">طالب</span>'
         
         welcome_html = f"""
         <div class="welcome-message">
@@ -1851,7 +1955,7 @@ elif st.session_state.logged_in:
                     st.rerun()
             
             with col2:
-                if st.button("📊 مراجعة البيانات", key="admin_review", use_container_width=True):
+                if st.button("📋 مراجعة البيانات", key="admin_review", use_container_width=True):
                     st.session_state.page = "admin_dashboard"
                     st.rerun()
                     
@@ -2076,20 +2180,20 @@ elif st.session_state.logged_in:
                 
                 # زر تحميل تقرير الفصل الكامل
                 st.markdown("---")
-                st.markdown("### 📥 تحميل تقرير كامل")
+                st.markdown("### 📥 تحميل تقرير الفصل")
                 
                 # إنشاء تقرير PDF كامل
                 try:
                     pdf_buffer = generate_class_full_report(selected_class, teacher_name, stats, history_df)
                     
-                    # زر تحميل التقرير
+                    # زر تحميل التقرير مباشرة
                     st.download_button(
-                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
+                        label="📄 تحميل تقرير الفصل (PDF)",
                         data=pdf_buffer,
-                        file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        file_name=f"Class_Report_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         use_container_width=True,
-                        help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
+                        help="سيتم تحميل التقرير مباشرة"
                     )
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
@@ -2172,7 +2276,7 @@ elif st.session_state.logged_in:
             st.download_button(
                 "📥 تحميل تقرير PDF",
                 data=pdf_buf,
-                file_name=f"تقرير_غياب_{student_name}.pdf",
+                file_name=f"Student_Report_{student_name}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
@@ -2377,7 +2481,7 @@ elif st.session_state.logged_in:
                 st.markdown("#### ➕ إضافة فصل جديد")
                 
                 with st.form(key="add_class_form"):
-                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: فصل F")
+                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: Class F")
                     teacher_assigned = st.selectbox("المعلم المسؤول", list(TEACHER_CLASSES.keys()))
                     
                     add_class_button = st.form_submit_button("➕ إضافة الفصل", use_container_width=True)
@@ -2533,61 +2637,59 @@ elif st.session_state.logged_in:
             
             with report_tab1:
                 st.markdown("#### 📄 تقرير شامل للنظام")
-                st.info("يمكنك إنشاء تقرير PDF شامل يحتوي على جميع إحصائيات النظام")
+                st.info("يمكنك تحميل تقرير PDF شامل يحتوي على جميع إحصائيات النظام")
                 
-                if st.button("📊 إنشاء تقرير شامل (PDF)", use_container_width=True):
-                    try:
-                        pdf_buffer = generate_system_report_pdf()
-                        
-                        # زر تحميل التقرير
-                        st.download_button(
-                            label="📥 تحميل التقرير الشامل (PDF)",
-                            data=pdf_buffer,
-                            file_name=f"تقرير_شامل_النظام_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                        
-                        st.success("✅ تم إنشاء التقرير بنجاح")
-                        st.info("""
-                        **محتويات التقرير الشامل:**
-                        1. الإحصائيات العامة للنظام
-                        2. تفاصيل جميع الفصول
-                        3. معلومات المعلمين والفصول المسؤولين عنها
-                        4. توقيع مدير النظام
-                        """)
-                        
-                    except Exception as e:
-                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                # إنشاء وتحميل التقرير مباشرة
+                try:
+                    pdf_buffer = generate_system_report_pdf()
+                    
+                    # زر تحميل التقرير مباشرة
+                    st.download_button(
+                        label="📥 تحميل التقرير الشامل (PDF)",
+                        data=pdf_buffer,
+                        file_name=f"System_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                    st.info("""
+                    **محتويات التقرير الشامل:**
+                    1. الإحصائيات العامة للنظام
+                    2. تفاصيل جميع الفصول
+                    3. معلومات المعلمين والفصول المسؤولين عنها
+                    4. توقيع مدير النظام
+                    """)
+                    
+                except Exception as e:
+                    st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
             
             with report_tab2:
                 st.markdown("#### 👨‍🏫 تقرير المعلمين")
                 st.info("تقرير خاص بأداء المعلمين والفصول المسؤولين عنها")
                 
-                if st.button("👨‍🏫 إنشاء تقرير المعلمين (PDF)", use_container_width=True):
-                    try:
-                        pdf_buffer = generate_teachers_report_pdf()
-                        
-                        # زر تحميل التقرير
-                        st.download_button(
-                            label="📥 تحميل تقرير المعلمين (PDF)",
-                            data=pdf_buffer,
-                            file_name=f"تقرير_المعلمين_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                        
-                        st.success("✅ تم إنشاء تقرير المعلمين بنجاح")
-                        st.info("""
-                        **محتويات تقرير المعلمين:**
-                        1. معلومات كل معلم والفصول المسؤول عنها
-                        2. إحصائيات كل فصل (طلاب، سجلات، نسبة حضور)
-                        3. إحصائيات عامة عن جميع المعلمين
-                        4. ملاحظات وتوقيع مدير النظام
-                        """)
-                        
-                    except Exception as e:
-                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                # إنشاء وتحميل التقرير مباشرة
+                try:
+                    pdf_buffer = generate_teachers_report_pdf()
+                    
+                    # زر تحميل التقرير مباشرة
+                    st.download_button(
+                        label="📥 تحميل تقرير المعلمين (PDF)",
+                        data=pdf_buffer,
+                        file_name=f"Teachers_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                    st.info("""
+                    **محتويات تقرير المعلمين:**
+                    1. معلومات كل معلم والفصول المسؤول عنها
+                    2. إحصائيات كل فصل (طلاب، سجلات، نسبة حضور)
+                    3. إحصائيات عامة عن جميع المعلمين
+                    4. ملاحظات وتوقيع مدير النظام
+                    """)
+                    
+                except Exception as e:
+                    st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
             
             with report_tab3:
                 st.markdown("#### ⚙️ إعدادات النظام")

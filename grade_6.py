@@ -39,22 +39,22 @@ st.set_page_config(page_title="نظام الغياب", layout="wide")
 # ------------------ App settings ------------------
 # قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
 CLASSES = {
-    "فصل B": [
+    "Class B": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
     ],
-    "فصل C": [
+    "Class C": [
         "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
         "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
         "هشام نبيل هشام", "وليد جمال وليد"
     ],
-    "فصل D": [
+    "Class D": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
         "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
         "مجدي جمال مجدي", "سليمان هشام سليمان"
     ],
-    "فصل E": [
+    "Class E": [
         "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
         "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
         "فاروق جمال فاروق", "أنور هشام أنور"
@@ -74,8 +74,8 @@ for class_name, students in CLASSES.items():
 
 # قائمة المعلمين والفصول التي يدرسونها
 TEACHER_CLASSES = {
-    "مينا سمير": ["فصل B", "فصل C"],
-    "فادي حبيب": ["فصل D", "فصل E"]
+    "مينا سمير": ["Class B", "Class C"],
+    "فادي حبيب": ["Class D", "Class E"]
 }
 
 # مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
@@ -91,19 +91,19 @@ USERS = {
         "password": "mina1234",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["فصل B", "فصل C"]
+        "classes": ["Class B", "Class C"]
     },
     "فادي حبيب": {
         "password": "fady5678",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["فصل D", "فصل E"]
+        "classes": ["Class D", "Class E"]
     },
 }
 
 # إضافة الطلاب مع كلمات مرور مختلفة لكل طالب
 student_passwords = {
-    # فصل C
+    # Class C
     "أحمد محمد أحمد": "c1001",
     "محمود سعيد حسين": "c1002",
     "علي كمال علي": "c1003",
@@ -115,7 +115,7 @@ student_passwords = {
     "هشام نبيل هشام": "c1009",
     "وليد جمال وليد": "c1010",
     
-    # فصل B
+    # Class B
     "محمد علي محمد": "b1001",
     "حسن أحمد حسن": "b1002",
     "محمود حسين محمود": "b1003",
@@ -127,7 +127,7 @@ student_passwords = {
     "نبيل جمال نبيل": "b1009",
     "جمال هشام جمال": "b1010",
     
-    # فصل D
+    # Class D
     "فؤاد محمد فؤاد": "d1001",
     "رشاد أحمد رشاد": "d1002",
     "صابر حسين صابر": "d1003",
@@ -139,7 +139,7 @@ student_passwords = {
     "مجدي جمال مجدي": "d1009",
     "سليمان هشام سليمان": "d1010",
     
-    # فصل E
+    # Class E
     "نبيل محمد نبيل": "e1001",
     "رامي أحمد رامي": "e1002",
     "عماد حسين عماد": "e1003",
@@ -274,39 +274,38 @@ else:
     connection_status = "❌ إعدادات الاتصال غير كاملة"
 
 # ------------------ باقي الكود ------------------
-# Arabic font for PDF
-FONT_PATH = "NotoNaskhArabic-Regular.ttf"
-FONT_NAME = "ArabicCustom"
+# Fonts for PDF (Arabic and English support)
+ARABIC_FONT_PATH = "NotoNaskhArabic-Regular.ttf"
+ARABIC_FONT_NAME = "ArabicCustom"
+ENGLISH_FONT_NAME = "Helvetica"
 
-def ensure_font():
-    if not os.path.exists(FONT_PATH):
+def ensure_fonts():
+    """تأكد من توفر الخطوط العربية والإنجليزية"""
+    # تحميل الخط العربي إذا لم يكن موجوداً
+    if not os.path.exists(ARABIC_FONT_PATH):
         url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
         try:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
-            with open(FONT_PATH, "wb") as f:
+            with open(ARABIC_FONT_PATH, "wb") as f:
                 f.write(r.content)
         except Exception:
             pass
+    
+    # تسجيل الخطوط
     try:
-        if os.path.exists(FONT_PATH):
-            pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
-            return FONT_NAME
+        if os.path.exists(ARABIC_FONT_PATH):
+            pdfmetrics.registerFont(TTFont(ARABIC_FONT_NAME, ARABIC_FONT_PATH))
         else:
-            return None
+            # استخدام خط افتراضي للعربية
+            ARABIC_FONT_NAME = "Helvetica"
     except Exception:
-        pass
+        ARABIC_FONT_NAME = "Helvetica"
+    
+    return ARABIC_FONT_NAME, ENGLISH_FONT_NAME
 
-    for candidate in ["Arial", "DejaVuSans", "Helvetica"]:
-        try:
-            pdfmetrics.registerFont(TTFont(FONT_NAME, f"{candidate}.ttf"))
-            return FONT_NAME
-        except Exception:
-            continue
-
-    return None
-
-REGISTERED_FONT = ensure_font()
+# تسجيل الخطوط
+ARABIC_FONT_NAME, ENGLISH_FONT_NAME = ensure_fonts()
 
 # Helper functions
 def reshape_arabic_text(text):
@@ -315,6 +314,32 @@ def reshape_arabic_text(text):
         return get_display(reshaped)
     except Exception:
         return str(text)
+
+def get_font_for_text(text):
+    """اختيار الخط المناسب بناءً على النص"""
+    try:
+        # تحقق إذا كان النص يحتوي على أحرف عربية
+        arabic_chars = any('\u0600' <= char <= '\u06FF' for char in str(text))
+        return ARABIC_FONT_NAME if arabic_chars else ENGLISH_FONT_NAME
+    except:
+        return ENGLISH_FONT_NAME
+
+def format_mixed_text(text):
+    """تنسيق النص المختلط (عربي وإنجليزي)"""
+    if not text:
+        return ""
+    
+    text_str = str(text)
+    
+    # الفصول بالإنجليزية
+    if text_str in ["Class B", "Class C", "Class D", "Class E"]:
+        return text_str  # إرجاع النص الإنجليزي كما هو
+    
+    # الأسماء العربية
+    if any('\u0600' <= char <= '\u06FF' for char in text_str):
+        return reshape_arabic_text(text_str)
+    
+    return text_str
 
 def read_sheet():
     if worksheet is None:
@@ -703,18 +728,14 @@ def generate_student_pdf(student_name, df_records):
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
-    
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=18, alignment=1, textColor=colors.darkblue)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    # أنماط النصوص مع دعم الخطوط المختلطة
+    title_style = ParagraphStyle('Title', fontName=ARABIC_FONT_NAME, fontSize=18, alignment=1, textColor=colors.darkblue)
+    normal_style = ParagraphStyle('Normal', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)
+    footer_style = ParagraphStyle('Footer', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2, textColor=colors.darkblue)
 
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب"), title_style))
     elements.append(Spacer(1, 8))
-    elements.append(Paragraph(reshape_arabic_text(f"الاسم: {student_name}"), normal_style))
+    elements.append(Paragraph(format_mixed_text(f"الاسم: {student_name}"), normal_style))
     elements.append(Spacer(1, 8))
 
     if df_records.empty:
@@ -738,20 +759,25 @@ def generate_student_pdf(student_name, df_records):
         header = [reshape_arabic_text(h) for h in ["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
         data = [header]
         for _, row in df_records.iterrows():
+            # تنسيق كل خلية حسب محتواها
             data.append([
-                reshape_arabic_text(str(row.get("المرة", ""))),
-                reshape_arabic_text(str(row.get("الطالب", ""))),
-                reshape_arabic_text(str(row.get("المعلم", ""))),
-                reshape_arabic_text(str(row.get("الفصل", ""))),
-                reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
-                reshape_arabic_text(str(row.get("الحالة", "")))
+                Paragraph(format_mixed_text(str(row.get("المرة", ""))), 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("الطالب", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("المعلم", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("الفصل", ""))), 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(normalize_date_for_pdf(row.get("التاريخ", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("الحالة", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2))
             ])
         table = Table(data, hAlign='CENTER', colWidths=[50, 130, 100, 80, 100, 70])
         table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
@@ -770,34 +796,17 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
-    
-    # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
-    display_class_name = str(class_name)
-    
-    # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
-    if display_class_name == "الفصل" or display_class_name.strip() == "الفصل" or len(display_class_name.strip()) <= 3:
-        # نبحث عن القيمة الصحيحة في قائمة الفصول
-        for full_class_name in CLASSES.keys():
-            if full_class_name.startswith("الفصل"):
-                display_class_name = full_class_name
-                break
-    
     # أنماط النصوص
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
-    header_style = ParagraphStyle('Header', fontName=font_for_style, fontSize=14, alignment=2, textColor=colors.black)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    title_style = ParagraphStyle('Title', fontName=ARABIC_FONT_NAME, fontSize=22, alignment=1, textColor=colors.darkblue)
+    subtitle_style = ParagraphStyle('Subtitle', fontName=ARABIC_FONT_NAME, fontSize=16, alignment=1, textColor=colors.navy)
+    header_style = ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=14, alignment=2, textColor=colors.black)
+    normal_style = ParagraphStyle('Normal', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)
+    footer_style = ParagraphStyle('Footer', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2, textColor=colors.darkblue)
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
-    # ✅ **استخدام القيمة المصححة لاسم الفصل**
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
     elements.append(Spacer(1, 10))
@@ -813,16 +822,22 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     
     # جدول الإحصائيات
     stats_data = [
-        [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(stats["total_students"]))],
-        [reshape_arabic_text("إجمالي السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-        [reshape_arabic_text("عدد الحضور"), reshape_arabic_text(str(stats["present_count"]))],
-        [reshape_arabic_text("عدد الغياب"), reshape_arabic_text(str(stats["absent_count"]))],
-        [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")]
+        [reshape_arabic_text("عدد الطلاب"), Paragraph(str(stats["total_students"]), 
+                                                     ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        [reshape_arabic_text("إجمالي السجلات"), Paragraph(str(stats["total_records"]), 
+                                                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        [reshape_arabic_text("عدد الحضور"), Paragraph(str(stats["present_count"]), 
+                                                     ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        [reshape_arabic_text("عدد الغياب"), Paragraph(str(stats["absent_count"]), 
+                                                     ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        [reshape_arabic_text("نسبة الحضور"), Paragraph(f"{stats['attendance_rate']:.1f}%", 
+                                                      ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))]
     ]
     
     stats_table = Table(stats_data, colWidths=[150, 100])
     stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+        ('FONTNAME', (0, 0), (0, -1), ARABIC_FONT_NAME),
+        ('FONTNAME', (1, 0), (1, -1), ENGLISH_FONT_NAME),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -840,32 +855,40 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     if stats["students"]:
         # جدول تفصيلي للطلاب
         student_header = [
-            reshape_arabic_text("اسم الطالب"),
-            reshape_arabic_text("عدد السجلات"),
-            reshape_arabic_text("الحضور"),
-            reshape_arabic_text("الغياب"),
-            reshape_arabic_text("نسبة الحضور %")
+            Paragraph(reshape_arabic_text("اسم الطالب"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+            Paragraph(reshape_arabic_text("عدد السجلات"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+            Paragraph(reshape_arabic_text("الحضور"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+            Paragraph(reshape_arabic_text("الغياب"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+            Paragraph(reshape_arabic_text("نسبة الحضور %"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2))
         ]
         
         student_data = [student_header]
         for student in stats["students"]:
             student_data.append([
-                reshape_arabic_text(student["name"]),
-                reshape_arabic_text(str(student["total"])),
-                reshape_arabic_text(str(student["present"])),
-                reshape_arabic_text(str(student["absent"])),
-                reshape_arabic_text(f"{student['rate']:.1f}%")
+                Paragraph(format_mixed_text(student["name"]), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                Paragraph(str(student["total"]), 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2)),
+                Paragraph(str(student["present"]), 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2)),
+                Paragraph(str(student["absent"]), 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2)),
+                Paragraph(f"{student['rate']:.1f}%", 
+                         ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))
             ])
         
         student_table = Table(student_data, colWidths=[150, 70, 60, 60, 80])
         student_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),  # حجم خط أكبر للرأس
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
         ]))
         elements.append(student_table)
     
@@ -876,27 +899,35 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Spacer(1, 10))
     
     if not history_df.empty:
-        history_display = history_df.copy()  # عرض كل السجلات
+        history_display = history_df.copy()
         
         history_header = [
-            reshape_arabic_text("الطالب"),
-            reshape_arabic_text("المعلم"),
-            reshape_arabic_text("التاريخ"),
-            reshape_arabic_text("الحالة")
+            Paragraph(reshape_arabic_text("الطالب"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+            Paragraph(reshape_arabic_text("المعلم"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+            Paragraph(reshape_arabic_text("التاريخ"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+            Paragraph(reshape_arabic_text("الحالة"), 
+                     ParagraphStyle('Header', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2))
         ]
         
         history_data = [history_header]
         for _, row in history_display.iterrows():
             history_data.append([
-                reshape_arabic_text(str(row.get("student", ""))),
-                reshape_arabic_text(str(row.get("teacher", ""))),
-                reshape_arabic_text(normalize_date_for_pdf(row.get("date_clean", ""))),
-                reshape_arabic_text(str(row.get("status_clean", "")))
+                Paragraph(format_mixed_text(str(row.get("student", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("teacher", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(normalize_date_for_pdf(row.get("date_clean", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2)),
+                Paragraph(format_mixed_text(str(row.get("status_clean", ""))), 
+                         ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2))
             ])
         
-        # حساب عدد الصفوف في كل صفحة (تقريباً 35 صف في الصفحة)
+        # حساب عدد الصفوف في كل صفحة
         rows_per_page = 35
-        total_rows = len(history_data) - 1  # ناقص رأس الجدول
+        total_rows = len(history_data) - 1
         
         if total_rows > rows_per_page:
             # تقسيم الجدول إلى صفحات متعددة
@@ -911,8 +942,6 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 
                 history_table = Table(page_data, colWidths=[150, 100, 100, 80])
                 history_table.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (-1, -1), font_for_style),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                     ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -924,13 +953,11 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 # إضافة رقم الصفحة
                 elements.append(Spacer(1, 10))
                 elements.append(Paragraph(reshape_arabic_text(f"الصفحة {page_num//rows_per_page + 1} من {((total_rows - 1)//rows_per_page) + 1}"), 
-                                         ParagraphStyle('PageNumber', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
+                                         ParagraphStyle('PageNumber', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2, textColor=colors.gray)))
         else:
             # إذا كان الجدول صغيراً يكفي لصفحة واحدة
             history_table = Table(history_data, colWidths=[150, 100, 100, 80])
             history_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), font_for_style),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                 ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -970,15 +997,10 @@ def generate_system_report_pdf():
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
-    
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    title_style = ParagraphStyle('Title', fontName=ARABIC_FONT_NAME, fontSize=22, alignment=1, textColor=colors.darkblue)
+    subtitle_style = ParagraphStyle('Subtitle', fontName=ARABIC_FONT_NAME, fontSize=16, alignment=2, textColor=colors.navy)
+    normal_style = ParagraphStyle('Normal', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)
+    footer_style = ParagraphStyle('Footer', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2, textColor=colors.darkblue)
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير شامل لنظام الغياب"), title_style))
@@ -998,15 +1020,31 @@ def generate_system_report_pdf():
     
     # جدول الإحصائيات العامة
     stats_data = [
-        [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(ALL_STUDENTS)))],
-        [reshape_arabic_text("عدد الفصول"), reshape_arabic_text(str(len(CLASSES)))],
-        [reshape_arabic_text("عدد المعلمين"), reshape_arabic_text(str(len(TEACHER_CLASSES)))],
-        [reshape_arabic_text("إجمالي سجلات الغياب"), reshape_arabic_text(str(total_records))]
+        [Paragraph(reshape_arabic_text("عدد الطلاب"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+         Paragraph(str(len(ALL_STUDENTS)), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        
+        [Paragraph(reshape_arabic_text("عدد الفصول"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+         Paragraph(str(len(CLASSES)), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        
+        [Paragraph(reshape_arabic_text("عدد المعلمين"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+         Paragraph(str(len(TEACHER_CLASSES)), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))],
+        
+        [Paragraph(reshape_arabic_text("إجمالي سجلات الغياب"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)),
+         Paragraph(str(total_records), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=12, alignment=2))]
     ]
     
     stats_table = Table(stats_data, colWidths=[150, 100])
     stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+        ('FONTNAME', (0, 0), (0, -1), ARABIC_FONT_NAME),
+        ('FONTNAME', (1, 0), (1, -1), ENGLISH_FONT_NAME),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -1031,15 +1069,31 @@ def generate_system_report_pdf():
         
         # جدول إحصائيات الفصل
         class_stats_data = [
-            [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(students)))],
-            [reshape_arabic_text("عدد السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-            [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")],
-            [reshape_arabic_text("المعلم المسؤول"), reshape_arabic_text(', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين')]
+            [Paragraph(reshape_arabic_text("عدد الطلاب"), 
+                      ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+             Paragraph(str(len(students)), 
+                      ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+            
+            [Paragraph(reshape_arabic_text("عدد السجلات"), 
+                      ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+             Paragraph(str(stats["total_records"]), 
+                      ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+            
+            [Paragraph(reshape_arabic_text("نسبة الحضور"), 
+                      ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+             Paragraph(f"{stats['attendance_rate']:.1f}%", 
+                      ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+            
+            [Paragraph(reshape_arabic_text("المعلم المسؤول"), 
+                      ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+             Paragraph(', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين', 
+                      ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2))]
         ]
         
         class_stats_table = Table(class_stats_data, colWidths=[100, 80])
         class_stats_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+            ('FONTNAME', (0, 0), (0, -1), ARABIC_FONT_NAME),
+            ('FONTNAME', (1, 0), (1, -1), ENGLISH_FONT_NAME),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -1064,7 +1118,7 @@ def generate_system_report_pdf():
         for class_name in classes:
             stats = get_class_statistics(class_name)
             elements.append(Paragraph(reshape_arabic_text(f"  - {class_name}: {stats['total_records']} سجل، نسبة الحضور: {stats['attendance_rate']:.1f}%"), 
-                                     ParagraphStyle('Indent', fontName=font_for_style, fontSize=11, alignment=2, leftIndent=20)))
+                                     ParagraphStyle('Indent', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2, leftIndent=20)))
         
         elements.append(Spacer(1, 10))
     
@@ -1092,15 +1146,10 @@ def generate_teachers_report_pdf():
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     elements = []
     
-    # استخدام الخط المتاح
-    font_for_style = "Helvetica"
-    if REGISTERED_FONT:
-        font_for_style = REGISTERED_FONT
-    
-    title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
-    normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
-    footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
+    title_style = ParagraphStyle('Title', fontName=ARABIC_FONT_NAME, fontSize=22, alignment=1, textColor=colors.darkblue)
+    subtitle_style = ParagraphStyle('Subtitle', fontName=ARABIC_FONT_NAME, fontSize=16, alignment=2, textColor=colors.navy)
+    normal_style = ParagraphStyle('Normal', fontName=ARABIC_FONT_NAME, fontSize=12, alignment=2)
+    footer_style = ParagraphStyle('Footer', fontName=ARABIC_FONT_NAME, fontSize=10, alignment=2, textColor=colors.darkblue)
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير المعلمين"), title_style))
@@ -1126,20 +1175,40 @@ def generate_teachers_report_pdf():
             
             # معلومات الفصل
             elements.append(Paragraph(reshape_arabic_text(f"📚 {class_name}"), 
-                                     ParagraphStyle('Bold', fontName=font_for_style, fontSize=13, alignment=2, textColor=colors.black)))
+                                     ParagraphStyle('Bold', fontName=ARABIC_FONT_NAME, fontSize=13, alignment=2, textColor=colors.black)))
             
             # جدول إحصائيات الفصل
             class_stats_data = [
-                [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(class_students)))],
-                [reshape_arabic_text("عدد السجلات"), reshape_arabic_text(str(stats["total_records"]))],
-                [reshape_arabic_text("الحضور"), reshape_arabic_text(str(stats["present_count"]))],
-                [reshape_arabic_text("الغياب"), reshape_arabic_text(str(stats["absent_count"]))],
-                [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")]
+                [Paragraph(reshape_arabic_text("عدد الطلاب"), 
+                          ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                 Paragraph(str(len(class_students)), 
+                          ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+                
+                [Paragraph(reshape_arabic_text("عدد السجلات"), 
+                          ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                 Paragraph(str(stats["total_records"]), 
+                          ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+                
+                [Paragraph(reshape_arabic_text("الحضور"), 
+                          ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                 Paragraph(str(stats["present_count"]), 
+                          ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+                
+                [Paragraph(reshape_arabic_text("الغياب"), 
+                          ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                 Paragraph(str(stats["absent_count"]), 
+                          ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))],
+                
+                [Paragraph(reshape_arabic_text("نسبة الحضور"), 
+                          ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=11, alignment=2)),
+                 Paragraph(f"{stats['attendance_rate']:.1f}%", 
+                          ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=11, alignment=2))]
             ]
             
             class_stats_table = Table(class_stats_data, colWidths=[80, 70])
             class_stats_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+                ('FONTNAME', (0, 0), (0, -1), ARABIC_FONT_NAME),
+                ('FONTNAME', (1, 0), (1, -1), ENGLISH_FONT_NAME),
                 ('FONTSIZE', (0, 0), (-1, -1), 11),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -1166,14 +1235,26 @@ def generate_teachers_report_pdf():
     total_students = len(ALL_STUDENTS)
     
     total_stats_data = [
-        [reshape_arabic_text("إجمالي عدد المعلمين"), reshape_arabic_text(str(total_teachers))],
-        [reshape_arabic_text("إجمالي عدد الفصول"), reshape_arabic_text(str(total_classes))],
-        [reshape_arabic_text("إجمالي عدد الطلاب"), reshape_arabic_text(str(total_students))]
+        [Paragraph(reshape_arabic_text("إجمالي عدد المعلمين"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=13, alignment=2)),
+         Paragraph(str(total_teachers), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=13, alignment=2))],
+        
+        [Paragraph(reshape_arabic_text("إجمالي عدد الفصول"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=13, alignment=2)),
+         Paragraph(str(total_classes), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=13, alignment=2))],
+        
+        [Paragraph(reshape_arabic_text("إجمالي عدد الطلاب"), 
+                  ParagraphStyle('Cell', fontName=ARABIC_FONT_NAME, fontSize=13, alignment=2)),
+         Paragraph(str(total_students), 
+                  ParagraphStyle('Cell', fontName=ENGLISH_FONT_NAME, fontSize=13, alignment=2))]
     ]
     
     total_stats_table = Table(total_stats_data, colWidths=[120, 80])
     total_stats_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font_for_style),
+        ('FONTNAME', (0, 0), (0, -1), ARABIC_FONT_NAME),
+        ('FONTNAME', (1, 0), (1, -1), ENGLISH_FONT_NAME),
         ('FONTSIZE', (0, 0), (-1, -1), 13),
         ('GRID', (0, 0), (-1, -1), 1, colors.gray),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -2076,7 +2157,7 @@ elif st.session_state.logged_in:
                 
                 # زر تحميل تقرير الفصل الكامل
                 st.markdown("---")
-                st.markdown("### 📥 تحميل تقرير كامل")
+                st.markdown("### 📥 تحميل تقرير الفصل")
                 
                 # إنشاء تقرير PDF كامل
                 try:
@@ -2084,7 +2165,7 @@ elif st.session_state.logged_in:
                     
                     # زر تحميل التقرير
                     st.download_button(
-                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
+                        label="📄 تحميل تقرير الفصل (PDF)",
                         data=pdf_buffer,
                         file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
@@ -2377,7 +2458,7 @@ elif st.session_state.logged_in:
                 st.markdown("#### ➕ إضافة فصل جديد")
                 
                 with st.form(key="add_class_form"):
-                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: فصل F")
+                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: Class F")
                     teacher_assigned = st.selectbox("المعلم المسؤول", list(TEACHER_CLASSES.keys()))
                     
                     add_class_button = st.form_submit_button("➕ إضافة الفصل", use_container_width=True)
@@ -2541,7 +2622,7 @@ elif st.session_state.logged_in:
                         
                         # زر تحميل التقرير
                         st.download_button(
-                            label="📥 تحميل التقرير الشامل (PDF)",
+                            label="📥 تحميل تقرير شامل (PDF)",
                             data=pdf_buffer,
                             file_name=f"تقرير_شامل_النظام_{datetime.now().strftime('%Y%m%d')}.pdf",
                             mime="application/pdf",

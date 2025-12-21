@@ -39,22 +39,22 @@ st.set_page_config(page_title="نظام الغياب", layout="wide")
 # ------------------ App settings ------------------
 # قائمة الطلاب مقسمة على 4 فصول (40 طالب - 10 لكل فصل)
 CLASSES = {
-    "Class B": [
+    "فصل B": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
     ],
-    "Class C": [
+    "فصل C": [
         "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
         "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
         "هشام نبيل هشام", "وليد جمال وليد"
     ],
-    "Class D": [
+    "فصل D": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
         "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
         "مجدي جمال مجدي", "سليمان هشام سليمان"
     ],
-    "Class E": [
+    "فصل E": [
         "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
         "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
         "فاروق جمال فاروق", "أنور هشام أنور"
@@ -74,8 +74,8 @@ for class_name, students in CLASSES.items():
 
 # قائمة المعلمين والفصول التي يدرسونها
 TEACHER_CLASSES = {
-    "مينا سمير": ["Class B", "Class C"],
-    "فادي حبيب": ["Class D", "Class E"]
+    "مينا سمير": ["فصل B", "فصل C"],
+    "فادي حبيب": ["فصل D", "فصل E"]
 }
 
 # مستخدمون وكلمات مرورهم (كل مستخدم له كلمة مرور مختلفة)
@@ -91,13 +91,13 @@ USERS = {
         "password": "mina1234",
         "role": "teacher",
         "teacher_name": "مينا سمير",
-        "classes": ["Class B", "Class C"]
+        "classes": ["فصل B", "فصل C"]
     },
     "فادي حبيب": {
         "password": "fady5678",
         "role": "teacher",
         "teacher_name": "فادي حبيب",
-        "classes": ["Class D", "Class E"]
+        "classes": ["فصل D", "فصل E"]
     },
 }
 
@@ -259,36 +259,19 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
                 if not current_data:
                     headers = ["student", "teacher", "class", "status", "date"]
                     worksheet.append_row(headers)
-                    st.info("📝 تم إنشاء ورقة جديدة وإضافة العناوين")
                 
             except Exception as e:
                 connection_status = f"✅ متصل ولكن خطأ في القراءة"
-                st.error(f"خطأ في قراءة البيانات: {e}")
                 
         except gspread.exceptions.SpreadsheetNotFound:
             connection_status = f"❌ لم يتم العثور على Sheet"
-            st.error(f"❌ لم يتم العثور على الورقة: {SHEET_NAME}")
-            # محاولة إنشاء ورقة جديدة
-            try:
-                st.info("🔄 جاري إنشاء ورقة جديدة...")
-                sh = gc.create(SHEET_NAME)
-                worksheet = sh.sheet1
-                headers = ["student", "teacher", "class", "status", "date"]
-                worksheet.append_row(headers)
-                connection_status = "✅ تم إنشاء ورقة جديدة"
-                st.success("✅ تم إنشاء ورقة جديدة بنجاح")
-            except Exception as create_error:
-                st.error(f"❌ فشل في إنشاء الورقة: {create_error}")
         except Exception as e:
             connection_status = f"❌ خطأ في فتح الـ Sheet"
-            st.error(f"❌ خطأ في فتح الـ Sheet: {e}")
             
     except Exception as e:
         connection_status = f"❌ فشل في المصادقة"
-        st.error(f"❌ فشل في المصادقة: {e}")
 else:
     connection_status = "❌ إعدادات الاتصال غير كاملة"
-    st.warning("⚠️ إعدادات الاتصال غير كاملة. سيتم استخدام التطبيق بدون حفظ بيانات.")
 
 # ------------------ باقي الكود ------------------
 # Arabic font for PDF
@@ -334,37 +317,22 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
-    """قراءة البيانات من Google Sheets"""
     if worksheet is None:
-        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. استخدام بيانات محلية.")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
-        # محاولة قراءة جميع البيانات
         data = worksheet.get_all_records()
-        
-        if not data:
-            st.info("📭 لا توجد بيانات في الورقة بعد.")
-            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-        
-        df = pd.DataFrame(data)
-        
-        # التأكد من وجود جميع الأعمدة المطلوبة
-        required_columns = ["student", "teacher", "class", "status", "date"]
-        for col in required_columns:
-            if col not in df.columns:
-                df[col] = ""
-        
-        st.success(f"✅ تم تحميل {len(df)} سجل من Google Sheets")
-        return df
-        
-    except Exception as e:
-        st.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
+    except Exception:
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+    
+    df = pd.DataFrame(data)
+    for c in ["student", "teacher", "class", "status", "date"]:
+        if c not in df.columns:
+            df[c] = ""
+    return df
 
 def write_sheet(df):
     if worksheet is None:
-        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. البيانات لن تحفظ.")
         return False
     
     try:
@@ -556,8 +524,7 @@ def get_class_attendance_history(class_name):
     class_df["status_clean"] = class_df["status"].apply(clean_status)
     
     # ترتيب حسب التاريخ
-    if "date" in class_df.columns:
-        class_df = class_df.sort_values("date", ascending=False)
+    class_df = class_df.sort_values("date", ascending=False)
     
     return class_df[["student", "teacher", "date_clean", "status_clean"]]
 
@@ -612,31 +579,20 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     # حفظ في Google Sheets إذا كان متصلاً
     if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
         try:
-            # قراءة البيانات الحالية أولاً
-            current_data = read_sheet()
-            if current_data is not None and not current_data.empty:
-                # دمج البيانات الجديدة مع القديمة
-                new_df = pd.DataFrame(rows, columns=["student", "teacher", "class", "status", "date"])
-                combined_df = pd.concat([current_data, new_df], ignore_index=True)
-                
-                # حفظ البيانات المدمجة
-                write_sheet(combined_df)
-                success_count = len(rows)
-                st.success(f"✅ تم حفظ {success_count} سجل بنجاح في Google Sheets")
-            else:
-                # إذا لم تكن هناك بيانات حالية، احفظ البيانات الجديدة فقط
-                new_df = pd.DataFrame(rows, columns=["student", "teacher", "class", "status", "date"])
-                write_sheet(new_df)
-                success_count = len(rows)
-                st.success(f"✅ تم حفظ {success_count} سجل بنجاح في Google Sheets")
-                
+            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+            success_count = len(rows)
         except Exception as e:
-            st.error(f"❌ خطأ في حفظ البيانات: {str(e)}")
-            failed.append((f"الفصل {class_name}", str(e)))
+            # إذا فشلت الإضافة الجماعية، نجرب إضافة كل صف على حدة
+            try:
+                for r in rows:
+                    worksheet.append_row(r, value_input_option="USER_ENTERED")
+                    success_count += 1
+            except Exception as ex:
+                failed.append((f"الفصل {class_name}", str(ex)))
     elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
         failed.append((f"الفصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
     
-    # رسالة تلغرام
+    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
@@ -646,7 +602,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة
+        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
@@ -667,7 +623,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
 
 def get_student_records(student_name):
     df = read_sheet()
-    if df.empty or "student" not in df.columns:
+    if "student" not in df.columns or df.empty:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     try:
@@ -727,9 +683,7 @@ def get_student_records(student_name):
     df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
     # إعادة ترتيب الصفوف
-    if "date" in df_matches.columns:
-        df_matches = df_matches.sort_values("date", ascending=False)
-    
+    df_matches = df_matches.sort_values("date", ascending=False)
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     
@@ -758,7 +712,7 @@ def generate_student_pdf(student_name, df_records):
     normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
 
-    elements.append(Paragraph(reshape_arabic_text("تقرير الغياب للطالب"), title_style))
+    elements.append(Paragraph(reshape_arabic_text("تقرير الغياب"), title_style))
     elements.append(Spacer(1, 8))
     elements.append(Paragraph(reshape_arabic_text(f"الاسم: {student_name}"), normal_style))
     elements.append(Spacer(1, 8))
@@ -788,7 +742,7 @@ def generate_student_pdf(student_name, df_records):
                 reshape_arabic_text(str(row.get("المرة", ""))),
                 reshape_arabic_text(str(row.get("الطالب", ""))),
                 reshape_arabic_text(str(row.get("المعلم", ""))),
-                reshape_arabic_text(str(row.get("الفصل", ""))),  # تم إصلاح هذا السطر
+                reshape_arabic_text(str(row.get("الفصل", ""))),
                 reshape_arabic_text(normalize_date_for_pdf(row.get("التاريخ", ""))),
                 reshape_arabic_text(str(row.get("الحالة", "")))
             ])
@@ -821,6 +775,17 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     if REGISTERED_FONT:
         font_for_style = REGISTERED_FONT
     
+    # ✅ **التحقق من قيمة class_name وتصحيحها إذا لزم الأمر**
+    display_class_name = str(class_name)
+    
+    # التحقق إذا كان اسم الفصل يحتوي فقط على كلمة "فصل" بدون الحرف
+    if display_class_name == "الفصل" or display_class_name.strip() == "الفصل" or len(display_class_name.strip()) <= 3:
+        # نبحث عن القيمة الصحيحة في قائمة الفصول
+        for full_class_name in CLASSES.keys():
+            if full_class_name.startswith("الفصل"):
+                display_class_name = full_class_name
+                break
+    
     # أنماط النصوص
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
     subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
@@ -832,9 +797,10 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Paragraph(reshape_arabic_text("تقرير الغياب الشامل"), title_style))
     elements.append(Spacer(1, 20))
     
+    # ✅ **استخدام القيمة المصححة لاسم الفصل**
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher_name}"), normal_style))
-    elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), normal_style))
+    elements.append(Spacer(1, 10))
     
     today = datetime.now()
     current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
@@ -899,7 +865,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),  # حجم خط أكبر للرأس
         ]))
         elements.append(student_table)
     
@@ -910,7 +876,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     elements.append(Spacer(1, 10))
     
     if not history_df.empty:
-        history_display = history_df.copy()
+        history_display = history_df.copy()  # عرض كل السجلات
         
         history_header = [
             reshape_arabic_text("الطالب"),
@@ -928,11 +894,12 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 reshape_arabic_text(str(row.get("status_clean", "")))
             ])
         
-        # حساب عدد الصفوف في كل صفحة
+        # حساب عدد الصفوف في كل صفحة (تقريباً 35 صف في الصفحة)
         rows_per_page = 35
-        total_rows = len(history_data) - 1
+        total_rows = len(history_data) - 1  # ناقص رأس الجدول
         
         if total_rows > rows_per_page:
+            # تقسيم الجدول إلى صفحات متعددة
             for page_num in range(0, total_rows, rows_per_page):
                 if page_num > 0:
                     elements.append(PageBreak())
@@ -959,6 +926,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
                 elements.append(Paragraph(reshape_arabic_text(f"الصفحة {page_num//rows_per_page + 1} من {((total_rows - 1)//rows_per_page) + 1}"), 
                                          ParagraphStyle('PageNumber', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.gray)))
         else:
+            # إذا كان الجدول صغيراً يكفي لصفحة واحدة
             history_table = Table(history_data, colWidths=[150, 100, 100, 80])
             history_table.setStyle(TableStyle([
                 ('FONTNAME', (0, 0), (-1, -1), font_for_style),
@@ -996,7 +964,7 @@ def generate_class_full_report(class_name, teacher_name, stats, history_df):
     buffer.seek(0)
     return buffer
 
-# 🆕 **دالة معدلة: إنشاء تقرير PDF شامل للنظام**
+# 🆕 **دالة جديدة: إنشاء تقرير PDF شامل للنظام**
 def generate_system_report_pdf():
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -1008,10 +976,9 @@ def generate_system_report_pdf():
         font_for_style = REGISTERED_FONT
     
     title_style = ParagraphStyle('Title', fontName=font_for_style, fontSize=22, alignment=1, textColor=colors.darkblue)
-    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=1, textColor=colors.navy)
+    subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
     normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
-    bold_style = ParagraphStyle('Bold', fontName=font_for_style, fontSize=12, alignment=2, textColor=colors.black)
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير شامل لنظام الغياب"), title_style))
@@ -1029,22 +996,12 @@ def generate_system_report_pdf():
     df_all = read_sheet()
     total_records = len(df_all) if not df_all.empty else 0
     
-    # حساب إجمالي الحضور والغياب
-    if not df_all.empty and "status" in df_all.columns:
-        present_count = len(df_all[df_all["status"] == "حاضر"])
-        absent_count = len(df_all[df_all["status"].str.contains("غياب", na=False)])
-    else:
-        present_count = 0
-        absent_count = 0
-    
     # جدول الإحصائيات العامة
     stats_data = [
         [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(ALL_STUDENTS)))],
         [reshape_arabic_text("عدد الفصول"), reshape_arabic_text(str(len(CLASSES)))],
         [reshape_arabic_text("عدد المعلمين"), reshape_arabic_text(str(len(TEACHER_CLASSES)))],
-        [reshape_arabic_text("إجمالي سجلات الغياب"), reshape_arabic_text(str(total_records))],
-        [reshape_arabic_text("إجمالي الحضور"), reshape_arabic_text(str(present_count))],
-        [reshape_arabic_text("إجمالي الغياب"), reshape_arabic_text(str(absent_count))]
+        [reshape_arabic_text("إجمالي سجلات الغياب"), reshape_arabic_text(str(total_records))]
     ]
     
     stats_table = Table(stats_data, colWidths=[150, 100])
@@ -1069,22 +1026,15 @@ def generate_system_report_pdf():
         stats = get_class_statistics(class_name)
         
         # معلومات الفصل
-        elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), bold_style))
+        elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), normal_style))
         elements.append(Spacer(1, 5))
-        
-        # المعلم المسؤول
-        teacher_responsible = ""
-        for teacher, classes in TEACHER_CLASSES.items():
-            if class_name in classes:
-                teacher_responsible = teacher
-                break
         
         # جدول إحصائيات الفصل
         class_stats_data = [
             [reshape_arabic_text("عدد الطلاب"), reshape_arabic_text(str(len(students)))],
             [reshape_arabic_text("عدد السجلات"), reshape_arabic_text(str(stats["total_records"]))],
             [reshape_arabic_text("نسبة الحضور"), reshape_arabic_text(f"{stats['attendance_rate']:.1f}%")],
-            [reshape_arabic_text("المعلم المسؤول"), reshape_arabic_text(teacher_responsible if teacher_responsible else 'غير معين')]
+            [reshape_arabic_text("المعلم المسؤول"), reshape_arabic_text(', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين')]
         ]
         
         class_stats_table = Table(class_stats_data, colWidths=[100, 80])
@@ -1106,37 +1056,19 @@ def generate_system_report_pdf():
     elements.append(Spacer(1, 10))
     
     for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), bold_style))
+        elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), normal_style))
         elements.append(Spacer(1, 5))
         elements.append(Paragraph(reshape_arabic_text(f"الفصول المسؤول عنها: {', '.join(classes)}"), normal_style))
         
         # حساب إحصائيات كل فصل يدرسه المعلم
-        total_records_teacher = 0
-        total_present_teacher = 0
-        total_absent_teacher = 0
-        
         for class_name in classes:
             stats = get_class_statistics(class_name)
-            elements.append(Paragraph(reshape_arabic_text(f"  • {class_name}: {stats['total_records']} سجل، نسبة الحضور: {stats['attendance_rate']:.1f}%"), 
+            elements.append(Paragraph(reshape_arabic_text(f"  - {class_name}: {stats['total_records']} سجل، نسبة الحضور: {stats['attendance_rate']:.1f}%"), 
                                      ParagraphStyle('Indent', fontName=font_for_style, fontSize=11, alignment=2, leftIndent=20)))
-            
-            total_records_teacher += stats['total_records']
-            total_present_teacher += stats['present_count']
-            total_absent_teacher += stats['absent_count']
-        
-        # إحصائيات المعلم
-        if total_records_teacher > 0:
-            teacher_rate = (total_present_teacher / total_records_teacher * 100)
-            elements.append(Paragraph(reshape_arabic_text(f"**إجمالي سجلات المعلم: {total_records_teacher}، نسبة الحضور: {teacher_rate:.1f}%**"), 
-                                     ParagraphStyle('Bold', fontName=font_for_style, fontSize=11, alignment=2)))
-        else:
-            elements.append(Paragraph(reshape_arabic_text(f"**إجمالي سجلات المعلم: 0، نسبة الحضور: 0.0%**"), 
-                                     ParagraphStyle('Bold', fontName=font_for_style, fontSize=11, alignment=2)))
         
         elements.append(Spacer(1, 10))
     
     # الصفحة الأخيرة
-    elements.append(PageBreak())
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(reshape_arabic_text("ملاحظات:"), subtitle_style))
     elements.append(Spacer(1, 10))
@@ -1148,15 +1080,13 @@ def generate_system_report_pdf():
     elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
-    elements.append(Spacer(1, 5))
-    elements.append(Paragraph(reshape_arabic_text("مدير مدرسة السلام الإعدادية الثانويه المشتركه"), normal_style))
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
     
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
-# 🆕 **دالة معدلة: إنشاء تقرير PDF للمعلمين**
+# 🆕 **دالة جديدة: إنشاء تقرير PDF للمعلمين**
 def generate_teachers_report_pdf():
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -1171,7 +1101,6 @@ def generate_teachers_report_pdf():
     subtitle_style = ParagraphStyle('Subtitle', fontName=font_for_style, fontSize=16, alignment=2, textColor=colors.navy)
     normal_style = ParagraphStyle('Normal', fontName=font_for_style, fontSize=12, alignment=2)
     footer_style = ParagraphStyle('Footer', fontName=font_for_style, fontSize=10, alignment=2, textColor=colors.darkblue)
-    bold_style = ParagraphStyle('Bold', fontName=font_for_style, fontSize=12, alignment=2, textColor=colors.black)
     
     # صفحة الغلاف
     elements.append(Paragraph(reshape_arabic_text("تقرير المعلمين"), title_style))
@@ -1184,12 +1113,10 @@ def generate_teachers_report_pdf():
     
     # معلومات المعلمين
     for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(reshape_arabic_text(f"المعلم: {teacher}"), subtitle_style))
+        elements.append(Paragraph(reshape_arabic_text(f"👨‍🏫 المعلم: {teacher}"), subtitle_style))
         elements.append(Spacer(1, 10))
         
-        elements.append(Paragraph(reshape_arabic_text("الفصول المسؤول عنها:"), bold_style))
-        elements.append(Paragraph(reshape_arabic_text(f"{', '.join(classes)}"), normal_style))
-        elements.append(Spacer(1, 10))
+        elements.append(Paragraph(reshape_arabic_text("الفصول المسؤول عنها:"), normal_style))
         
         # عرض الفصول التي يدرسها المعلم
         for class_name in classes:
@@ -1198,7 +1125,8 @@ def generate_teachers_report_pdf():
             class_students = CLASSES.get(class_name, [])
             
             # معلومات الفصل
-            elements.append(Paragraph(reshape_arabic_text(f"الفصل: {class_name}"), bold_style))
+            elements.append(Paragraph(reshape_arabic_text(f"📚 {class_name}"), 
+                                     ParagraphStyle('Bold', fontName=font_for_style, fontSize=13, alignment=2, textColor=colors.black)))
             
             # جدول إحصائيات الفصل
             class_stats_data = [
@@ -1266,8 +1194,6 @@ def generate_teachers_report_pdf():
     elements.append(Paragraph(reshape_arabic_text("توقيع مدير النظام:"), subtitle_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(reshape_arabic_text("________________________"), normal_style))
-    elements.append(Spacer(1, 5))
-    elements.append(Paragraph(reshape_arabic_text("مدير مدرسة السلام الإعدادية الثانويه المشتركه"), normal_style))
     elements.append(Paragraph(reshape_arabic_text(f"تاريخ الطباعة: {current_date}"), footer_style))
     
     doc.build(elements)
@@ -1580,13 +1506,12 @@ st.markdown("""
     .student-management-table tr:hover {
         background-color: #f3f4f6;
     }
-    /* جميع أزرار Streamlit الأساسية - أبيض نص */
+    /* جميع أزرار Streamlit الأساسية - أزرق */
     .stButton > button {
         background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+        color: white !important;
         border: none !important;
         border-radius: 12px !important;
-        color: white !important;
-        font-weight: 600 !important;
     }
     
     .stButton > button:hover {
@@ -1787,29 +1712,11 @@ st.markdown("""
         padding: 10px 20px;
         font-weight: 600;
         border: 2px solid transparent;
-        color: #475569 !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #2563eb !important;
         color: white !important;
         border-color: #2563eb !important;
-    }
-    
-    /* إزالة الحواف الزرقاء من الـ badges */
-    .badge-admin {
-        border: none !important;
-        box-shadow: none !important;
-        background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-        color: white !important;
-    }
-    
-    /* جعل نص الأزرار أبيض دائماً */
-    .stButton > button span {
-        color: white !important;
-    }
-    
-    button span {
-        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1920,11 +1827,11 @@ elif st.session_state.logged_in:
         # عرض نوع المستخدم
         role_badge = ""
         if st.session_state.user_role == "admin":
-            role_badge = '<span class="user-type-badge badge-admin">مدير النظام</span>'
+            role_badge = '<span class="badge-admin">👑 مدير النظام</span>'
         elif st.session_state.user_role == "teacher":
-            role_badge = '<span class="user-type-badge badge-teacher">معلم</span>'
+            role_badge = '<span class="badge-teacher">👨‍🏫 معلم</span>'
         else:
-            role_badge = '<span class="user-type-badge badge-student">طالب</span>'
+            role_badge = '<span class="badge-student">👨‍🎓 طالب</span>'
         
         welcome_html = f"""
         <div class="welcome-message">
@@ -1944,7 +1851,7 @@ elif st.session_state.logged_in:
                     st.rerun()
             
             with col2:
-                if st.button("📋 مراجعة البيانات", key="admin_review", use_container_width=True):
+                if st.button("📊 مراجعة البيانات", key="admin_review", use_container_width=True):
                     st.session_state.page = "admin_dashboard"
                     st.rerun()
                     
@@ -2169,20 +2076,20 @@ elif st.session_state.logged_in:
                 
                 # زر تحميل تقرير الفصل الكامل
                 st.markdown("---")
-                st.markdown("### 📥 تحميل تقرير الفصل")
+                st.markdown("### 📥 تحميل تقرير كامل")
                 
                 # إنشاء تقرير PDF كامل
                 try:
                     pdf_buffer = generate_class_full_report(selected_class, teacher_name, stats, history_df)
                     
-                    # زر تحميل التقرير مباشرة
+                    # زر تحميل التقرير
                     st.download_button(
-                        label="📄 تحميل تقرير الفصل (PDF)",
+                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
                         data=pdf_buffer,
                         file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         use_container_width=True,
-                        help="سيتم تحميل التقرير مباشرة"
+                        help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
                     )
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
@@ -2320,27 +2227,7 @@ elif st.session_state.logged_in:
                 total_teachers = len(TEACHER_CLASSES)
                 st.metric("عدد المعلمين", total_teachers)
             
-            # عرض البيانات مباشرة
-            st.markdown("### 📋 آخر التسجيلات")
-            
-            if not df_all.empty:
-                # عرض آخر 10 تسجيلات
-                recent_records = df_all.tail(10).copy()
-                recent_records = recent_records.rename(columns={
-                    "student": "الطالب",
-                    "teacher": "المعلم",
-                    "class": "الفصل",
-                    "status": "الحالة",
-                    "date": "التاريخ"
-                })
-                
-                # إعادة ترتيب الأعمدة
-                recent_records = recent_records[["التاريخ", "الفصل", "الطالب", "المعلم", "الحالة"]]
-                st.dataframe(recent_records, use_container_width=True, hide_index=True)
-            else:
-                st.info("لا توجد تسجيلات بعد.")
-            
-            # توزيع الغياب حسب الفصل
+            # رسم بياني لتوزيع الغياب حسب الفصل
             st.markdown("### 📈 توزيع الغياب حسب الفصول")
             
             if not df_all.empty and "class" in df_all.columns and "status" in df_all.columns:
@@ -2349,45 +2236,27 @@ elif st.session_state.logged_in:
                 for class_name in CLASSES.keys():
                     class_df = df_all[df_all["class"] == class_name]
                     if not class_df.empty:
-                        present_count = len(class_df[class_df["status"] == "حاضر"])
                         absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
+                        present_count = len(class_df[class_df["status"] == "حاضر"])
                         total = len(class_df)
-                        attendance_rate = (present_count / total * 100) if total > 0 else 0
-                        
                         class_stats[class_name] = {
-                            "present": present_count,
                             "absent": absent_count,
+                            "present": present_count,
                             "total": total,
-                            "rate": attendance_rate
-                        }
-                    else:
-                        class_stats[class_name] = {
-                            "present": 0,
-                            "absent": 0,
-                            "total": 0,
-                            "rate": 0
+                            "rate": (present_count / total * 100) if total > 0 else 0
                         }
                 
-                # إنشاء DataFrame للتوزيع
-                distribution_data = []
-                for class_name, stats in class_stats.items():
-                    distribution_data.append({
-                        "الفصل": class_name,
-                        "الحضور": stats["present"],
-                        "الغياب": stats["absent"],
-                        "الإجمالي": stats["total"],
-                        "نسبة الحضور": f"{stats['rate']:.1f}%"
-                    })
-                
-                if distribution_data:
-                    distribution_df = pd.DataFrame(distribution_data)
-                    st.dataframe(distribution_df, use_container_width=True, hide_index=True)
+                if class_stats:
+                    # إنشاء DataFrame للتوزيع
+                    distribution_df = pd.DataFrame.from_dict(class_stats, orient='index')
+                    distribution_df = distribution_df.reset_index()
+                    distribution_df.columns = ["الفصل", "غياب", "حضور", "إجمالي", "نسبة الحضور"]
                     
-                    st.info(f"تم تحليل بيانات {len(df_all)} سجل لـ {len(CLASSES)} فصول")
+                    st.dataframe(distribution_df, use_container_width=True, hide_index=True)
                 else:
                     st.info("لا توجد سجلات للعرض بعد.")
             else:
-                st.warning("⚠️ لا توجد بيانات كافية لعرض توزيع الغياب.")
+                st.info("لا توجد بيانات كافية للعرض.")
         
         with tab2:
             st.markdown("### 👥 إدارة الطلاب")
@@ -2402,6 +2271,7 @@ elif st.session_state.logged_in:
                         # إنشاء جدول للطلاب
                         student_data = []
                         for idx, student in enumerate(students, 1):
+                            # الحصول على كلمة المرور
                             password = student_passwords.get(student, "غير معرف")
                             student_data.append({
                                 "م": idx,
@@ -2426,6 +2296,7 @@ elif st.session_state.logged_in:
                     
                     if submit_button:
                         if student_name and student_class and student_password:
+                            # التحقق من عدم وجود طالب بنفس الاسم
                             all_students = []
                             for students in CLASSES.values():
                                 all_students.extend(students)
@@ -2433,10 +2304,14 @@ elif st.session_state.logged_in:
                             if student_name in all_students:
                                 st.error("❌ هذا الطالب موجود بالفعل!")
                             else:
+                                # إضافة الطالب إلى القائمة
                                 CLASSES[student_class].append(student_name)
                                 student_passwords[student_name] = student_password
+                                
+                                # تحديث القاموس العكسي
                                 STUDENT_TO_CLASS[student_name] = student_class
                                 
+                                # تحديث المستخدمين
                                 USERS[student_name] = {
                                     "password": student_password,
                                     "role": "student",
@@ -2463,12 +2338,15 @@ elif st.session_state.logged_in:
                     delete_button = st.form_submit_button("🗑️ حذف الطالب", use_container_width=True, type="secondary")
                     
                     if delete_button and student_to_delete:
+                        # استخراج اسم الطالب من النص
                         student_name = student_to_delete.split(" (")[0]
                         
+                        # البحث عن الفصل وإزالة الطالب
                         for class_name, students in CLASSES.items():
                             if student_name in students:
                                 CLASSES[class_name].remove(student_name)
                                 
+                                # حذف من القواميس الأخرى
                                 if student_name in STUDENT_TO_CLASS:
                                     del STUDENT_TO_CLASS[student_name]
                                 if student_name in student_passwords:
@@ -2499,7 +2377,7 @@ elif st.session_state.logged_in:
                 st.markdown("#### ➕ إضافة فصل جديد")
                 
                 with st.form(key="add_class_form"):
-                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: Class F")
+                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: فصل F")
                     teacher_assigned = st.selectbox("المعلم المسؤول", list(TEACHER_CLASSES.keys()))
                     
                     add_class_button = st.form_submit_button("➕ إضافة الفصل", use_container_width=True)
@@ -2525,11 +2403,14 @@ elif st.session_state.logged_in:
                     
                     if edit_class_button:
                         if new_class_name and new_class_name != class_to_edit:
+                            # تغيير اسم الفصل
                             CLASSES[new_class_name] = CLASSES.pop(class_to_edit)
                             
+                            # تحديث القاموس العكسي
                             for student in CLASSES[new_class_name]:
                                 STUDENT_TO_CLASS[student] = new_class_name
                             
+                            # تحديث TEACHER_CLASSES
                             for teacher, classes in TEACHER_CLASSES.items():
                                 if class_to_edit in classes:
                                     classes.remove(class_to_edit)
@@ -2538,6 +2419,7 @@ elif st.session_state.logged_in:
                             st.success(f"✅ تم تغيير اسم الفصل إلى {new_class_name}")
                         
                         if new_teacher:
+                            # تغيير المعلم المسؤول
                             for teacher, classes in TEACHER_CLASSES.items():
                                 if class_to_edit in classes:
                                     classes.remove(class_to_edit)
@@ -2582,6 +2464,7 @@ elif st.session_state.logged_in:
                 st.markdown(f"#### 📊 البيانات المصفاة ({len(filtered_df)} سجل)")
                 
                 if not filtered_df.empty:
+                    # تنسيق البيانات للعرض
                     display_df = filtered_df.copy()
                     display_df = display_df.rename(columns={
                         "student": "الطالب",
@@ -2591,6 +2474,7 @@ elif st.session_state.logged_in:
                         "date": "التاريخ"
                     })
                     
+                    # إعادة ترتيب الأعمدة
                     display_df = display_df[["التاريخ", "الفصل", "الطالب", "المعلم", "الحالة"]]
                     
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -2603,15 +2487,19 @@ elif st.session_state.logged_in:
                     with col1:
                         if st.button("🗑️ حذف البيانات المصفاة", use_container_width=True):
                             if st.warning("⚠️ هل أنت متأكد من حذف هذه البيانات؟"):
+                                # حذف الصفوف المصفاة
                                 try:
+                                    # الحصول على جميع البيانات
                                     all_data = worksheet.get_all_records()
                                     all_data_df = pd.DataFrame(all_data)
                                     
+                                    # تحديد الصفوف للحذف
                                     to_delete = all_data_df[all_data_df.isin(filtered_df.to_dict('list')).all(axis=1)].index
                                     
                                     if len(to_delete) > 0:
+                                        # حذف الصفوف
                                         for idx in sorted(to_delete, reverse=True):
-                                            worksheet.delete_rows(idx + 2)
+                                            worksheet.delete_rows(idx + 2)  # +2 بسبب الرأس والترقيم من 0
                                         
                                         st.success(f"✅ تم حذف {len(to_delete)} سجل")
                                         st.rerun()
@@ -2645,59 +2533,61 @@ elif st.session_state.logged_in:
             
             with report_tab1:
                 st.markdown("#### 📄 تقرير شامل للنظام")
-                st.info("يمكنك تحميل تقرير PDF شامل يحتوي على جميع إحصائيات النظام")
+                st.info("يمكنك إنشاء تقرير PDF شامل يحتوي على جميع إحصائيات النظام")
                 
-                # إنشاء وتحميل التقرير مباشرة
-                try:
-                    pdf_buffer = generate_system_report_pdf()
-                    
-                    # زر تحميل التقرير مباشرة
-                    st.download_button(
-                        label="📥 تحميل التقرير الشامل (PDF)",
-                        data=pdf_buffer,
-                        file_name=f"تقرير_شامل_النظام_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    
-                    st.info("""
-                    **محتويات التقرير الشامل:**
-                    1. الإحصائيات العامة للنظام
-                    2. تفاصيل جميع الفصول
-                    3. معلومات المعلمين والفصول المسؤولين عنها
-                    4. توقيع مدير النظام
-                    """)
-                    
-                except Exception as e:
-                    st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                if st.button("📊 إنشاء تقرير شامل (PDF)", use_container_width=True):
+                    try:
+                        pdf_buffer = generate_system_report_pdf()
+                        
+                        # زر تحميل التقرير
+                        st.download_button(
+                            label="📥 تحميل التقرير الشامل (PDF)",
+                            data=pdf_buffer,
+                            file_name=f"تقرير_شامل_النظام_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                        
+                        st.success("✅ تم إنشاء التقرير بنجاح")
+                        st.info("""
+                        **محتويات التقرير الشامل:**
+                        1. الإحصائيات العامة للنظام
+                        2. تفاصيل جميع الفصول
+                        3. معلومات المعلمين والفصول المسؤولين عنها
+                        4. توقيع مدير النظام
+                        """)
+                        
+                    except Exception as e:
+                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
             
             with report_tab2:
                 st.markdown("#### 👨‍🏫 تقرير المعلمين")
                 st.info("تقرير خاص بأداء المعلمين والفصول المسؤولين عنها")
                 
-                # إنشاء وتحميل التقرير مباشرة
-                try:
-                    pdf_buffer = generate_teachers_report_pdf()
-                    
-                    # زر تحميل التقرير مباشرة
-                    st.download_button(
-                        label="📥 تحميل تقرير المعلمين (PDF)",
-                        data=pdf_buffer,
-                        file_name=f"تقرير_المعلمين_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    
-                    st.info("""
-                    **محتويات تقرير المعلمين:**
-                    1. معلومات كل معلم والفصول المسؤول عنها
-                    2. إحصائيات كل فصل (طلاب، سجلات، نسبة حضور)
-                    3. إحصائيات عامة عن جميع المعلمين
-                    4. ملاحظات وتوقيع مدير النظام
-                    """)
-                    
-                except Exception as e:
-                    st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                if st.button("👨‍🏫 إنشاء تقرير المعلمين (PDF)", use_container_width=True):
+                    try:
+                        pdf_buffer = generate_teachers_report_pdf()
+                        
+                        # زر تحميل التقرير
+                        st.download_button(
+                            label="📥 تحميل تقرير المعلمين (PDF)",
+                            data=pdf_buffer,
+                            file_name=f"تقرير_المعلمين_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                        
+                        st.success("✅ تم إنشاء تقرير المعلمين بنجاح")
+                        st.info("""
+                        **محتويات تقرير المعلمين:**
+                        1. معلومات كل معلم والفصول المسؤول عنها
+                        2. إحصائيات كل فصل (طلاب، سجلات، نسبة حضور)
+                        3. إحصائيات عامة عن جميع المعلمين
+                        4. ملاحظات وتوقيع مدير النظام
+                        """)
+                        
+                    except Exception as e:
+                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
             
             with report_tab3:
                 st.markdown("#### ⚙️ إعدادات النظام")
@@ -2741,6 +2631,7 @@ elif st.session_state.logged_in:
                     # نسخة احتياطية
                     if st.button("💾 إنشاء نسخة احتياطية", use_container_width=True):
                         try:
+                            # حفظ الإعدادات الحالية
                             backup_data = {
                                 "classes": CLASSES,
                                 "teacher_classes": TEACHER_CLASSES,

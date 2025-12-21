@@ -259,19 +259,36 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
                 if not current_data:
                     headers = ["student", "teacher", "class", "status", "date"]
                     worksheet.append_row(headers)
+                    st.info("📝 تم إنشاء ورقة جديدة وإضافة العناوين")
                 
             except Exception as e:
                 connection_status = f"✅ متصل ولكن خطأ في القراءة"
+                st.error(f"خطأ في قراءة البيانات: {e}")
                 
         except gspread.exceptions.SpreadsheetNotFound:
             connection_status = f"❌ لم يتم العثور على Sheet"
+            st.error(f"❌ لم يتم العثور على الورقة: {SHEET_NAME}")
+            # محاولة إنشاء ورقة جديدة
+            try:
+                st.info("🔄 جاري إنشاء ورقة جديدة...")
+                sh = gc.create(SHEET_NAME)
+                worksheet = sh.sheet1
+                headers = ["student", "teacher", "class", "status", "date"]
+                worksheet.append_row(headers)
+                connection_status = "✅ تم إنشاء ورقة جديدة"
+                st.success("✅ تم إنشاء ورقة جديدة بنجاح")
+            except Exception as create_error:
+                st.error(f"❌ فشل في إنشاء الورقة: {create_error}")
         except Exception as e:
             connection_status = f"❌ خطأ في فتح الـ Sheet"
+            st.error(f"❌ خطأ في فتح الـ Sheet: {e}")
             
     except Exception as e:
         connection_status = f"❌ فشل في المصادقة"
+        st.error(f"❌ فشل في المصادقة: {e}")
 else:
     connection_status = "❌ إعدادات الاتصال غير كاملة"
+    st.warning("⚠️ إعدادات الاتصال غير كاملة. سيتم استخدام التطبيق بدون حفظ بيانات.")
 
 # ------------------ باقي الكود ------------------
 # Arabic font for PDF
@@ -317,23 +334,37 @@ def reshape_arabic_text(text):
         return str(text)
 
 def read_sheet():
+    """قراءة البيانات من Google Sheets"""
     if worksheet is None:
+        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. استخدام بيانات محلية.")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
+        # محاولة قراءة جميع البيانات
         data = worksheet.get_all_records()
-    except Exception:
+        
+        if not data:
+            st.info("📭 لا توجد بيانات في الورقة بعد.")
+            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+        
+        df = pd.DataFrame(data)
+        
+        # التأكد من وجود جميع الأعمدة المطلوبة
+        required_columns = ["student", "teacher", "class", "status", "date"]
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = ""
+        
+        st.success(f"✅ تم تحميل {len(df)} سجل من Google Sheets")
+        return df
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-    
-    df = pd.DataFrame(data)
-    # التأكد من وجود جميع الأعمدة
-    for c in ["student", "teacher", "class", "status", "date"]:
-        if c not in df.columns:
-            df[c] = ""
-    return df
 
 def write_sheet(df):
     if worksheet is None:
+        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. البيانات لن تحفظ.")
         return False
     
     try:
@@ -525,7 +556,8 @@ def get_class_attendance_history(class_name):
     class_df["status_clean"] = class_df["status"].apply(clean_status)
     
     # ترتيب حسب التاريخ
-    class_df = class_df.sort_values("date", ascending=False)
+    if "date" in class_df.columns:
+        class_df = class_df.sort_values("date", ascending=False)
     
     return class_df[["student", "teacher", "date_clean", "status_clean"]]
 
@@ -580,30 +612,41 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     # حفظ في Google Sheets إذا كان متصلاً
     if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
         try:
-            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-            success_count = len(rows)
+            # قراءة البيانات الحالية أولاً
+            current_data = read_sheet()
+            if current_data is not None and not current_data.empty:
+                # دمج البيانات الجديدة مع القديمة
+                new_df = pd.DataFrame(rows, columns=["student", "teacher", "class", "status", "date"])
+                combined_df = pd.concat([current_data, new_df], ignore_index=True)
+                
+                # حفظ البيانات المدمجة
+                write_sheet(combined_df)
+                success_count = len(rows)
+                st.success(f"✅ تم حفظ {success_count} سجل بنجاح في Google Sheets")
+            else:
+                # إذا لم تكن هناك بيانات حالية، احفظ البيانات الجديدة فقط
+                new_df = pd.DataFrame(rows, columns=["student", "teacher", "class", "status", "date"])
+                write_sheet(new_df)
+                success_count = len(rows)
+                st.success(f"✅ تم حفظ {success_count} سجل بنجاح في Google Sheets")
+                
         except Exception as e:
-            # إذا فشلت الإضافة الجماعية، نجرب إضافة كل صف على حدة
-            try:
-                for r in rows:
-                    worksheet.append_row(r, value_input_option="USER_ENTERED")
-                    success_count += 1
-            except Exception as ex:
-                failed.append((f"الفصل {class_name}", str(ex)))
-    elif rows:  # إذا كان هناك صفور ولكن لا يوجد اتصال
+            st.error(f"❌ خطأ في حفظ البيانات: {str(e)}")
+            failed.append((f"الفصل {class_name}", str(e)))
+    elif rows:  # إذا كان هناك صفوف ولكن لا يوجد اتصال
         failed.append((f"الفصل {class_name}", "لا يوجد اتصال بـ Google Sheets"))
     
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفور (وهذا يعني دائماً يوجد صفور لأننا نسجل جميع الطلاب)
+    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
+        # رسالة معدلة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
@@ -624,7 +667,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
 
 def get_student_records(student_name):
     df = read_sheet()
-    if "student" not in df.columns or df.empty:
+    if df.empty or "student" not in df.columns:
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
     
     try:
@@ -684,7 +727,9 @@ def get_student_records(student_name):
     df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
     # إعادة ترتيب الصفوف
-    df_matches = df_matches.sort_values("date", ascending=False)
+    if "date" in df_matches.columns:
+        df_matches = df_matches.sort_values("date", ascending=False)
+    
     df_matches = df_matches.reset_index(drop=True)
     df_matches.insert(0, "المرة", range(1, len(df_matches) + 1))
     
@@ -2218,7 +2263,7 @@ elif st.session_state.logged_in:
         with tab1:
             st.markdown("### 📊 نظرة عامة على النظام")
             
-            # إحصائيات النظام - إصلاح المشكلة
+            # إحصائيات النظام
             df_all = read_sheet()
             
             col1, col2, col3, col4 = st.columns(4)
@@ -2255,7 +2300,7 @@ elif st.session_state.logged_in:
             else:
                 st.info("لا توجد تسجيلات بعد.")
             
-            # توزيع الغياب حسب الفصل
+            # توزيع الغياب حسب الفصل - تم إصلاحه
             st.markdown("### 📈 توزيع الغياب حسب الفصول")
             
             if not df_all.empty and "class" in df_all.columns and "status" in df_all.columns:
@@ -2264,27 +2309,49 @@ elif st.session_state.logged_in:
                 for class_name in CLASSES.keys():
                     class_df = df_all[df_all["class"] == class_name]
                     if not class_df.empty:
-                        absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
+                        # حساب الحضور والغياب
                         present_count = len(class_df[class_df["status"] == "حاضر"])
+                        absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
                         total = len(class_df)
+                        attendance_rate = (present_count / total * 100) if total > 0 else 0
+                        
                         class_stats[class_name] = {
-                            "absent": absent_count,
                             "present": present_count,
+                            "absent": absent_count,
                             "total": total,
-                            "rate": (present_count / total * 100) if total > 0 else 0
+                            "rate": attendance_rate
+                        }
+                    else:
+                        class_stats[class_name] = {
+                            "present": 0,
+                            "absent": 0,
+                            "total": 0,
+                            "rate": 0
                         }
                 
-                if class_stats:
-                    # إنشاء DataFrame للتوزيع
-                    distribution_df = pd.DataFrame.from_dict(class_stats, orient='index')
-                    distribution_df = distribution_df.reset_index()
-                    distribution_df.columns = ["الفصل", "غياب", "حضور", "إجمالي", "نسبة الحضور"]
-                    
+                # إنشاء DataFrame للتوزيع
+                distribution_data = []
+                for class_name, stats in class_stats.items():
+                    distribution_data.append({
+                        "الفصل": class_name,
+                        "الحضور": stats["present"],
+                        "الغياب": stats["absent"],
+                        "الإجمالي": stats["total"],
+                        "نسبة الحضور": f"{stats['rate']:.1f}%"
+                    })
+                
+                if distribution_data:
+                    distribution_df = pd.DataFrame(distribution_data)
                     st.dataframe(distribution_df, use_container_width=True, hide_index=True)
+                    
+                    # عرض رسالة إعلامية
+                    st.info(f"تم تحليل بيانات {len(df_all)} سجل لـ {len(CLASSES)} فصول")
                 else:
                     st.info("لا توجد سجلات للعرض بعد.")
             else:
-                st.info("لا توجد بيانات كافية للعرض.")
+                st.warning("⚠️ لا توجد بيانات كافية لعرض توزيع الغياب.")
+                if not df_all.empty:
+                    st.info(f"الأعمدة الموجودة: {list(df_all.columns)}")
         
         with tab2:
             st.markdown("### 👥 إدارة الطلاب")

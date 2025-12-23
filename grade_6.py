@@ -7,7 +7,6 @@ import json
 import logging
 import base64
 import requests
-import sys
 
 # Google Sheets / Auth
 import gspread
@@ -170,34 +169,28 @@ def load_secrets():
         # App settings
         SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
         
-        # Service Account - محاولة قراءة SERVICE_ACCOUNT_JSON أولاً
+        # Service Account - محاولة قراءة SERVICE_ACCOUNT بشكل مباشر
         SERVICE_ACCOUNT = None
         
-        # الطريقة 1: SERVICE_ACCOUNT_JSON
-        if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
+        # الطريقة 1: قراءة SERVICE_ACCOUNT ككائن مباشر
+        if hasattr(secrets, 'SERVICE_ACCOUNT'):
             try:
-                SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
-            except Exception as e:
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
-        
-        # الطريقة 2: SERVICE_ACCOUNT كقسم (للتوافق مع الإصدارات القديمة)
-        if not SERVICE_ACCOUNT and hasattr(secrets, 'service_account'):
-            try:
-                service_account_info = secrets.service_account
+                # بناء SERVICE_ACCOUNT يدوياً من الإعدادات
                 SERVICE_ACCOUNT = {
-                    'type': service_account_info.get('type', ''),
-                    'project_id': service_account_info.get('project_id', ''),
-                    'private_key_id': service_account_info.get('private_key_id', ''),
-                    'private_key': service_account_info.get('private_key', '').replace('\\n', '\n'),
-                    'client_email': service_account_info.get('client_email', ''),
-                    'client_id': service_account_info.get('client_id', ''),
-                    'auth_uri': service_account_info.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': service_account_info.get('token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': service_account_info.get('auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': service_account_info.get('client_x509_cert_url', '')
+                    'type': secrets.SERVICE_ACCOUNT.type,
+                    'project_id': secrets.SERVICE_ACCOUNT.project_id,
+                    'private_key_id': secrets.SERVICE_ACCOUNT.private_key_id,
+                    'private_key': secrets.SERVICE_ACCOUNT.private_key.replace('\\n', '\n'),
+                    'client_email': secrets.SERVICE_ACCOUNT.client_email,
+                    'client_id': secrets.SERVICE_ACCOUNT.client_id,
+                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
+                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
+                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
+                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
                 }
+                st.success("✅ تم تحميل SERVICE_ACCOUNT بنجاح")
             except Exception as e:
-                st.error(f"❌ خطأ في تحميل service_account: {e}")
+                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -227,48 +220,77 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 worksheet = None
 connection_status = "غير متصل"
 
-# محاولة الاتصال بـ Google Sheets
-if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
-    try:
-        SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        
-        # استخدام JSON مباشرة
-        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
-        gc = gspread.authorize(creds)
-        
-        # محاولة فتح أو إنشاء الـ Sheet
+# عرض حالة الاتصال في الشريط الجانبي
+with st.sidebar:
+    st.markdown("### 🔗 حالة الاتصال")
+    
+    # محاولة الاتصال بـ Google Sheets
+    if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
         try:
-            # محاولة فتح الـ Sheet الموجود
-            sh = gc.open(SHEET_NAME)
-            worksheet = sh.sheet1
-            connection_status = f"✅ تم الاتصال بـ Google Sheets: {SHEET_NAME}"
+            SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
             
-            # التحقق من وجود العناوين
+            # استخدام JSON مباشرة
+            creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            
+            # محاولة فتح أو إنشاء الـ Sheet
             try:
-                current_data = worksheet.get_all_values()
-                if not current_data:
-                    # إذا كانت الورقة فارغة، أضف العناوين
-                    headers = ["student", "teacher", "class", "status", "date"]
-                    worksheet.append_row(headers)
-            except Exception as e:
-                st.error(f"❌ خطأ في التحقق من البيانات: {e}")
+                # محاولة فتح الـ Sheet الموجود
+                sh = gc.open(SHEET_NAME)
+                worksheet = sh.sheet1
+                connection_status = f"✅ متصل بـ {SHEET_NAME}"
+                st.success(connection_status)
                 
-        except gspread.exceptions.SpreadsheetNotFound:
-            # إذا لم يتم العثور على الـ Sheet، لا ننشئ واحدًا جديدًا
-            connection_status = f"❌ لم يتم العثور على Google Sheet: {SHEET_NAME}"
-            st.error(f"❌ لم يتم العثور على Google Sheet: {SHEET_NAME}")
-            st.info("⚠️ يرجى إنشاء Google Sheet يدويًا وإعطاء حساب الخدمة صلاحية الوصول إليه")
-            
+                # التحقق من وجود العناوين
+                try:
+                    current_data = worksheet.get_all_values()
+                    if not current_data:
+                        # إذا كانت الورقة فارغة، أضف العناوين
+                        headers = ["student", "teacher", "class", "status", "date"]
+                        worksheet.append_row(headers)
+                        st.info("✅ تم إضافة العناوين إلى الورقة")
+                except Exception as e:
+                    st.error(f"❌ خطأ في التحقق من البيانات: {e}")
+                    
+            except gspread.exceptions.SpreadsheetNotFound:
+                # إذا لم يتم العثور على الـ Sheet
+                connection_status = f"❌ لم يتم العثور على: {SHEET_NAME}"
+                st.error(connection_status)
+                st.info(f"""
+                **حل المشكلة:**
+                1. تأكد من إنشاء Google Sheet باسم **{SHEET_NAME}**
+                2. شارك الـ Sheet مع البريد الإلكتروني: **attendance-service@attendance-streamlit-app-c3aa8.iam.gserviceaccount.com**
+                3. أعط صلاحية **Editor** لحساب الخدمة
+                """)
+                
+            except Exception as e:
+                connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
+                st.error(connection_status)
+                
         except Exception as e:
-            connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
-            st.error(f"❌ خطأ في فتح الـ Sheet: {str(e)}")
-            
-    except Exception as e:
-        connection_status = f"❌ فشل في المصادقة: {str(e)}"
-        st.error(f"❌ فشل في المصادقة: {str(e)}")
-else:
-    connection_status = "❌ إعدادات الاتصال غير كاملة"
-    st.error("❌ إعدادات الاتصال غير كاملة. يرجى التحقق من إعدادات SERVICE_ACCOUNT")
+            connection_status = f"❌ فشل في المصادقة: {str(e)}"
+            st.error(connection_status)
+            st.info("""
+            **التحقق من:**
+            1. مفاتيح حساب الخدمة صحيحة
+            2. حساب الخدمة مفعّل
+            3. Google Sheets API مفعل في المشروع
+            """)
+    else:
+        connection_status = "❌ إعدادات الاتصال غير كاملة"
+        st.error(connection_status)
+        st.info("""
+        **تأكد من:**
+        1. إضافة SERVICE_ACCOUNT إلى Streamlit Secrets
+        2. تنسيق JSON صحيح
+        3. جميع الحقول مطلوبة
+        """)
+    
+    st.markdown("---")
+    st.markdown("### 📊 معلومات النظام")
+    st.info(f"**عدد الطلاب:** {len(ALL_STUDENTS)}")
+    st.info(f"**عدد الفصول:** {len(CLASSES)}")
+    st.info(f"**عدد المعلمين:** {len(TEACHER_CLASSES)}")
 
 # Helper functions
 def reshape_arabic_text(text):
@@ -340,6 +362,7 @@ def read_sheet():
     """قراءة البيانات من Google Sheets"""
     if worksheet is None:
         # استخدام البيانات المحلية كبديل
+        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. يتم العمل بالبيانات المحلية.")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
@@ -598,9 +621,9 @@ def get_student_records(student_name):
             if pd.isna(status):
                 return ""
             status_str = str(status).strip()
-            if "غياب" in status_str:
+            if "غياب" في status_str:
                 return "غياب"
-            elif "حاضر" in status_str:
+            elif "حاضر" في status_str:
                 return "حاضر"
             return status_str
         
@@ -1502,7 +1525,7 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-                # زر تحميل البيانات كـ CSV بدلاً من PDF
+                # زر تحميل البيانات كـ CSV
                 st.markdown("---")
                 st.markdown("### 📥 تصدير بيانات الفصل")
                 
@@ -1591,7 +1614,7 @@ elif st.session_state.logged_in:
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
-            # زر تحميل CSV بدلاً من PDF
+            # زر تحميل CSV
             csv_data = df_student.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
                 "📥 تحميل تقرير (CSV)",
@@ -1633,9 +1656,6 @@ elif st.session_state.logged_in:
         
         with tab1:
             st.markdown("### 📊 نظرة عامة على النظام")
-            
-            # عرض حالة الاتصال
-            st.markdown(f"#### 🔗 حالة الاتصال: **{connection_status}**")
             
             # إحصائيات النظام
             df_all = read_sheet()
@@ -2024,27 +2044,6 @@ elif st.session_state.logged_in:
             
             with export_tab2:
                 st.markdown("#### ⚙️ إعدادات النظام")
-                
-                # حالة الاتصال
-                st.markdown("##### 🔗 حالة الاتصال")
-                st.info(f"حالة الاتصال بـ Google Sheets: **{connection_status}**")
-                
-                if worksheet:
-                    try:
-                        # اختبار الاتصال
-                        test_data = worksheet.get_all_values()
-                        st.success(f"✅ متصل بنجاح - عدد السجلات: {len(test_data)-1 if test_data else 0}")
-                    except Exception as e:
-                        st.error(f"❌ خطأ في الاتصال: {str(e)}")
-                else:
-                    st.warning("⚠️ لا يوجد اتصال بـ Google Sheets")
-                    st.info("""
-                    **لإعداد الاتصال:**
-                    1. إنشاء حساب خدمة في Google Cloud Console
-                    2. تفعيل Google Sheets API
-                    3. إضافة مفاتيح حساب الخدمة إلى Streamlit Secrets
-                    4. مشاركة Google Sheet مع حساب الخدمة
-                    """)
                 
                 # إدارة المستخدمين
                 st.markdown("##### 🔐 إدارة المستخدمين")

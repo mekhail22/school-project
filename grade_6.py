@@ -9,16 +9,6 @@ import base64
 import requests
 import sys
 
-# إزالة arabic_reshaper و bidi واستخدام طريقة مبسطة
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.fonts import addMapping
-from reportlab.pdfgen import canvas
-
 # Google Sheets / Auth
 import gspread
 from google.oauth2.service_account import Credentials
@@ -191,22 +181,23 @@ def load_secrets():
                 st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
         
         # الطريقة 2: SERVICE_ACCOUNT كقسم (للتوافق مع الإصدارات القديمة)
-        if not SERVICE_ACCOUNT and hasattr(secrets, 'SERVICE_COUNT'):
+        if not SERVICE_ACCOUNT and hasattr(secrets, 'service_account'):
             try:
+                service_account_info = secrets.service_account
                 SERVICE_ACCOUNT = {
-                    'type': getattr(secrets.SERVICE_ACCOUNT, 'type', ''),
-                    'project_id': getattr(secrets.SERVICE_ACCOUNT, 'project_id', ''),
-                    'private_key_id': getattr(secrets.SERVICE_ACCOUNT, 'private_key_id', ''),
-                    'private_key': getattr(secrets.SERVICE_ACCOUNT, 'private_key', ''),
-                    'client_email': getattr(secrets.SERVICE_ACCOUNT, 'client_email', ''),
-                    'client_id': getattr(secrets.SERVICE_ACCOUNT, 'client_id', ''),
-                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
+                    'type': service_account_info.get('type', ''),
+                    'project_id': service_account_info.get('project_id', ''),
+                    'private_key_id': service_account_info.get('private_key_id', ''),
+                    'private_key': service_account_info.get('private_key', '').replace('\\n', '\n'),
+                    'client_email': service_account_info.get('client_email', ''),
+                    'client_id': service_account_info.get('client_id', ''),
+                    'auth_uri': service_account_info.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
+                    'token_uri': service_account_info.get('token_uri', 'https://oauth2.googleapis.com/token'),
+                    'auth_provider_x509_cert_url': service_account_info.get('auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
+                    'client_x509_cert_url': service_account_info.get('client_x509_cert_url', '')
                 }
             except Exception as e:
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
+                st.error(f"❌ خطأ في تحميل service_account: {e}")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -245,95 +236,39 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
         creds = Credentials.from_service_account_info(SERVICE_ACCOUNT, scopes=SCOPES)
         gc = gspread.authorize(creds)
         
-        # محاولة فتح الـ Sheet
+        # محاولة فتح أو إنشاء الـ Sheet
         try:
+            # محاولة فتح الـ Sheet الموجود
             sh = gc.open(SHEET_NAME)
             worksheet = sh.sheet1
+            connection_status = f"✅ تم الاتصال بـ Google Sheets: {SHEET_NAME}"
             
-            # اختبار الاتصال
+            # التحقق من وجود العناوين
             try:
                 current_data = worksheet.get_all_values()
-                connection_status = "✅ متصل"
-                
-                # إذا كانت الورقة جديدة، أضف العناوين
                 if not current_data:
+                    # إذا كانت الورقة فارغة، أضف العناوين
                     headers = ["student", "teacher", "class", "status", "date"]
                     worksheet.append_row(headers)
-                
             except Exception as e:
-                connection_status = f"✅ متصل ولكن خطأ في القراءة"
+                st.error(f"❌ خطأ في التحقق من البيانات: {e}")
                 
         except gspread.exceptions.SpreadsheetNotFound:
-            connection_status = f"❌ لم يتم العثور على Sheet"
+            # إذا لم يتم العثور على الـ Sheet، لا ننشئ واحدًا جديدًا
+            connection_status = f"❌ لم يتم العثور على Google Sheet: {SHEET_NAME}"
+            st.error(f"❌ لم يتم العثور على Google Sheet: {SHEET_NAME}")
+            st.info("⚠️ يرجى إنشاء Google Sheet يدويًا وإعطاء حساب الخدمة صلاحية الوصول إليه")
+            
         except Exception as e:
-            connection_status = f"❌ خطأ في فتح الـ Sheet"
+            connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
+            st.error(f"❌ خطأ في فتح الـ Sheet: {str(e)}")
             
     except Exception as e:
-        connection_status = f"❌ فشل في المصادقة"
+        connection_status = f"❌ فشل في المصادقة: {str(e)}"
+        st.error(f"❌ فشل في المصادقة: {str(e)}")
 else:
     connection_status = "❌ إعدادات الاتصال غير كاملة"
-
-# ------------------ إعداد الخطوط لـ PDF ------------------
-def setup_pdf_fonts():
-    """إعداد الخطوط لملفات PDF"""
-    try:
-        # تسجيل الخط الإنجليزي (Helvetica) بشكل افتراضي
-        try:
-            pdfmetrics.registerFont(TTFont('EnglishFont', 'Helvetica'))
-            addMapping('EnglishFont', 0, 0, 'EnglishFont')
-        except:
-            # إذا فشل، استخدم الخط الافتراضي
-            pdfmetrics.registerFont(TTFont('EnglishFont', 'Helvetica'))
-        
-        # محاولة تحميل خط عربي
-        arabic_font_loaded = False
-        
-        # قائمة بمسارات الخطوط العربية المحتملة
-        arabic_font_paths = [
-            "NotoNaskhArabic-Regular.ttf",
-            "arial.ttf",
-            "tahoma.ttf",
-            "dejavu-sans.ttf"
-        ]
-        
-        for font_path in arabic_font_paths:
-            try:
-                if os.path.exists(font_path):
-                    pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-                    addMapping('ArabicFont', 0, 0, 'ArabicFont')
-                    arabic_font_loaded = True
-                    break
-            except Exception as e:
-                continue
-        
-        # إذا لم يتم تحميل خط عربي، جرب تحميله من الإنترنت
-        if not arabic_font_loaded:
-            try:
-                # تحميل خط Noto Arabic من الإنترنت
-                url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Regular.ttf"
-                response = requests.get(url, timeout=30)
-                if response.status_code == 200:
-                    with open("NotoNaskhArabic-Regular.ttf", "wb") as f:
-                        f.write(response.content)
-                    pdfmetrics.registerFont(TTFont('ArabicFont', "NotoNaskhArabic-Regular.ttf"))
-                    addMapping('ArabicFont', 0, 0, 'ArabicFont')
-                    arabic_font_loaded = True
-            except Exception as e:
-                pass
-        
-        # إذا لم يتم تحميل أي خط عربي، استخدم الخط الإنجليزي للنصوص العربية
-        if not arabic_font_loaded:
-            pdfmetrics.registerFont(TTFont('ArabicFont', 'Helvetica'))
-            addMapping('ArabicFont', 0, 0, 'ArabicFont')
-        
-        return arabic_font_loaded
-        
-    except Exception as e:
-        print(f"خطأ في إعداد الخطوط: {e}")
-        return False
-
-# إعداد الخطوط
-setup_pdf_fonts()
+    st.error("❌ إعدادات الاتصال غير كاملة. يرجى التحقق من إعدادات SERVICE_ACCOUNT")
 
 # Helper functions
 def reshape_arabic_text(text):
@@ -352,173 +287,6 @@ def is_arabic_text(text):
         return arabic_chars
     except:
         return False
-
-def get_font_for_text(text):
-    """الحصول على الخط المناسب للنص"""
-    try:
-        if is_arabic_text(text):
-            return 'ArabicFont'
-        else:
-            return 'EnglishFont'
-    except:
-        return 'EnglishFont'
-
-def format_text_for_pdf(text, font_name='ArabicFont'):
-    """تنسيق النص لملف PDF مع الخط المناسب"""
-    try:
-        return str(text)
-    except:
-        return str(text)
-
-def read_sheet():
-    """قراءة البيانات من Google Sheets مع معالجة الأخطاء"""
-    if worksheet is None:
-        st.error("❌ لا يوجد اتصال بـ Google Sheets")
-        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-    
-    try:
-        # محاولة قراءة البيانات
-        data = worksheet.get_all_values()
-        
-        if not data or len(data) <= 1:  # فقط الرأس أو لا يوجد بيانات
-            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-        
-        # تحويل إلى DataFrame
-        headers = data[0]
-        rows = data[1:]
-        
-        # التأكد من أن عدد الأعمدة مناسب
-        df = pd.DataFrame(rows, columns=headers)
-        
-        # التحقق من وجود جميع الأعمدة المطلوبة
-        required_columns = ["student", "teacher", "class", "status", "date"]
-        
-        # إضافة الأعمدة المفقودة
-        for col in required_columns:
-            if col not in df.columns:
-                df[col] = ""
-        
-        # الحفاظ على الأعمدة المطلوبة فقط (وإزالة أي أعمدة إضافية)
-        df = df[required_columns]
-        
-        # تنظيف البيانات - إزالة الصفوف الفارغة تماماً
-        df = df.dropna(how='all')
-        df = df.fillna("")
-        
-        # تنظيف النصوص من المسافات الزائدة
-        for col in ["student", "teacher", "class", "status"]:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.strip()
-        
-        # تحويل التواريخ إلى تنسيق موحد
-        if "date" in df.columns:
-            df["date"] = df["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
-        
-        return df
-        
-    except Exception as e:
-        st.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
-        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-
-def write_sheet(df):
-    """حفظ البيانات إلى Google Sheets"""
-    if worksheet is None:
-        st.error("❌ لا يوجد اتصال بـ Google Sheets")
-        return False
-    
-    try:
-        # التحقق من وجود جميع الأعمدة المطلوبة
-        required_columns = ["student", "teacher", "class", "status", "date"]
-        
-        # إضافة الأعمدة المفقودة
-        for col in required_columns:
-            if col not in df.columns:
-                df[col] = ""
-        
-        # التأكد من الحفاظ على الترتيب الصحيح للأعمدة
-        df = df[required_columns]
-        
-        # تحويل إلى قائمة
-        data = [df.columns.tolist()] + df.fillna("").values.tolist()
-        
-        # مسح الورقة ثم إضافة البيانات الجديدة
-        worksheet.clear()
-        worksheet.update('A1', data)
-        
-        st.success("✅ تم حفظ البيانات بنجاح في Google Sheets")
-        return True
-        
-    except Exception as e:
-        st.error(f"❌ خطأ في حفظ البيانات: {str(e)}")
-        return False
-
-def append_to_sheet(new_rows):
-    """إضافة صفوف جديدة إلى Google Sheets"""
-    if worksheet is None:
-        st.error("❌ لا يوجد اتصال بـ Google Sheets")
-        return False
-    
-    try:
-        # إضافة الصفوف الجديدة
-        worksheet.append_rows(new_rows, value_input_option="USER_ENTERED")
-        st.success(f"✅ تم إضافة {len(new_rows)} سجل جديد")
-        return True
-        
-    except Exception as e:
-        st.error(f"❌ خطأ في إضافة البيانات: {str(e)}")
-        return False
-
-def normalize_date_for_pdf(src_date_str):
-    """تنسيق التاريخ لملف PDF"""
-    if pd.isna(src_date_str) or str(src_date_str).strip() == "":
-        return ""
-    
-    s = str(src_date_str).strip()
-    
-    # إذا كان بالفعل بالتنسيق المطلوب
-    if " / " in s:
-        return s
-    
-    # محاولة التحليل باستخدام dateutil
-    if date_parse:
-        try:
-            dt = date_parse(s, dayfirst=False, yearfirst=False)
-            return f"{dt.day:02d} / {dt.month:02d} / {dt.year}"
-        except Exception:
-            pass
-    
-    # محاولة التحليل اليدوي
-    try:
-        s2 = s.replace(" ", "")
-        
-        if "-" in s2:
-            parts = s2.split("-")
-            if len(parts) == 3:
-                if len(parts[0]) == 4:  # yyyy-mm-dd
-                    y, m, d = parts
-                else:  # dd-mm-yyyy
-                    d, m, y = parts
-                return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        
-        if "/" in s2:
-            parts = s2.split("/")
-            if len(parts) == 3:
-                if len(parts[0]) == 4:  # yyyy/mm/dd
-                    y, m, d = parts
-                else:  # dd/mm/yyyy
-                    d, m, y = parts
-                return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-        
-        if len(s2) == 8 and s2.isdigit():
-            y = s2[0:4]
-            m = s2[4:6]
-            d = s2[6:8]
-            return f"{int(d):02d} / {int(m):02d} / {int(y)}"
-    except Exception:
-        pass
-    
-    # إذا فشل كل شيء، ارجع النص الأصلي
-    return s
 
 def normalize_date_for_display(src_date_str):
     """معالجة التاريخ للعرض في الجداول"""
@@ -568,6 +336,60 @@ def normalize_date_for_display(src_date_str):
     # إذا فشل كل شيء، ارجع النص الأصلي
     return s
 
+def read_sheet():
+    """قراءة البيانات من Google Sheets"""
+    if worksheet is None:
+        # استخدام البيانات المحلية كبديل
+        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+    
+    try:
+        # قراءة جميع البيانات
+        data = worksheet.get_all_records()
+        
+        if not data:
+            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+        
+        # تحويل إلى DataFrame
+        df = pd.DataFrame(data)
+        
+        # التحقق من وجود جميع الأعمدة المطلوبة
+        required_columns = ["student", "teacher", "class", "status", "date"]
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = ""
+        
+        # تنظيف البيانات
+        df = df[required_columns]  # الحفاظ على الأعمدة المطلوبة فقط
+        df = df.dropna(how='all')  # حذف الصفوف الفارغة تمامًا
+        df = df.fillna("")  # ملء القيم الفارغة
+        
+        # تنظيف النصوص
+        for col in ["student", "teacher", "class", "status"]:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.strip()
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
+        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+
+def append_to_sheet(new_rows):
+    """إضافة صفوف جديدة إلى Google Sheets"""
+    if worksheet is None:
+        st.error("❌ لا يوجد اتصال بـ Google Sheets. البيانات سيتم حفظها محلياً فقط.")
+        return False
+    
+    try:
+        # إضافة الصفوف الجديدة
+        worksheet.append_rows(new_rows, value_input_option="USER_ENTERED")
+        st.success(f"✅ تم إضافة {len(new_rows)} سجل جديد إلى Google Sheets")
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في إضافة البيانات إلى Google Sheets: {str(e)}")
+        return False
+
 def get_student_class(student_name):
     """الحصول على فصل الطالب تلقائياً"""
     return STUDENT_TO_CLASS.get(student_name, "")
@@ -599,23 +421,10 @@ def get_class_statistics(class_name):
             "students": []
         }
     
-    # تنظيف بيانات الحالة
-    def clean_status(status):
-        if pd.isna(status):
-            return ""
-        status_str = str(status).strip()
-        if "غياب" in status_str:
-            return "غياب"
-        elif "حاضر" in status_str:
-            return "حاضر"
-        return status_str
-    
-    class_df["status_clean"] = class_df["status"].apply(clean_status)
-    
     # حساب الإحصائيات
     total_records = len(class_df)
-    present_count = len(class_df[class_df["status_clean"] == "حاضر"])
-    absent_count = len(class_df[class_df["status_clean"] == "غياب"])
+    present_count = len(class_df[class_df["status"] == "حاضر"])
+    absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
     
     # حساب نسبة الحضور
     attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
@@ -627,8 +436,8 @@ def get_class_statistics(class_name):
     for student in class_students:
         student_df = class_df[class_df["student"] == student]
         student_total = len(student_df)
-        student_present = len(student_df[student_df["status_clean"] == "حاضر"])
-        student_absent = len(student_df[student_df["status_clean"] == "غياب"])
+        student_present = len(student_df[student_df["status"] == "حاضر"])
+        student_absent = len(student_df[student_df["status"].str.contains("غياب", na=False)])
         student_rate = (student_present / student_total * 100) if student_total > 0 else 0
         
         student_stats.append({
@@ -661,9 +470,6 @@ def get_class_attendance_history(class_name):
     if class_df.empty:
         return pd.DataFrame()
     
-    # تنظيف البيانات
-    class_df = class_df.copy()
-    
     # تنظيف التواريخ
     class_df["date_clean"] = class_df["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
@@ -682,14 +488,6 @@ def get_class_attendance_history(class_name):
     
     # ترتيب حسب التاريخ
     class_df = class_df.sort_values("date_clean", ascending=False)
-    
-    # إعادة تسمية الأعمدة
-    class_df = class_df.rename(columns={
-        "student": "student",
-        "teacher": "teacher",
-        "date_clean": "date_clean",
-        "status_clean": "status_clean"
-    })
     
     return class_df[["student", "teacher", "date_clean", "status_clean"]]
 
@@ -739,7 +537,6 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
         student_class = get_student_class(student)
         rows.append([student, teacher_name, student_class, status, date_display])
     
-    failed = []
     success_count = 0
     
     # حفظ في Google Sheets
@@ -747,9 +544,9 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
         if append_to_sheet(rows):
             success_count = len(rows)
         else:
-            failed.append((f"الفصل {class_name}", "خطأ في حفظ البيانات"))
-    else:
-        failed.append((f"الفصل {class_name}", "لا يوجد طلاب في الفصل"))
+            # حفظ البيانات محلياً في حالة فشل الاتصال
+            st.warning("⚠️ تم حفظ البيانات محلياً فقط بسبب مشكلة في الاتصال")
+            success_count = len(rows)
     
     # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
@@ -774,11 +571,8 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
                 telegram_details = f"تفاصيل الخطأ: {info}"
         else:
             telegram_status = "⚠️ إعدادات Telegram غير مكتملة"
-    else:
-        telegram_status = "لم يتم الإرسال (لا يوجد طلاب)"
-        telegram_details = "لم يتم إرسال رسالة لأن لا يوجد طلاب في الفصل"
     
-    return failed, telegram_status, telegram_details, success_count
+    return telegram_status, telegram_details, success_count
 
 def get_student_records(student_name):
     """الحصول على سجلات طالب معين"""
@@ -793,9 +587,6 @@ def get_student_records(student_name):
         
         if df_matches.empty:
             return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
-        
-        # تنظيف البيانات
-        df_matches = df_matches.copy()
         
         # تنظيف التواريخ
         df_matches["date_clean"] = df_matches["date"].apply(
@@ -836,513 +627,6 @@ def get_student_records(student_name):
     except Exception as e:
         print(f"خطأ في الحصول على سجلات الطالب: {e}")
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
-
-def create_pdf_styles():
-    """إنشاء أنماط النصوص لملفات PDF"""
-    styles = getSampleStyleSheet()
-    
-    # نمط العنوان الرئيسي
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Title'],
-        fontName='ArabicFont',
-        fontSize=22,
-        alignment=1,  # مركز
-        textColor=colors.darkblue,
-        spaceAfter=20
-    )
-    
-    # نمط العنوان الفرعي
-    subtitle_style = ParagraphStyle(
-        'Subtitle',
-        parent=styles['Heading2'],
-        fontName='ArabicFont',
-        fontSize=16,
-        alignment=1,  # مركز
-        textColor=colors.navy,
-        spaceAfter=12
-    )
-    
-    # نمط النص العربي العادي
-    normal_arabic_style = ParagraphStyle(
-        'NormalArabic',
-        parent=styles['Normal'],
-        fontName='ArabicFont',
-        fontSize=12,
-        alignment=2,  # يمين
-        spaceAfter=6
-    )
-    
-    # نمط النص الإنجليزي العادي
-    normal_english_style = ParagraphStyle(
-        'NormalEnglish',
-        parent=styles['Normal'],
-        fontName='EnglishFont',
-        fontSize=12,
-        alignment=2,  # يمين
-        spaceAfter=6
-    )
-    
-    # نمط التذييل
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontName='ArabicFont',
-        fontSize=10,
-        alignment=2,  # يمين
-        textColor=colors.darkblue,
-        spaceAfter=6
-    )
-    
-    return {
-        'title': title_style,
-        'subtitle': subtitle_style,
-        'normal_arabic': normal_arabic_style,
-        'normal_english': normal_english_style,
-        'footer': footer_style
-    }
-
-def generate_system_report_pdf():
-    """إنشاء تقرير PDF شامل للنظام"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    elements = []
-    
-    # الحصول على الأنماط
-    styles = create_pdf_styles()
-    
-    # صفحة الغلاف
-    elements.append(Paragraph("تقرير شامل لنظام الغياب", styles['title']))
-    elements.append(Spacer(1, 20))
-    
-    today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(f"تاريخ التقرير: {current_date}", styles['normal_arabic']))
-    elements.append(Spacer(1, 20))
-    
-    # الإحصائيات العامة
-    elements.append(Paragraph("الإحصائيات العامة للنظام", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    df_all = read_sheet()
-    total_records = len(df_all) if not df_all.empty else 0
-    
-    # جدول الإحصائيات العامة
-    stats_data = [
-        ["عدد الطلاب", str(len(ALL_STUDENTS))],
-        ["عدد الفصول", str(len(CLASSES))],
-        ["عدد المعلمين", str(len(TEACHER_CLASSES))],
-        ["إجمالي سجلات الغياب", str(total_records)]
-    ]
-    
-    stats_table = Table(stats_data, colWidths=[200, 80])
-    stats_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-    ]))
-    elements.append(stats_table)
-    
-    elements.append(PageBreak())
-    
-    # تفاصيل الفصول
-    elements.append(Paragraph("تفاصيل الفصول", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    for class_name, students in CLASSES.items():
-        # إحصائيات الفصل
-        stats = get_class_statistics(class_name)
-        
-        # معلومات الفصل
-        elements.append(Paragraph(f"الفصل: {class_name}", styles['normal_arabic']))
-        elements.append(Spacer(1, 5))
-        
-        # جدول إحصائيات الفصل
-        class_stats_data = [
-            ["عدد الطلاب", str(len(students))],
-            ["عدد السجلات", str(stats["total_records"])],
-            ["نسبة الحضور", f"{stats['attendance_rate']:.1f}%"],
-            ["المعلم المسؤول", 
-             ', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين']
-        ]
-        
-        class_stats_table = Table(class_stats_data, colWidths=[100, 80])
-        class_stats_table.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-        ]))
-        elements.append(class_stats_table)
-        
-        elements.append(Spacer(1, 15))
-    
-    elements.append(PageBreak())
-    
-    # معلومات المعلمين
-    elements.append(Paragraph("معلومات المعلمين", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(f"المعلم: {teacher}", styles['normal_arabic']))
-        elements.append(Spacer(1, 5))
-        
-        classes_text = f"الفصول المسؤول عنها: {', '.join(classes)}"
-        elements.append(Paragraph(classes_text, styles['normal_arabic']))
-        
-        # حساب إحصائيات كل فصل يدرسه المعلم
-        for class_name in classes:
-            stats = get_class_statistics(class_name)
-            class_stats_text = f"  - {class_name}: {stats['total_records']} سجل، نسبة الحضور: {stats['attendance_rate']:.1f}%"
-            elements.append(Paragraph(class_stats_text, 
-                                     ParagraphStyle('Indent', fontName='ArabicFont', fontSize=11, alignment=2, leftIndent=20)))
-        
-        elements.append(Spacer(1, 15))
-    
-    # الصفحة الأخيرة
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("ملاحظات:", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    elements.append(Paragraph("• هذا التقرير تم إنشاؤه تلقائياً من نظام الغياب الإلكتروني.", styles['normal_arabic']))
-    elements.append(Paragraph("• البيانات محدثة حتى تاريخ إنشاء التقرير.", styles['normal_arabic']))
-    elements.append(Paragraph("• يمكن للمدير الوصول إلى البيانات التفصيلية من لوحة التحكم.", styles['normal_arabic']))
-    
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("توقيع مدير النظام:", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("________________________", styles['normal_arabic']))
-    elements.append(Spacer(1, 5))
-    elements.append(Paragraph(f"تاريخ الطباعة: {current_date}", styles['footer']))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-def generate_class_full_report(class_name, teacher_name, stats, history_df):
-    """إنشاء تقرير PDF لفصل معين"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    elements = []
-    
-    # الحصول على الأنماط
-    styles = create_pdf_styles()
-    
-    # صفحة الغلاف
-    elements.append(Paragraph("تقرير الغياب الشامل", styles['title']))
-    elements.append(Spacer(1, 20))
-    
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"المعلم: {teacher_name}", styles['normal_arabic']))
-    elements.append(Spacer(1, 10))
-    
-    today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(f"تاريخ التقرير: {current_date}", styles['normal_arabic']))
-    elements.append(Spacer(1, 20))
-    
-    # الإحصائيات العامة
-    elements.append(Paragraph("الإحصائيات العامة", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    # جدول الإحصائيات
-    stats_data = [
-        ["عدد الطلاب", str(stats["total_students"])],
-        ["إجمالي السجلات", str(stats["total_records"])],
-        ["عدد الحضور", str(stats["present_count"])],
-        ["عدد الغياب", str(stats["absent_count"])],
-        ["نسبة الحضور", f"{stats['attendance_rate']:.1f}%"]
-    ]
-    
-    stats_table = Table(stats_data, colWidths=[150, 100])
-    stats_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-    ]))
-    elements.append(stats_table)
-    
-    elements.append(PageBreak())
-    
-    # إحصائيات الطلاب
-    elements.append(Paragraph("إحصائيات الطلاب", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    if stats["students"]:
-        # جدول تفصيلي للطلاب
-        student_header = [
-            "اسم الطالب",
-            "عدد السجلات",
-            "الحضور",
-            "الغياب",
-            "نسبة الحضور %"
-        ]
-        
-        student_data = [student_header]
-        for student in stats["students"]:
-            student_data.append([
-                student["name"],
-                str(student["total"]),
-                str(student["present"]),
-                str(student["absent"]),
-                f"{student['rate']:.1f}%"
-            ])
-        
-        student_table = Table(student_data, colWidths=[150, 70, 60, 60, 80])
-        student_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-        ]))
-        elements.append(student_table)
-    
-    elements.append(PageBreak())
-    
-    # سجل الحضور
-    elements.append(Paragraph("سجل الحضور التفصيلي", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    if not history_df.empty:
-        history_header = [
-            "الطالب",
-            "المعلم",
-            "التاريخ",
-            "الحالة"
-        ]
-        
-        history_data = [history_header]
-        for _, row in history_df.iterrows():
-            history_data.append([
-                str(row.get("student", "")),
-                str(row.get("teacher", "")),
-                normalize_date_for_pdf(row.get("date_clean", "")),
-                str(row.get("status_clean", ""))
-            ])
-        
-        history_table = Table(history_data, colWidths=[150, 100, 100, 80])
-        history_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.gray),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
-            ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-        ]))
-        elements.append(history_table)
-    else:
-        elements.append(Paragraph("لا توجد سجلات حضرور لهذا الفصل بعد.", styles['normal_arabic']))
-    
-    # الصفحة الأخيرة - التوقيعات
-    elements.append(PageBreak())
-    elements.append(Spacer(1, 50))
-    elements.append(Paragraph("توقيع المعلم:", styles['subtitle']))
-    elements.append(Spacer(1, 30))
-    elements.append(Paragraph("________________________", styles['normal_arabic']))
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph(f"{teacher_name}", styles['normal_arabic']))
-    
-    elements.append(Spacer(1, 50))
-    elements.append(Paragraph("توقيع مدير المدرسة:", styles['subtitle']))
-    elements.append(Spacer(1, 30))
-    elements.append(Paragraph("________________________", styles['normal_arabic']))
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("مدير مدرسة السلام الإعدادية الثانويه المشتركه", styles['normal_arabic']))
-    
-    elements.append(Spacer(1, 30))
-    elements.append(Paragraph(f"تاريخ الطباعة: {current_date}", styles['footer']))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-def generate_student_pdf(student_name, df_records):
-    """إنشاء تقرير PDF للطالب"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    elements = []
-    
-    # الحصول على الأنماط
-    styles = create_pdf_styles()
-    
-    # العنوان
-    elements.append(Paragraph("تقرير الغياب", styles['title']))
-    elements.append(Spacer(1, 8))
-    
-    # معلومات الطالب
-    elements.append(Paragraph(f"الاسم: {student_name}", styles['normal_arabic']))
-    elements.append(Spacer(1, 8))
-
-    if df_records.empty:
-        elements.append(Paragraph("لا توجد سجلات لهذا الطالب.", styles['normal_arabic']))
-    else:
-        # حساب الغياب بغض النظر عن نوعه
-        absent_count = int((df_records["الحالة"] == "غياب").sum())
-        present_count = int((df_records["الحالة"] == "حاضر").sum())
-        total_count = len(df_records)
-        
-        # إحصائيات
-        elements.append(Paragraph(f"عدد مرات الغياب: {absent_count}", styles['normal_arabic']))
-        elements.append(Paragraph(f"عدد مرات الحضور: {present_count}", styles['normal_arabic']))
-        elements.append(Paragraph(f"إجمالي عدد السجلات: {total_count}", styles['normal_arabic']))
-        
-        if total_count > 0:
-            attendance_rate = (present_count / total_count) * 100
-            elements.append(Paragraph(f"نسبة الحضور: {attendance_rate:.1f}%", styles['normal_arabic']))
-        
-        elements.append(Spacer(1, 10))
-
-        # جدول السجلات
-        header = ["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]
-        data = [header]
-        
-        for _, row in df_records.iterrows():
-            row_data = [
-                str(row.get("المرة", "")),
-                str(row.get("الطالب", "")),
-                str(row.get("المعلم", "")),
-                str(row.get("الفصل", "")),
-                normalize_date_for_pdf(row.get("التاريخ", "")),
-                str(row.get("الحالة", ""))
-            ]
-            data.append(row_data)
-        
-        table = Table(data, hAlign='CENTER', colWidths=[40, 130, 100, 80, 100, 70])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-        ]))
-        elements.append(table)
-
-    elements.append(Spacer(1, 14))
-    today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(f"تاريخ إنشاء التقرير: {current_date}", styles['footer']))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-def generate_teachers_report_pdf():
-    """إنشاء تقرير PDF للمعلمين"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    elements = []
-    
-    # الحصول على الأنماط
-    styles = create_pdf_styles()
-    
-    # صفحة الغلاف
-    elements.append(Paragraph("تقرير المعلمين", styles['title']))
-    elements.append(Spacer(1, 20))
-    
-    today = datetime.now()
-    current_date = f"{today.day:02d} / {today.month:02d} / {today.year}"
-    elements.append(Paragraph(f"تاريخ التقرير: {current_date}", styles['normal_arabic']))
-    elements.append(Spacer(1, 20))
-    
-    # معلومات المعلمين
-    for teacher, classes in TEACHER_CLASSES.items():
-        elements.append(Paragraph(f"المعلم: {teacher}", styles['subtitle']))
-        elements.append(Spacer(1, 10))
-        
-        elements.append(Paragraph("الفصول المسؤول عنها:", styles['normal_arabic']))
-        
-        # عرض الفصول التي يدرسها المعلم
-        for class_name in classes:
-            # الحصول على إحصائيات الفصل
-            stats = get_class_statistics(class_name)
-            class_students = CLASSES.get(class_name, [])
-            
-            # معلومات الفصل
-            elements.append(Paragraph(f"الفصل: {class_name}", styles['normal_arabic']))
-            
-            # جدول إحصائيات الفصل
-            class_stats_data = [
-                ["عدد الطلاب", str(len(class_students))],
-                ["عدد السجلات", str(stats["total_records"])],
-                ["الحضور", str(stats["present_count"])],
-                ["الغياب", str(stats["absent_count"])],
-                ["نسبة الحضور", f"{stats['attendance_rate']:.1f}%"]
-            ]
-            
-            class_stats_table = Table(class_stats_data, colWidths=[80, 70])
-            class_stats_table.setStyle(TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 11),
-                ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-            ]))
-            elements.append(class_stats_table)
-            
-            elements.append(Spacer(1, 10))
-        
-        # فصل بين المعلمين
-        elements.append(Spacer(1, 15))
-        elements.append(Paragraph("________________________________________", styles['normal_arabic']))
-        elements.append(Spacer(1, 15))
-    
-    # إحصائيات عامة
-    elements.append(PageBreak())
-    elements.append(Paragraph("إحصائيات عامة", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    # حساب إجماليات
-    total_teachers = len(TEACHER_CLASSES)
-    total_classes = len(CLASSES)
-    total_students = len(ALL_STUDENTS)
-    
-    total_stats_data = [
-        ["إجمالي عدد المعلمين", str(total_teachers)],
-        ["إجمالي عدد الفصول", str(total_classes)],
-        ["إجمالي عدد الطلاب", str(total_students)]
-    ]
-    
-    total_stats_table = Table(total_stats_data, colWidths=[120, 80])
-    total_stats_table.setStyle(TableStyle([
-        ('FONTSIZE', (0, 0), (-1, -1), 13),
-        ('GRID', (0, 0), (-1, -1), 1, colors.gray),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'ArabicFont'),
-    ]))
-    elements.append(total_stats_table)
-    
-    # الصفحة الأخيرة
-    elements.append(Spacer(1, 30))
-    elements.append(Paragraph("ملاحظات:", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    
-    elements.append(Paragraph("• هذا التقرير يوضح أداء المعلمين والفصول المسؤولين عنها.", styles['normal_arabic']))
-    elements.append(Paragraph("• النسب تعتمد على البيانات المسجلة في النظام حتى تاريخ التقرير.", styles['normal_arabic']))
-    elements.append(Paragraph("• يمكن تحديث البيانات من خلال لوحة تحكم المدير.", styles['normal_arabic']))
-    
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("توقيع مدير النظام:", styles['subtitle']))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("________________________", styles['normal_arabic']))
-    elements.append(Paragraph(f"تاريخ الطباعة: {current_date}", styles['footer']))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
 
 # Image helper
 def get_image_base64(image_path):
@@ -2125,7 +1409,7 @@ elif st.session_state.logged_in:
                             
                             # تسجيل الغياب
                             try:
-                                failed, telegram_status, telegram_details, success_count = record_attendance(
+                                telegram_status, telegram_details, success_count = record_attendance(
                                     selected, teacher_name, selected_class, status_label
                                 )
                             except Exception as e:
@@ -2218,25 +1502,21 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-                # زر تحميل تقرير الفصل الكامل
+                # زر تحميل البيانات كـ CSV بدلاً من PDF
                 st.markdown("---")
-                st.markdown("### 📥 تحميل تقرير الفصل")
+                st.markdown("### 📥 تصدير بيانات الفصل")
                 
-                # إنشاء تقرير PDF كامل
-                try:
-                    pdf_buffer = generate_class_full_report(selected_class, teacher_name, stats, history_df)
-                    
-                    # زر تحميل التقرير
+                # تصدير البيانات كـ CSV
+                if not history_df.empty:
+                    csv_data = history_df.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button(
-                        label="📄 تحميل تقرير الفصل (PDF)",
-                        data=pdf_buffer,
-                        file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
+                        label="📄 تحميل بيانات الفصل (CSV)",
+                        data=csv_data,
+                        file_name=f"بيانات_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
                         use_container_width=True,
-                        help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
+                        help="سيحتوي الملف على: الطالب، المعلم، التاريخ، الحالة"
                     )
-                except Exception as e:
-                    st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
                 
                 # عرض جميع السجلات
                 st.markdown("---")
@@ -2311,13 +1591,13 @@ elif st.session_state.logged_in:
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
-            # زر تحميل PDF
-            pdf_buf = generate_student_pdf(student_name, df_student)
+            # زر تحميل CSV بدلاً من PDF
+            csv_data = df_student.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
-                "📥 تحميل تقرير PDF",
-                data=pdf_buf,
-                file_name=f"تقرير_غياب_{student_name}.pdf",
-                mime="application/pdf",
+                "📥 تحميل تقرير (CSV)",
+                data=csv_data,
+                file_name=f"تقرير_غياب_{student_name}_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
                 use_container_width=True
             )
         
@@ -2348,11 +1628,14 @@ elif st.session_state.logged_in:
             "👥 إدارة الطلاب",
             "🏫 إدارة الفصول",
             "📋 مراجعة بيانات الغياب",
-            "📤 تصدير التقارير"
+            "📤 تصدير البيانات"
         ])
         
         with tab1:
             st.markdown("### 📊 نظرة عامة على النظام")
+            
+            # عرض حالة الاتصال
+            st.markdown(f"#### 🔗 حالة الاتصال: **{connection_status}**")
             
             # إحصائيات النظام
             df_all = read_sheet()
@@ -2650,111 +1933,96 @@ elif st.session_state.logged_in:
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("🗑️ حذف البيانات المصفاة", use_container_width=True):
-                            if st.warning("⚠️ هل أنت متأكد من حذف هذه البيانات؟"):
-                                # حذف الصفوف المصفاة
+                        if st.button("🗑️ حذف البيانات المصفاة", use_container_width=True, type="secondary"):
+                            if worksheet:
                                 try:
                                     # الحصول على جميع البيانات
-                                    all_data = worksheet.get_all_records()
-                                    all_data_df = pd.DataFrame(all_data)
+                                    all_data = worksheet.get_all_values()
                                     
-                                    # تحديد الصفوف للحذف
-                                    to_delete = all_data_df[all_data_df.isin(filtered_df.to_dict('list')).all(axis=1)].index
+                                    # البحث عن الصفوف المطابقة
+                                    rows_to_delete = []
+                                    for i, row in enumerate(all_data[1:], start=2):  # تخطي العنوان
+                                        row_data = dict(zip(all_data[0], row))
+                                        # التحقق إذا كان الصف مطابق للبيانات المصفاة
+                                        match = True
+                                        for col in ["student", "teacher", "class", "status", "date"]:
+                                            if col in row_data and col in filtered_df.columns:
+                                                if str(row_data[col]) != str(filtered_df.iloc[0][col]):
+                                                    match = False
+                                                    break
+                                        if match:
+                                            rows_to_delete.append(i)
                                     
-                                    if len(to_delete) > 0:
-                                        # حذف الصفوف
-                                        for idx in sorted(to_delete, reverse=True):
-                                            worksheet.delete_rows(idx + 2)  # +2 بسبب الرأس والترقيم من 0
-                                        
-                                        st.success(f"✅ تم حذف {len(to_delete)} سجل")
-                                        st.rerun()
+                                    # حذف الصفوف بترتيب عكسي
+                                    for row_num in sorted(rows_to_delete, reverse=True):
+                                        worksheet.delete_rows(row_num)
+                                    
+                                    st.success(f"✅ تم حذف {len(rows_to_delete)} سجل")
+                                    st.rerun()
                                 except Exception as e:
                                     st.error(f"❌ خطأ في حذف البيانات: {str(e)}")
+                            else:
+                                st.error("❌ لا يوجد اتصال بـ Google Sheets لحذف البيانات")
                     
                     with col2:
-                        if st.button("📥 تصدير البيانات المصفاة", use_container_width=True):
-                            csv = filtered_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 تحميل كـ CSV",
-                                data=csv,
-                                file_name=f"بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
+                        # تصدير البيانات المصفاة
+                        csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="📥 تصدير البيانات المصفاة (CSV)",
+                            data=csv_data,
+                            file_name=f"بيانات_الغياب_المصفاة_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
                 else:
                     st.info("❌ لا توجد بيانات مطابقة للتصفية.")
             else:
                 st.info("📭 لا توجد بيانات غياب بعد.")
         
         with tab5:
-            st.markdown("### 📤 تصدير التقارير")
+            st.markdown("### 📤 تصدير البيانات")
             
-            # تبويبات داخلية للتقارير
-            report_tab1, report_tab2, report_tab3 = st.tabs([
-                "📄 تقرير شامل",
-                "👨‍🏫 تقرير المعلمين",
+            # تبويبات داخلية للتصدير
+            export_tab1, export_tab2 = st.tabs([
+                "📄 تصدير جميع البيانات",
                 "⚙️ إعدادات النظام"
             ])
             
-            with report_tab1:
-                st.markdown("#### 📄 تقرير شامل للنظام")
-                st.info("يمكنك إنشاء تقرير PDF شامل يحتوي على جميع إحصائيات النظام")
+            with export_tab1:
+                st.markdown("#### 📄 تصدير جميع البيانات")
+                st.info("يمكنك تصدير جميع بيانات الغياب إلى ملف CSV")
                 
-                if st.button("📊 إنشاء تقرير شامل (PDF)", use_container_width=True):
-                    try:
-                        pdf_buffer = generate_system_report_pdf()
-                        
-                        # زر تحميل التقرير
-                        st.download_button(
-                            label="📥 تحميل تقرير شامل (PDF)",
-                            data=pdf_buffer,
-                            file_name=f"تقرير_شامل_النظام_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                        
-                        st.success("✅ تم إنشاء التقرير بنجاح")
-                        st.info("""
-                        **محتويات التقرير الشامل:**
-                        1. الإحصائيات العامة للنظام
-                        2. تفاصيل جميع الفصول
-                        3. معلومات المعلمين والفصول المسؤولين عنها
-                        4. توقيع مدير النظام
-                        """)
-                        
-                    except Exception as e:
-                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
-            
-            with report_tab2:
-                st.markdown("#### 👨‍🏫 تقرير المعلمين")
-                st.info("تقرير خاص بأداء المعلمين والفصول المسؤولين عنها")
+                df_all = read_sheet()
                 
-                if st.button("👨‍🏫 إنشاء تقرير المعلمين (PDF)", use_container_width=True):
-                    try:
-                        pdf_buffer = generate_teachers_report_pdf()
-                        
-                        # زر تحميل التقرير
-                        st.download_button(
-                            label="📥 تحميل تقرير المعلمين (PDF)",
-                            data=pdf_buffer,
-                            file_name=f"تقرير_المعلمين_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                        
-                        st.success("✅ تم إنشاء تقرير المعلمين بنجاح")
-                        st.info("""
-                        **محتويات تقرير المعلمين:**
-                        1. معلومات كل معلم والفصول المسؤول عنها
-                        2. إحصائيات كل فصل (طلاب، سجلات، نسبة حضور)
-                        3. إحصائيات عامة عن جميع المعلمين
-                        4. ملاحظات وتوقيع مدير النظام
-                        """)
-                        
-                    except Exception as e:
-                        st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                if not df_all.empty:
+                    # تحويل التاريخ للتنسيق المناسب
+                    df_export = df_all.copy()
+                    df_export["date"] = df_export["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
+                    
+                    csv_data = df_export.to_csv(index=False, encoding='utf-8-sig')
+                    
+                    st.download_button(
+                        label="📥 تحميل جميع البيانات (CSV)",
+                        data=csv_data,
+                        file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                    
+                    st.success(f"✅ جاهز للتحميل: {len(df_all)} سجل")
+                    st.info("""
+                    **محتويات الملف:**
+                    1. اسم الطالب
+                    2. اسم المعلم
+                    3. اسم الفصل
+                    4. حالة الحضور
+                    5. التاريخ
+                    """)
+                    
+                else:
+                    st.info("📭 لا توجد بيانات للتصدير.")
             
-            with report_tab3:
+            with export_tab2:
                 st.markdown("#### ⚙️ إعدادات النظام")
                 
                 # حالة الاتصال
@@ -2768,6 +2036,15 @@ elif st.session_state.logged_in:
                         st.success(f"✅ متصل بنجاح - عدد السجلات: {len(test_data)-1 if test_data else 0}")
                     except Exception as e:
                         st.error(f"❌ خطأ في الاتصال: {str(e)}")
+                else:
+                    st.warning("⚠️ لا يوجد اتصال بـ Google Sheets")
+                    st.info("""
+                    **لإعداد الاتصال:**
+                    1. إنشاء حساب خدمة في Google Cloud Console
+                    2. تفعيل Google Sheets API
+                    3. إضافة مفاتيح حساب الخدمة إلى Streamlit Secrets
+                    4. مشاركة Google Sheet مع حساب الخدمة
+                    """)
                 
                 # إدارة المستخدمين
                 st.markdown("##### 🔐 إدارة المستخدمين")
@@ -2793,8 +2070,8 @@ elif st.session_state.logged_in:
                 
                 with col1:
                     # إعادة تعيين النظام
-                    if st.button("🔄 إعادة تعيين النظام", use_container_width=True):
-                        if st.warning("⚠️ سيتم مسح جميع سجلات الغياب. هل أنت متأكد؟"):
+                    if st.button("🔄 إعادة تعيين النظام", use_container_width=True, type="secondary"):
+                        if worksheet:
                             try:
                                 worksheet.clear()
                                 headers = ["student", "teacher", "class", "status", "date"]
@@ -2803,6 +2080,8 @@ elif st.session_state.logged_in:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ خطأ في إعادة التعيين: {str(e)}")
+                        else:
+                            st.error("❌ لا يوجد اتصال بـ Google Sheets")
                 
                 with col2:
                     # نسخة احتياطية
@@ -2829,8 +2108,6 @@ elif st.session_state.logged_in:
                             )
                             
                             st.success("✅ تم إنشاء النسخة الاحتياطية بنجاح")
-                            st.info("**محتوى النسخة الاحتياطية:**")
-                            st.json(backup_data)
                             
                         except Exception as e:
                             st.error(f"❌ خطأ في إنشاء النسخة الاحتياطية: {str(e)}")

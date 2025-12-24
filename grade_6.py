@@ -220,11 +220,11 @@ SERVICE_ACCOUNT = secrets_config['SERVICE_ACCOUNT']
 worksheet = None
 connection_status = "غير متصل"
 
-# عرض حالة الاتصال في الشريط الجانبي
-with st.sidebar:
-    st.markdown("### 🔗 حالة الاتصال")
+# تهيئة الاتصال مع Google Sheets
+def init_google_sheets():
+    """تهيئة الاتصال بـ Google Sheets"""
+    global worksheet, connection_status
     
-    # محاولة الاتصال بـ Google Sheets
     if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
         try:
             SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -239,7 +239,6 @@ with st.sidebar:
                 sh = gc.open(SHEET_NAME)
                 worksheet = sh.sheet1
                 connection_status = f"✅ متصل بـ {SHEET_NAME}"
-                st.success(connection_status)
                 
                 # التحقق من وجود العناوين
                 try:
@@ -255,36 +254,39 @@ with st.sidebar:
             except gspread.exceptions.SpreadsheetNotFound:
                 # إذا لم يتم العثور على الـ Sheet
                 connection_status = f"❌ لم يتم العثور على: {SHEET_NAME}"
-                st.error(connection_status)
-                st.info(f"""
-                **حل المشكلة:**
-                1. تأكد من إنشاء Google Sheet باسم **{SHEET_NAME}**
-                2. شارك الـ Sheet مع البريد الإلكتروني: **attendance-service@attendance-streamlit-app-c3aa8.iam.gserviceaccount.com**
-                3. أعط صلاحية **Editor** لحساب الخدمة
-                """)
+                worksheet = None
                 
             except Exception as e:
                 connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
-                st.error(connection_status)
+                worksheet = None
                 
         except Exception as e:
             connection_status = f"❌ فشل في المصادقة: {str(e)}"
-            st.error(connection_status)
-            st.info("""
-            **التحقق من:**
-            1. مفاتيح حساب الخدمة صحيحة
-            2. حساب الخدمة مفعّل
-            3. Google Sheets API مفعل في المشروع
-            """)
+            worksheet = None
     else:
         connection_status = "❌ إعدادات الاتصال غير كاملة"
+        worksheet = None
+
+# استدعاء تهيئة الاتصال
+init_google_sheets()
+
+# عرض حالة الاتصال في الشريط الجانبي
+with st.sidebar:
+    st.markdown("### 🔗 حالة الاتصال")
+    
+    # عرض حالة الاتصال
+    if connection_status.startswith("✅"):
+        st.success(connection_status)
+    elif connection_status.startswith("❌"):
         st.error(connection_status)
-        st.info("""
-        **تأكد من:**
-        1. إضافة SERVICE_ACCOUNT إلى Streamlit Secrets
-        2. تنسيق JSON صحيح
-        3. جميع الحقول مطلوبة
-        """)
+        
+        if "لم يتم العثور على" in connection_status:
+            st.info(f"""
+            **حل المشكلة:**
+            1. تأكد من إنشاء Google Sheet باسم **{SHEET_NAME}**
+            2. شارك الـ Sheet مع البريد الإلكتروني: **{SERVICE_ACCOUNT.get('client_email', 'حساب الخدمة')}**
+            3. أعط صلاحية **Editor** لحساب الخدمة
+            """)
     
     st.markdown("---")
     st.markdown("### 📊 معلومات النظام")
@@ -362,7 +364,6 @@ def read_sheet():
     """قراءة البيانات من Google Sheets"""
     if worksheet is None:
         # استخدام البيانات المحلية كبديل
-        st.warning("⚠️ لا يوجد اتصال بـ Google Sheets. يتم العمل بالبيانات المحلية.")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
@@ -390,6 +391,10 @@ def read_sheet():
         for col in ["student", "teacher", "class", "status"]:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.strip()
+        
+        # تحويل التواريخ إلى تنسيق موحد
+        if "date" in df.columns:
+            df["date"] = df["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
         
         return df
         
@@ -421,7 +426,7 @@ def get_class_statistics(class_name):
     """الحصول على إحصائيات الفصل"""
     df = read_sheet()
     
-    if df.empty or "class" not in df.columns:
+    if df.empty:
         return {
             "total_students": len(CLASSES.get(class_name, [])),
             "total_records": 0,
@@ -432,7 +437,8 @@ def get_class_statistics(class_name):
         }
     
     # تصفية البيانات للفصل المحدد
-    class_df = df[df["class"] == class_name].copy()
+    # نستخدم str.contains لأن البيانات قد تحتوي على مسافات زائدة
+    class_df = df[df["class"].astype(str).str.strip() == class_name.strip()].copy()
     
     if class_df.empty:
         return {
@@ -446,8 +452,8 @@ def get_class_statistics(class_name):
     
     # حساب الإحصائيات
     total_records = len(class_df)
-    present_count = len(class_df[class_df["status"] == "حاضر"])
-    absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
+    present_count = len(class_df[class_df["status"].astype(str).str.strip() == "حاضر"])
+    absent_count = len(class_df[class_df["status"].astype(str).str.contains("غياب", na=False)])
     
     # حساب نسبة الحضور
     attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
@@ -457,10 +463,11 @@ def get_class_statistics(class_name):
     class_students = CLASSES.get(class_name, [])
     
     for student in class_students:
-        student_df = class_df[class_df["student"] == student]
+        # استخدام تطابق دقيق مع الاسم
+        student_df = class_df[class_df["student"].astype(str).str.strip() == student.strip()]
         student_total = len(student_df)
-        student_present = len(student_df[student_df["status"] == "حاضر"])
-        student_absent = len(student_df[student_df["status"].str.contains("غياب", na=False)])
+        student_present = len(student_df[student_df["status"].astype(str).str.strip() == "حاضر"])
+        student_absent = len(student_df[student_df["status"].astype(str).str.contains("غياب", na=False)])
         student_rate = (student_present / student_total * 100) if student_total > 0 else 0
         
         student_stats.append({
@@ -484,11 +491,11 @@ def get_class_attendance_history(class_name):
     """الحصول على سجل الحضور للفصل"""
     df = read_sheet()
     
-    if df.empty or "class" not in df.columns:
+    if df.empty:
         return pd.DataFrame()
     
     # تصفية البيانات للفصل المحدد
-    class_df = df[df["class"] == class_name].copy()
+    class_df = df[df["class"].astype(str).str.strip() == class_name.strip()].copy()
     
     if class_df.empty:
         return pd.DataFrame()
@@ -501,16 +508,22 @@ def get_class_attendance_history(class_name):
         if pd.isna(status):
             return ""
         status_str = str(status).strip()
-        if "غياب" in status_str:  # إصلاح هنا: استخدام in بدلاً من في
+        if "غياب" in status_str:
             return "غياب"
-        elif "حاضر" in status_str:  # إصلاح هنا: استخدام in بدلاً من في
+        elif "حاضر" in status_str:
             return "حاضر"
         return status_str
     
     class_df["status_clean"] = class_df["status"].apply(clean_status)
     
     # ترتيب حسب التاريخ
-    class_df = class_df.sort_values("date_clean", ascending=False)
+    # ننشئ عمود تاريخ مؤقت للترتيب
+    try:
+        class_df["temp_date"] = pd.to_datetime(class_df["date"], errors='coerce', dayfirst=True)
+        class_df = class_df.sort_values("temp_date", ascending=False)
+        class_df = class_df.drop(columns=["temp_date"])
+    except:
+        class_df = class_df.sort_values("date_clean", ascending=False)
     
     return class_df[["student", "teacher", "date_clean", "status_clean"]]
 
@@ -621,16 +634,21 @@ def get_student_records(student_name):
             if pd.isna(status):
                 return ""
             status_str = str(status).strip()
-            if "غياب" in status_str:  # إصلاح هنا: استخدام in بدلاً من في
+            if "غياب" in status_str:
                 return "غياب"
-            elif "حاضر" in status_str:  # إصلاح هنا: استخدام in بدلاً من في
+            elif "حاضر" in status_str:
                 return "حاضر"
             return status_str
         
         df_matches["status_clean"] = df_matches["status"].apply(clean_status)
         
         # ترتيب حسب التاريخ
-        df_matches = df_matches.sort_values("date_clean", ascending=False)
+        try:
+            df_matches["temp_date"] = pd.to_datetime(df_matches["date"], errors='coerce', dayfirst=True)
+            df_matches = df_matches.sort_values("temp_date", ascending=False)
+            df_matches = df_matches.drop(columns=["temp_date"])
+        except:
+            df_matches = df_matches.sort_values("date_clean", ascending=False)
         
         # إعادة تعيين الفهرس وإضافة عمود "المرة"
         df_matches = df_matches.reset_index(drop=True)
@@ -1201,6 +1219,10 @@ if "selected_class" not in st.session_state:
     st.session_state.selected_class = None
 if "teacher_mode" not in st.session_state:
     st.session_state.teacher_mode = None  # 'record' أو 'statistics'
+if "teacher_name" not in st.session_state:
+    st.session_state.teacher_name = ""
+if "teacher_classes" not in st.session_state:
+    st.session_state.teacher_classes = []
 
 # صفحة تسجيل الدخول الرئيسية
 if st.session_state.page == "login":
@@ -1702,10 +1724,11 @@ elif st.session_state.logged_in:
                 # حساب الغياب لكل فصل
                 class_stats = {}
                 for class_name in CLASSES.keys():
-                    class_df = df_all[df_all["class"] == class_name]
+                    # استخدام تطابق نصي دقيق
+                    class_df = df_all[df_all["class"].astype(str).str.strip() == class_name]
                     if not class_df.empty:
-                        absent_count = len(class_df[class_df["status"].str.contains("غياب", na=False)])
-                        present_count = len(class_df[class_df["status"] == "حاضر"])
+                        absent_count = len(class_df[class_df["status"].astype(str).str.contains("غياب", na=False)])
+                        present_count = len(class_df[class_df["status"].astype(str).str.strip() == "حاضر"])
                         total = len(class_df)
                         class_stats[class_name] = {
                             "absent": absent_count,
@@ -1916,13 +1939,13 @@ elif st.session_state.logged_in:
                 filtered_df = df_all.copy()
                 
                 if filter_class != "الكل":
-                    filtered_df = filtered_df[filtered_df["class"] == filter_class]
+                    filtered_df = filtered_df[filtered_df["class"].astype(str).str.strip() == filter_class]
                 
                 if filter_status != "الكل":
                     if filter_status == "غياب":
-                        filtered_df = filtered_df[filtered_df["status"].str.contains("غياب", na=False)]
+                        filtered_df = filtered_df[filtered_df["status"].astype(str).str.contains("غياب", na=False)]
                     else:
-                        filtered_df = filtered_df[filtered_df["status"] == filter_status]
+                        filtered_df = filtered_df[filtered_df["status"].astype(str).str.strip() == filter_status]
                 
                 if filter_date:
                     date_str = filter_date.strftime("%d / %m / %Y")
@@ -1967,7 +1990,7 @@ elif st.session_state.logged_in:
                                         match = True
                                         for col in ["student", "teacher", "class", "status", "date"]:
                                             if col in row_data and col in filtered_df.columns:
-                                                if str(row_data[col]) != str(filtered_df.iloc[0][col]):
+                                                if str(row_data[col]).strip() != str(filtered_df.iloc[0][col]).strip():
                                                     match = False
                                                     break
                                         if match:

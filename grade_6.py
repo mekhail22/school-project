@@ -163,19 +163,18 @@ def load_secrets():
         secrets = st.secrets
         
         # Telegram
-        BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None)
-        CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
+        BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None) if hasattr(secrets, 'telegram') else None
+        CHAT_ID = getattr(secrets.telegram, 'chat_id', None) if hasattr(secrets, 'telegram') else None
         
         # App settings
-        SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
+        SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance') if hasattr(secrets, 'sheets') else 'school_attendance'
         
-        # Service Account - محاولة قراءة SERVICE_ACCOUNT بشكل مباشر
+        # Service Account
         SERVICE_ACCOUNT = None
         
-        # الطريقة 1: قراءة SERVICE_ACCOUNT ككائن مباشر
+        # الطريقة المباشرة لقراءة SERVICE_ACCOUNT
         if hasattr(secrets, 'SERVICE_ACCOUNT'):
             try:
-                # بناء SERVICE_ACCOUNT يدوياً من الإعدادات
                 SERVICE_ACCOUNT = {
                     'type': secrets.SERVICE_ACCOUNT.type,
                     'project_id': secrets.SERVICE_ACCOUNT.project_id,
@@ -183,14 +182,15 @@ def load_secrets():
                     'private_key': secrets.SERVICE_ACCOUNT.private_key.replace('\\n', '\n'),
                     'client_email': secrets.SERVICE_ACCOUNT.client_email,
                     'client_id': secrets.SERVICE_ACCOUNT.client_id,
-                    'auth_uri': getattr(secrets.SERVICE_ACCOUNT, 'auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
-                    'token_uri': getattr(secrets.SERVICE_ACCOUNT, 'token_uri', 'https://oauth2.googleapis.com/token'),
-                    'auth_provider_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
-                    'client_x509_cert_url': getattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url', '')
+                    'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
+                    'token_uri': 'https://oauth2.googleapis.com/token',
+                    'auth_provider_x509_cert_url': 'https://www.googleapis.com/oauth2/v1/certs',
+                    'client_x509_cert_url': secrets.SERVICE_ACCOUNT.client_x509_cert_url if hasattr(secrets.SERVICE_ACCOUNT, 'client_x509_cert_url') else ''
                 }
-                st.success("✅ تم تحميل SERVICE_ACCOUNT بنجاح")
+                logger.info("✅ تم تحميل SERVICE_ACCOUNT بنجاح")
             except Exception as e:
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
+                logger.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
+                SERVICE_ACCOUNT = None
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -200,7 +200,7 @@ def load_secrets():
         }
         
     except Exception as e:
-        st.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
+        logger.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
@@ -243,56 +243,38 @@ def init_google_sheets():
                 # التحقق من وجود العناوين
                 try:
                     current_data = worksheet.get_all_values()
-                    if not current_data:
+                    if not current_data or len(current_data) == 0:
                         # إذا كانت الورقة فارغة، أضف العناوين
                         headers = ["student", "teacher", "class", "status", "date"]
                         worksheet.append_row(headers)
-                        st.info("✅ تم إضافة العناوين إلى الورقة")
+                        logger.info("✅ تم إضافة العناوين إلى الورقة")
+                    else:
+                        logger.info(f"✅ تم تحميل {len(current_data)-1 if len(current_data) > 1 else 0} سجل")
                 except Exception as e:
-                    st.error(f"❌ خطأ في التحقق من البيانات: {e}")
+                    logger.error(f"❌ خطأ في التحقق من البيانات: {e}")
                     
             except gspread.exceptions.SpreadsheetNotFound:
                 # إذا لم يتم العثور على الـ Sheet
                 connection_status = f"❌ لم يتم العثور على: {SHEET_NAME}"
                 worksheet = None
+                logger.error(f"❌ لم يتم العثور على الورقة: {SHEET_NAME}")
                 
             except Exception as e:
                 connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
                 worksheet = None
+                logger.error(f"❌ خطأ في فتح الورقة: {e}")
                 
         except Exception as e:
             connection_status = f"❌ فشل في المصادقة: {str(e)}"
             worksheet = None
+            logger.error(f"❌ فشل في المصادقة: {e}")
     else:
         connection_status = "❌ إعدادات الاتصال غير كاملة"
         worksheet = None
+        logger.warning("❌ إعدادات SERVICE_ACCOUNT غير كاملة")
 
 # استدعاء تهيئة الاتصال
 init_google_sheets()
-
-# عرض حالة الاتصال في الشريط الجانبي
-with st.sidebar:
-    st.markdown("### 🔗 حالة الاتصال")
-    
-    # عرض حالة الاتصال
-    if connection_status.startswith("✅"):
-        st.success(connection_status)
-    elif connection_status.startswith("❌"):
-        st.error(connection_status)
-        
-        if "لم يتم العثور على" in connection_status:
-            st.info(f"""
-            **حل المشكلة:**
-            1. تأكد من إنشاء Google Sheet باسم **{SHEET_NAME}**
-            2. شارك الـ Sheet مع البريد الإلكتروني: **{SERVICE_ACCOUNT.get('client_email', 'حساب الخدمة')}**
-            3. أعط صلاحية **Editor** لحساب الخدمة
-            """)
-    
-    st.markdown("---")
-    st.markdown("### 📊 معلومات النظام")
-    st.info(f"**عدد الطلاب:** {len(ALL_STUDENTS)}")
-    st.info(f"**عدد الفصول:** {len(CLASSES)}")
-    st.info(f"**عدد المعلمين:** {len(TEACHER_CLASSES)}")
 
 # Helper functions
 def reshape_arabic_text(text):
@@ -355,7 +337,7 @@ def normalize_date_for_display(src_date_str):
             return f"{int(d):02d} / {int(m):02d} / {int(y)}"
             
     except Exception as e:
-        print(f"خطأ في معالجة التاريخ {s}: {e}")
+        logger.error(f"خطأ في معالجة التاريخ {s}: {e}")
     
     # إذا فشل كل شيء، ارجع النص الأصلي
     return s
@@ -363,7 +345,7 @@ def normalize_date_for_display(src_date_str):
 def read_sheet():
     """قراءة البيانات من Google Sheets"""
     if worksheet is None:
-        # استخدام البيانات المحلية كبديل
+        logger.warning("❌ لا يوجد اتصال بـ Google Sheets")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
     try:
@@ -371,7 +353,10 @@ def read_sheet():
         data = worksheet.get_all_records()
         
         if not data:
+            logger.info("📭 الورقة فارغة أو لا توجد بيانات")
             return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
+        
+        logger.info(f"✅ تم قراءة {len(data)} سجل من Google Sheets")
         
         # تحويل إلى DataFrame
         df = pd.DataFrame(data)
@@ -399,23 +384,23 @@ def read_sheet():
         return df
         
     except Exception as e:
-        st.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
+        logger.error(f"❌ خطأ في قراءة البيانات من Google Sheets: {str(e)}")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
 
 def append_to_sheet(new_rows):
     """إضافة صفوف جديدة إلى Google Sheets"""
     if worksheet is None:
-        st.error("❌ لا يوجد اتصال بـ Google Sheets. البيانات سيتم حفظها محلياً فقط.")
+        logger.error("❌ لا يوجد اتصال بـ Google Sheets")
         return False
     
     try:
         # إضافة الصفوف الجديدة
         worksheet.append_rows(new_rows, value_input_option="USER_ENTERED")
-        st.success(f"✅ تم إضافة {len(new_rows)} سجل جديد إلى Google Sheets")
+        logger.info(f"✅ تم إضافة {len(new_rows)} سجل جديد إلى Google Sheets")
         return True
         
     except Exception as e:
-        st.error(f"❌ خطأ في إضافة البيانات إلى Google Sheets: {str(e)}")
+        logger.error(f"❌ خطأ في إضافة البيانات إلى Google Sheets: {str(e)}")
         return False
 
 def get_student_class(student_name):
@@ -426,7 +411,11 @@ def get_class_statistics(class_name):
     """الحصول على إحصائيات الفصل"""
     df = read_sheet()
     
+    logger.info(f"📊 جاري حساب إحصائيات الفصل: {class_name}")
+    logger.info(f"📊 إجمالي السجلات في قاعدة البيانات: {len(df)}")
+    
     if df.empty:
+        logger.info(f"📭 لا توجد سجلات للفصل {class_name}")
         return {
             "total_students": len(CLASSES.get(class_name, [])),
             "total_records": 0,
@@ -436,11 +425,19 @@ def get_class_statistics(class_name):
             "students": []
         }
     
-    # تصفية البيانات للفصل المحدد
-    # نستخدم str.contains لأن البيانات قد تحتوي على مسافات زائدة
-    class_df = df[df["class"].astype(str).str.strip() == class_name.strip()].copy()
+    # تصفية البيانات للفصل المحدد - تحسين التطابق
+    class_df = df.copy()
     
-    if class_df.empty:
+    # تطبيع أسماء الفصول في البيانات
+    class_df["class_normalized"] = class_df["class"].astype(str).str.strip()
+    
+    # تطابق دقيق مع الفصل
+    class_df_filtered = class_df[class_df["class_normalized"] == class_name.strip()]
+    
+    logger.info(f"📊 سجلات الفصل {class_name}: {len(class_df_filtered)} سجل")
+    
+    if class_df_filtered.empty:
+        logger.info(f"📭 لا توجد سجلات مطابقة للفصل {class_name}")
         return {
             "total_students": len(CLASSES.get(class_name, [])),
             "total_records": 0,
@@ -451,9 +448,17 @@ def get_class_statistics(class_name):
         }
     
     # حساب الإحصائيات
-    total_records = len(class_df)
-    present_count = len(class_df[class_df["status"].astype(str).str.strip() == "حاضر"])
-    absent_count = len(class_df[class_df["status"].astype(str).str.contains("غياب", na=False)])
+    total_records = len(class_df_filtered)
+    present_count = 0
+    absent_count = 0
+    
+    # تطبيع حالة الحضور للبحث
+    class_df_filtered["status_normalized"] = class_df_filtered["status"].astype(str).str.strip()
+    
+    present_count = len(class_df_filtered[class_df_filtered["status_normalized"] == "حاضر"])
+    absent_count = len(class_df_filtered[class_df_filtered["status_normalized"].str.contains("غياب", na=False)])
+    
+    logger.info(f"📊 الحاضرون: {present_count}, الغائبون: {absent_count}")
     
     # حساب نسبة الحضور
     attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
@@ -464,10 +469,10 @@ def get_class_statistics(class_name):
     
     for student in class_students:
         # استخدام تطابق دقيق مع الاسم
-        student_df = class_df[class_df["student"].astype(str).str.strip() == student.strip()]
+        student_df = class_df_filtered[class_df_filtered["student"].astype(str).str.strip() == student.strip()]
         student_total = len(student_df)
-        student_present = len(student_df[student_df["status"].astype(str).str.strip() == "حاضر"])
-        student_absent = len(student_df[student_df["status"].astype(str).str.contains("غياب", na=False)])
+        student_present = len(student_df[student_df["status_normalized"] == "حاضر"])
+        student_absent = len(student_df[student_df["status_normalized"].str.contains("غياب", na=False)])
         student_rate = (student_present / student_total * 100) if student_total > 0 else 0
         
         student_stats.append({
@@ -478,7 +483,7 @@ def get_class_statistics(class_name):
             "rate": student_rate
         })
     
-    return {
+    result = {
         "total_students": len(class_students),
         "total_records": total_records,
         "present_count": present_count,
@@ -486,6 +491,9 @@ def get_class_statistics(class_name):
         "attendance_rate": attendance_rate,
         "students": student_stats
     }
+    
+    logger.info(f"📊 إحصائيات الفصل {class_name}: {result}")
+    return result
 
 def get_class_attendance_history(class_name):
     """الحصول على سجل الحضور للفصل"""
@@ -517,7 +525,6 @@ def get_class_attendance_history(class_name):
     class_df["status_clean"] = class_df["status"].apply(clean_status)
     
     # ترتيب حسب التاريخ
-    # ننشئ عمود تاريخ مؤقت للترتيب
     try:
         class_df["temp_date"] = pd.to_datetime(class_df["date"], errors='coerce', dayfirst=True)
         class_df = class_df.sort_values("temp_date", ascending=False)
@@ -581,7 +588,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
             success_count = len(rows)
         else:
             # حفظ البيانات محلياً في حالة فشل الاتصال
-            st.warning("⚠️ تم حفظ البيانات محلياً فقط بسبب مشكلة في الاتصال")
+            logger.warning("⚠️ تم حفظ البيانات محلياً فقط بسبب مشكلة في الاتصال")
             success_count = len(rows)
     
     # رسالة تلغرام
@@ -666,7 +673,7 @@ def get_student_records(student_name):
         return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
         
     except Exception as e:
-        print(f"خطأ في الحصول على سجلات الطالب: {e}")
+        logger.error(f"خطأ في الحصول على سجلات الطالب: {e}")
         return pd.DataFrame(columns=["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"])
 
 # Image helper
@@ -1187,6 +1194,14 @@ st.markdown("""
         color: white !important;
         border-color: #2563eb !important;
     }
+    
+    /* تصحيح مشاكل التمرير */
+    .element-container {
+        overflow: visible !important;
+    }
+    .stDataFrame {
+        overflow: auto !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1223,6 +1238,8 @@ if "teacher_name" not in st.session_state:
     st.session_state.teacher_name = ""
 if "teacher_classes" not in st.session_state:
     st.session_state.teacher_classes = []
+if "student_name" not in st.session_state:
+    st.session_state.student_name = ""
 
 # صفحة تسجيل الدخول الرئيسية
 if st.session_state.page == "login":
@@ -1498,7 +1515,28 @@ elif st.session_state.logged_in:
                 stats = get_class_statistics(selected_class)
                 history_df = get_class_attendance_history(selected_class)
                 
+                # عرض معلومات الاتصال أولاً
+                with st.sidebar:
+                    st.markdown("### 🔗 حالة الاتصال")
+                    if connection_status.startswith("✅"):
+                        st.success(connection_status)
+                        # قراءة السجلات لعرض عددها
+                        df_all = read_sheet()
+                        if not df_all.empty:
+                            st.info(f"**عدد السجلات الكلية:** {len(df_all)}")
+                        else:
+                            st.info("**عدد السجلات الكلية:** 0")
+                    else:
+                        st.error(connection_status)
+                    
+                    st.markdown("---")
+                    st.markdown("### 📊 معلومات النظام")
+                    st.info(f"**عدد الطلاب:** {len(ALL_STUDENTS)}")
+                    st.info(f"**عدد الفصول:** {len(CLASSES)}")
+                    st.info(f"**عدد المعلمين:** {len(TEACHER_CLASSES)}")
+                
                 # عرض الإحصائيات العامة
+                st.markdown("### 📈 الإحصائيات العامة")
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("عدد الطلاب", stats["total_students"])
@@ -1516,12 +1554,13 @@ elif st.session_state.logged_in:
                 st.markdown("---")
                 
                 # عرض تفاصيل الحضور والغياب
+                st.markdown("### 📊 تفاصيل الحضور والغياب")
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    st.markdown("### ✅ الحضور")
+                    st.markdown("##### ✅ الحضور")
                     st.metric("عدد مرات الحضور", stats["present_count"])
                 with col_b:
-                    st.markdown("### ❌ الغياب")
+                    st.markdown("##### ❌ الغياب")
                     st.metric("عدد مرات الغياب", stats["absent_count"])
                 
                 st.markdown("---")
@@ -1545,7 +1584,7 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(student_stats_df, use_container_width=True, hide_index=True)
                 else:
-                    st.info("لا توجد سجلات لهذا الفصل بعد.")
+                    st.info("📭 لا توجد سجلات لهذا الفصل بعد.")
                 
                 # زر تحميل البيانات كـ CSV
                 st.markdown("---")
@@ -1562,6 +1601,8 @@ elif st.session_state.logged_in:
                         use_container_width=True,
                         help="سيحتوي الملف على: الطالب، المعلم، التاريخ، الحالة"
                     )
+                else:
+                    st.info("📭 لا توجد بيانات لتصديرها.")
                 
                 # عرض جميع السجلات
                 st.markdown("---")
@@ -1577,9 +1618,15 @@ elif st.session_state.logged_in:
                         "status_clean": "الحالة"
                     })
                     
-                    st.dataframe(all_history, use_container_width=True, hide_index=True)
+                    # تقييد عدد الصفوف المعروضة لتجنب مشاكل التمرير
+                    display_limit = 100
+                    if len(all_history) > display_limit:
+                        st.info(f"عرض أول {display_limit} سجل من أصل {len(all_history)} سجل")
+                        st.dataframe(all_history.head(display_limit), use_container_width=True, hide_index=True)
+                    else:
+                        st.dataframe(all_history, use_container_width=True, hide_index=True)
                 else:
-                    st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
+                    st.info("📭 لا توجد سجلات حضورية لهذا الفصل بعد.")
         
         # زر العودة للصفحة الرئيسية في الأسفل فقط
         st.markdown("---")
@@ -1701,7 +1748,7 @@ elif st.session_state.logged_in:
             
             if not df_all.empty:
                 # عرض عدد السجلات
-                st.info(f"📊 تم تحميل {len(df_all)} سجل من Google Sheets")
+                st.success(f"📊 تم تحميل {len(df_all)} سجل من Google Sheets")
                 
                 # عرض عينة من البيانات
                 st.markdown("#### عينة من البيانات:")
@@ -1714,6 +1761,16 @@ elif st.session_state.logged_in:
                     "date": "التاريخ"
                 })
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
+                
+                # تحميل جميع البيانات
+                csv_data = df_all.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 تحميل جميع البيانات (CSV)",
+                    data=csv_data,
+                    file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
             else:
                 st.info("📭 لا توجد بيانات في Google Sheets بعد.")
                 
@@ -1745,9 +1802,9 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(distribution_df, use_container_width=True, hide_index=True)
                 else:
-                    st.info("لا توجد سجلات للعرض بعد.")
+                    st.info("📭 لا توجد سجلات للعرض بعد.")
             else:
-                st.info("لا توجد بيانات كافية للعرض.")
+                st.info("📭 لا توجد بيانات كافية للعرض.")
         
         with tab2:
             st.markdown("### 👥 إدارة الطلاب")
@@ -1977,36 +2034,7 @@ elif st.session_state.logged_in:
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button("🗑️ حذف البيانات المصفاة", use_container_width=True, type="secondary"):
-                            if worksheet:
-                                try:
-                                    # الحصول على جميع البيانات
-                                    all_data = worksheet.get_all_values()
-                                    
-                                    # البحث عن الصفوف المطابقة
-                                    rows_to_delete = []
-                                    for i, row in enumerate(all_data[1:], start=2):  # تخطي العنوان
-                                        row_data = dict(zip(all_data[0], row))
-                                        # التحقق إذا كان الصف مطابق للبيانات المصفاة
-                                        match = True
-                                        for col in ["student", "teacher", "class", "status", "date"]:
-                                            if col in row_data and col in filtered_df.columns:
-                                                if str(row_data[col]).strip() != str(filtered_df.iloc[0][col]).strip():
-                                                    match = False
-                                                    break
-                                        if match:
-                                            rows_to_delete.append(i)
-                                    
-                                    # حذف الصفوف بترتيب عكسي
-                                    for row_num in sorted(rows_to_delete, reverse=True):
-                                        worksheet.delete_rows(row_num)
-                                    
-                                    st.success(f"✅ تم حذف {len(rows_to_delete)} سجل")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"❌ خطأ في حذف البيانات: {str(e)}")
-                            else:
-                                st.error("❌ لا يوجد اتصال بـ Google Sheets لحذف البيانات")
-                    
+                            st.warning("⚠️ هذه الميزة غير متاحة حالياً لحماية البيانات")
                     with col2:
                         # تصدير البيانات المصفاة
                         csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
@@ -2092,18 +2120,12 @@ elif st.session_state.logged_in:
                 
                 with col1:
                     # إعادة تعيين النظام
-                    if st.button("🔄 إعادة تعيين النظام", use_container_width=True, type="secondary"):
+                    if st.button("🔄 اختبار الاتصال", use_container_width=True, type="secondary"):
+                        init_google_sheets()
                         if worksheet:
-                            try:
-                                worksheet.clear()
-                                headers = ["student", "teacher", "class", "status", "date"]
-                                worksheet.append_row(headers)
-                                st.success("✅ تم إعادة تعيين النظام بنجاح")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ خطأ في إعادة التعيين: {str(e)}")
+                            st.success("✅ الاتصال يعمل بشكل صحيح")
                         else:
-                            st.error("❌ لا يوجد اتصال بـ Google Sheets")
+                            st.error("❌ فشل في الاتصال بـ Google Sheets")
                 
                 with col2:
                     # نسخة احتياطية

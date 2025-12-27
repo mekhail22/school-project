@@ -1262,16 +1262,20 @@ if st.session_state.page == "login":
         st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
         username = st.text_input("اسم المستخدم", 
                                 placeholder="أدخل اسمك ",
-                                label_visibility="collapsed")
+                                label_visibility="collapsed",
+                                key="login_username")
         
         # حقل إدخال كلمة السر مع تسمية واضحة
         st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
         password = st.text_input("كلمة المرور", type="password", 
                                 placeholder="أدخل كلمة المرور الخاصة بك",
-                                label_visibility="collapsed")
+                                label_visibility="collapsed",
+                                key="login_password")
         
         # زر تسجيل الدخول
-        login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
+        login_button = st.button("✅ تسجيل الدخول", 
+                                use_container_width=True,
+                                key="login_button")
         
         # معالجة تسجيل الدخول
         if login_button:
@@ -1336,12 +1340,16 @@ elif st.session_state.logged_in:
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("👑 لوحة التحكم", key="admin_dashboard", use_container_width=True):
+                if st.button("👑 لوحة التحكم", 
+                            key="admin_dashboard", 
+                            use_container_width=True):
                     st.session_state.page = "admin_dashboard"
                     st.rerun()
             
             with col2:
-                if st.button("📊 مراجعة البيانات", key="admin_review", use_container_width=True):
+                if st.button("📊 مراجعة البيانات", 
+                            key="admin_review", 
+                            use_container_width=True):
                     st.session_state.page = "admin_dashboard"
                     st.rerun()
                     
@@ -1349,27 +1357,35 @@ elif st.session_state.logged_in:
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("📝 تسجيل الغياب", key="main_record", use_container_width=True):
+                if st.button("📝 تسجيل الغياب", 
+                            key="main_record", 
+                            use_container_width=True):
                     st.session_state.page = "teacher_attendance"
                     st.session_state.teacher_mode = "record"
                     st.session_state.selected_class = None
                     st.rerun()
             
             with col2:
-                if st.button("📊 عرض الإحصائيات", key="main_stats", use_container_width=True):
+                if st.button("📊 عرض الإحصائيات", 
+                            key="main_stats", 
+                            use_container_width=True):
                     st.session_state.page = "teacher_attendance"
                     st.session_state.teacher_mode = "statistics"
                     st.session_state.selected_class = None
                     st.rerun()
         
         elif st.session_state.user_role == "student":
-            if st.button("👨‍🎓 تقرير الغياب الخاص بي", key="student_dashboard_btn", use_container_width=True):
+            if st.button("👨‍🎓 تقرير الغياب الخاص بي", 
+                        key="student_dashboard_btn", 
+                        use_container_width=True):
                 st.session_state.page = "student_dashboard"
                 st.rerun()
         
         # زر تسجيل الخروج للجميع
         st.markdown("---")
-        if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
+        if st.button("🚪 تسجيل الخروج", 
+                    key="logout_btn", 
+                    use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_role = ""
             st.session_state.user_name = ""
@@ -1403,7 +1419,9 @@ elif st.session_state.logged_in:
                 
                 for idx, class_name in enumerate(teacher_classes):
                     with cols[idx % 2]:
-                        if st.button(f"🎯 {class_name}", key=f"class_{class_name}", use_container_width=True):
+                        if st.button(f"🎯 {class_name}", 
+                                    key=f"class_select_{class_name}", 
+                                    use_container_width=True):
                             st.session_state.selected_class = class_name
                             st.rerun()
             else:
@@ -1418,7 +1436,9 @@ elif st.session_state.logged_in:
                 st.markdown(f'<div class="home-title">📝 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
                 
                 # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_record", use_container_width=True):
+                if st.button("🔄 اختيار فصل آخر", 
+                            key="change_class_record", 
+                            use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
@@ -1444,16 +1464,17 @@ elif st.session_state.logged_in:
                     selected = st.multiselect(
                         f"اختر الطلاب الغائبين من {selected_class}",
                         class_students,
-                        label_visibility="collapsed"
+                        label_visibility="collapsed",
+                        key=f"absent_select_{selected_class}"
                     )
 
                     # اختيار نوع الغياب
                     st.markdown("### 📝 اختر نوع الغياب")
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        excuse = st.checkbox("غياب بعذر", key="excuse")
+                        excuse = st.checkbox("غياب بعذر", key=f"excuse_{selected_class}")
                     with col_b:
-                        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
+                        no_excuse = st.checkbox("غياب بدون عذر", key=f"no_excuse_{selected_class}")
 
                     if excuse and no_excuse:
                         st.warning("⚠️ اختر نوع واحد فقط.")
@@ -1461,7 +1482,9 @@ elif st.session_state.logged_in:
                     st.markdown("---")
                     
                     # زر تسجيل الغياب
-                    if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
+                    if st.button("💾 حفظ وتسجيل الغياب", 
+                                key=f"record_attendance_{selected_class}", 
+                                use_container_width=True):
                         if excuse and no_excuse:
                             st.warning("⚠️ اختر نوع واحد فقط.")
                         elif not (excuse or no_excuse):
@@ -1505,7 +1528,9 @@ elif st.session_state.logged_in:
                 st.markdown(f'<div class="home-title">📊 إحصائيات {selected_class}</div>', unsafe_allow_html=True)
                 
                 # زر العودة لاختيار فصل آخر
-                if st.button("🔄 اختيار فصل آخر", key="change_class_stats", use_container_width=True):
+                if st.button("🔄 اختيار فصل آخر", 
+                            key="change_class_stats", 
+                            use_container_width=True):
                     st.session_state.selected_class = None
                     st.rerun()
                 
@@ -1599,7 +1624,8 @@ elif st.session_state.logged_in:
                         file_name=f"بيانات_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.csv",
                         mime="text/csv",
                         use_container_width=True,
-                        help="سيحتوي الملف على: الطالب، المعلم، التاريخ، الحالة"
+                        help="سيحتوي الملف على: الطالب، المعلم، التاريخ، الحالة",
+                        key=f"download_class_{selected_class}_{datetime.now().strftime('%Y%m%d')}"
                     )
                 else:
                     st.info("📭 لا توجد بيانات لتصديرها.")
@@ -1630,7 +1656,10 @@ elif st.session_state.logged_in:
         
         # زر العودة للصفحة الرئيسية في الأسفل فقط
         st.markdown("---")
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
+        if st.button("🏠 العودة للصفحة الرئيسية", 
+                    key="back_to_home_bottom", 
+                    use_container_width=True, 
+                    type="secondary"):
             st.session_state.page = "home"
             st.session_state.selected_class = None
             st.session_state.teacher_mode = None
@@ -1645,7 +1674,9 @@ elif st.session_state.logged_in:
         st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
         
         # زر العودة للصفحة الرئيسية في الأعلى
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_top", use_container_width=True):
+        if st.button("🏠 العودة للصفحة الرئيسية", 
+                    key="back_to_home_from_student_top", 
+                    use_container_width=True):
             st.session_state.page = "home"
             st.rerun()
         
@@ -1690,12 +1721,16 @@ elif st.session_state.logged_in:
                 data=csv_data,
                 file_name=f"تقرير_غياب_{student_name}_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
-                use_container_width=True
+                use_container_width=True,
+                key=f"download_student_{student_name}_{datetime.now().strftime('%Y%m%d')}"
             )
         
         # زر العودة للصفحة الرئيسية في الأسفل
         st.markdown("---")
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_bottom", use_container_width=True, type="secondary"):
+        if st.button("🏠 العودة للصفحة الرئيسية", 
+                    key="back_to_home_from_student_bottom", 
+                    use_container_width=True, 
+                    type="secondary"):
             st.session_state.page = "home"
             st.rerun()
         
@@ -1708,7 +1743,9 @@ elif st.session_state.logged_in:
         st.markdown('<div class="home-title">👑 لوحة تحكم مدير النظام</div>', unsafe_allow_html=True)
         
         # زر العودة للصفحة الرئيسية
-        if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_admin", use_container_width=True):
+        if st.button("🏠 العودة للصفحة الرئيسية", 
+                    key="back_to_home_from_admin", 
+                    use_container_width=True):
             st.session_state.page = "home"
             st.rerun()
         
@@ -1732,16 +1769,16 @@ elif st.session_state.logged_in:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 total_records = len(df_all) if not df_all.empty else 0
-                st.metric("إجمالي السجلات", total_records)
+                st.metric("إجمالي السجلات", total_records, key="metric_total_records")
             with col2:
                 total_students = len(ALL_STUDENTS)
-                st.metric("عدد الطلاب", total_students)
+                st.metric("عدد الطلاب", total_students, key="metric_total_students")
             with col3:
                 total_classes = len(CLASSES)
-                st.metric("عدد الفصول", total_classes)
+                st.metric("عدد الفصول", total_classes, key="metric_total_classes")
             with col4:
                 total_teachers = len(TEACHER_CLASSES)
-                st.metric("عدد المعلمين", total_teachers)
+                st.metric("عدد المعلمين", total_teachers, key="metric_total_teachers")
             
             # عرض بيانات Google Sheets
             st.markdown("### 📊 بيانات Google Sheets")
@@ -1769,7 +1806,8 @@ elif st.session_state.logged_in:
                     data=csv_data,
                     file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    use_container_width=True,
+                    key=f"download_all_data_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 )
             else:
                 st.info("📭 لا توجد بيانات في Google Sheets بعد.")
@@ -1815,7 +1853,7 @@ elif st.session_state.logged_in:
                 
                 # عرض جميع الطلاب حسب الفصول
                 for class_name, students in CLASSES.items():
-                    with st.expander(f"📚 {class_name} ({len(students)} طالب)"):
+                    with st.expander(f"📚 {class_name} ({len(students)} طالب)", key=f"expander_class_{class_name}"):
                         # إنشاء جدول للطلاب
                         student_data = []
                         for idx, student in enumerate(students, 1):
@@ -1836,11 +1874,20 @@ elif st.session_state.logged_in:
                 
                 # إضافة طالب جديد
                 with st.form(key="add_student_form"):
-                    student_name = st.text_input("اسم الطالب الجديد", placeholder="أدخل الاسم الكامل")
-                    student_class = st.selectbox("الفصل", list(CLASSES.keys()))
-                    student_password = st.text_input("كلمة المرور", type="password", placeholder="أدخل كلمة المرور")
+                    student_name = st.text_input("اسم الطالب الجديد", 
+                                                placeholder="أدخل الاسم الكامل",
+                                                key="add_student_name")
+                    student_class = st.selectbox("الفصل", 
+                                                list(CLASSES.keys()),
+                                                key="add_student_class")
+                    student_password = st.text_input("كلمة المرور", 
+                                                    type="password", 
+                                                    placeholder="أدخل كلمة المرور",
+                                                    key="add_student_password")
                     
-                    submit_button = st.form_submit_button("➕ إضافة الطالب", use_container_width=True)
+                    submit_button = st.form_submit_button("➕ إضافة الطالب", 
+                                                        use_container_width=True,
+                                                        key="add_student_submit")
                     
                     if submit_button:
                         if student_name and student_class and student_password:
@@ -1881,9 +1928,14 @@ elif st.session_state.logged_in:
                         for student in students:
                             all_students.append(f"{student} ({class_name})")
                     
-                    student_to_delete = st.selectbox("اختر الطالب للحذف", all_students)
+                    student_to_delete = st.selectbox("اختر الطالب للحذف", 
+                                                    all_students,
+                                                    key="delete_student_select")
                     
-                    delete_button = st.form_submit_button("🗑️ حذف الطالب", use_container_width=True, type="secondary")
+                    delete_button = st.form_submit_button("🗑️ حذف الطالب", 
+                                                        use_container_width=True, 
+                                                        type="secondary",
+                                                        key="delete_student_submit")
                     
                     if delete_button and student_to_delete:
                         # استخراج اسم الطالب من النص
@@ -1915,7 +1967,7 @@ elif st.session_state.logged_in:
                 st.markdown("#### 📊 معلومات الفصول الحالية")
                 
                 for class_name, students in CLASSES.items():
-                    with st.expander(f"📁 {class_name} - {len(students)} طالب"):
+                    with st.expander(f"📁 {class_name} - {len(students)} طالب", key=f"expander_class_info_{class_name}"):
                         st.write(f"**المعلم المسؤول:** {', '.join([k for k, v in TEACHER_CLASSES.items() if class_name in v]) or 'غير معين'}")
                         st.write("**الطلاب:**")
                         for student in students:
@@ -1925,10 +1977,16 @@ elif st.session_state.logged_in:
                 st.markdown("#### ➕ إضافة فصل جديد")
                 
                 with st.form(key="add_class_form"):
-                    new_class_name = st.text_input("اسم الفصل الجديد", placeholder="مثال: Class F")
-                    teacher_assigned = st.selectbox("المعلم المسؤول", list(TEACHER_CLASSES.keys()))
+                    new_class_name = st.text_input("اسم الفصل الجديد", 
+                                                  placeholder="مثال: Class F",
+                                                  key="add_class_name")
+                    teacher_assigned = st.selectbox("المعلم المسؤول", 
+                                                   list(TEACHER_CLASSES.keys()),
+                                                   key="add_class_teacher")
                     
-                    add_class_button = st.form_submit_button("➕ إضافة الفصل", use_container_width=True)
+                    add_class_button = st.form_submit_button("➕ إضافة الفصل", 
+                                                            use_container_width=True,
+                                                            key="add_class_submit")
                     
                     if add_class_button and new_class_name:
                         if new_class_name in CLASSES:
@@ -1943,11 +2001,19 @@ elif st.session_state.logged_in:
                 st.markdown("#### ✏️ تعديل فصل")
                 
                 with st.form(key="edit_class_form"):
-                    class_to_edit = st.selectbox("اختر الفصل", list(CLASSES.keys()))
-                    new_class_name = st.text_input("الاسم الجديد (اختياري)", placeholder="اتركه فارغاً إذا لم ترد التغيير")
-                    new_teacher = st.selectbox("المعلم الجديد (اختياري)", [""] + list(TEACHER_CLASSES.keys()))
+                    class_to_edit = st.selectbox("اختر الفصل", 
+                                                list(CLASSES.keys()),
+                                                key="edit_class_select")
+                    new_class_name = st.text_input("الاسم الجديد (اختياري)", 
+                                                  placeholder="اتركه فارغاً إذا لم ترد التغيير",
+                                                  key="edit_class_new_name")
+                    new_teacher = st.selectbox("المعلم الجديد (اختياري)", 
+                                              [""] + list(TEACHER_CLASSES.keys()),
+                                              key="edit_class_teacher")
                     
-                    edit_class_button = st.form_submit_button("✏️ تعديل الفصل", use_container_width=True)
+                    edit_class_button = st.form_submit_button("✏️ تعديل الفصل", 
+                                                            use_container_width=True,
+                                                            key="edit_class_submit")
                     
                     if edit_class_button:
                         if new_class_name and new_class_name != class_to_edit:
@@ -1986,11 +2052,17 @@ elif st.session_state.logged_in:
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    filter_class = st.selectbox("الفصل", ["الكل"] + list(CLASSES.keys()))
+                    filter_class = st.selectbox("الفصل", 
+                                               ["الكل"] + list(CLASSES.keys()),
+                                               key="filter_class")
                 with col2:
-                    filter_status = st.selectbox("الحالة", ["الكل", "حاضر", "غياب"])
+                    filter_status = st.selectbox("الحالة", 
+                                                ["الكل", "حاضر", "غياب"],
+                                                key="filter_status")
                 with col3:
-                    filter_date = st.date_input("التاريخ (اختياري)", value=None)
+                    filter_date = st.date_input("التاريخ (اختياري)", 
+                                               value=None,
+                                               key="filter_date")
                 
                 # تطبيق التصفية
                 filtered_df = df_all.copy()
@@ -2033,7 +2105,10 @@ elif st.session_state.logged_in:
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("🗑️ حذف البيانات المصفاة", use_container_width=True, type="secondary"):
+                        if st.button("🗑️ حذف البيانات المصفاة", 
+                                    use_container_width=True, 
+                                    type="secondary",
+                                    key="delete_filtered_data"):
                             st.warning("⚠️ هذه الميزة غير متاحة حالياً لحماية البيانات")
                     with col2:
                         # تصدير البيانات المصفاة
@@ -2043,7 +2118,8 @@ elif st.session_state.logged_in:
                             data=csv_data,
                             file_name=f"بيانات_الغياب_المصفاة_{datetime.now().strftime('%Y%m%d')}.csv",
                             mime="text/csv",
-                            use_container_width=True
+                            use_container_width=True,
+                            key=f"download_filtered_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                         )
                 else:
                     st.info("❌ لا توجد بيانات مطابقة للتصفية.")
@@ -2077,7 +2153,8 @@ elif st.session_state.logged_in:
                         data=csv_data,
                         file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
                         mime="text/csv",
-                        use_container_width=True
+                        use_container_width=True,
+                        key=f"download_all_data_final_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     )
                     
                     st.success(f"✅ جاهز للتحميل: {len(df_all)} سجل")
@@ -2120,7 +2197,10 @@ elif st.session_state.logged_in:
                 
                 with col1:
                     # إعادة تعيين النظام
-                    if st.button("🔄 اختبار الاتصال", use_container_width=True, type="secondary"):
+                    if st.button("🔄 اختبار الاتصال", 
+                                use_container_width=True, 
+                                type="secondary",
+                                key="test_connection"):
                         init_google_sheets()
                         if worksheet:
                             st.success("✅ الاتصال يعمل بشكل صحيح")
@@ -2129,7 +2209,9 @@ elif st.session_state.logged_in:
                 
                 with col2:
                     # نسخة احتياطية
-                    if st.button("💾 إنشاء نسخة احتياطية", use_container_width=True):
+                    if st.button("💾 إنشاء نسخة احتياطية", 
+                                use_container_width=True,
+                                key="create_backup"):
                         try:
                             # حفظ الإعدادات الحالية
                             backup_data = {
@@ -2148,7 +2230,8 @@ elif st.session_state.logged_in:
                                 data=backup_json,
                                 file_name=f"نسخة_احتياطية_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                                 mime="application/json",
-                                use_container_width=True
+                                use_container_width=True,
+                                key=f"download_backup_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                             )
                             
                             st.success("✅ تم إنشاء النسخة الاحتياطية بنجاح")

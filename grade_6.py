@@ -1451,11 +1451,11 @@ elif st.session_state.logged_in:
                     # عرض معلومات الفصل
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("اسم المعلم", teacher_name)
+                        st.metric("اسم المعلم", teacher_name, key=f"metric_teacher_{selected_class}")
                     with col2:
-                        st.metric("اسم الفصل", selected_class)
+                        st.metric("اسم الفصل", selected_class, key=f"metric_class_{selected_class}")
                     with col3:
-                        st.metric("عدد الطلاب", len(class_students))
+                        st.metric("عدد الطلاب", len(class_students), key=f"metric_students_{selected_class}")
                     
                     st.markdown("---")
                     
@@ -1564,17 +1564,17 @@ elif st.session_state.logged_in:
                 st.markdown("### 📈 الإحصائيات العامة")
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("عدد الطلاب", stats["total_students"])
+                    st.metric("عدد الطلاب", stats["total_students"], key=f"stat_total_students_{selected_class}")
                 with col2:
-                    st.metric("إجمالي السجلات", stats["total_records"])
+                    st.metric("إجمالي السجلات", stats["total_records"], key=f"stat_total_records_{selected_class}")
                 with col3:
-                    st.metric("نسبة الحضور", f"{stats['attendance_rate']:.1f}%")
+                    st.metric("نسبة الحضور", f"{stats['attendance_rate']:.1f}%", key=f"stat_attendance_rate_{selected_class}")
                 with col4:
                     if stats["total_records"] > 0:
                         daily_avg = stats["total_records"] / stats["total_students"] if stats["total_students"] > 0 else 0
-                        st.metric("متوسط السجلات للطالب", f"{daily_avg:.1f}")
+                        st.metric("متوسط السجلات للطالب", f"{daily_avg:.1f}", key=f"stat_daily_avg_{selected_class}")
                     else:
-                        st.metric("متوسط السجلات للطالب", "0")
+                        st.metric("متوسط السجلات للطالب", "0", key=f"stat_daily_avg_zero_{selected_class}")
                 
                 st.markdown("---")
                 
@@ -1583,10 +1583,10 @@ elif st.session_state.logged_in:
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.markdown("##### ✅ الحضور")
-                    st.metric("عدد مرات الحضور", stats["present_count"])
+                    st.metric("عدد مرات الحضور", stats["present_count"], key=f"stat_present_{selected_class}")
                 with col_b:
                     st.markdown("##### ❌ الغياب")
-                    st.metric("عدد مرات الغياب", stats["absent_count"])
+                    st.metric("عدد مرات الغياب", stats["absent_count"], key=f"stat_absent_{selected_class}")
                 
                 st.markdown("---")
                 
@@ -1618,6 +1618,7 @@ elif st.session_state.logged_in:
                 # تصدير البيانات كـ CSV
                 if not history_df.empty:
                     csv_data = history_df.to_csv(index=False, encoding='utf-8-sig')
+                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
                     st.download_button(
                         label="📄 تحميل بيانات الفصل (CSV)",
                         data=csv_data,
@@ -1625,7 +1626,7 @@ elif st.session_state.logged_in:
                         mime="text/csv",
                         use_container_width=True,
                         help="سيحتوي الملف على: الطالب، المعلم، التاريخ، الحالة",
-                        key=f"download_class_{selected_class}_{datetime.now().strftime('%Y%m%d')}"
+                        key=f"download_class_{selected_class}_{timestamp}"
                     )
                 else:
                     st.info("📭 لا توجد بيانات لتصديرها.")
@@ -1698,17 +1699,17 @@ elif st.session_state.logged_in:
             # عرض الإحصاءات
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("عدد مرات الحضور", present_count)
+                st.metric("عدد مرات الحضور", present_count, key=f"student_present_{student_name}")
             with col2:
-                st.metric("عدد مرات الغياب", absent_count)
+                st.metric("عدد مرات الغياب", absent_count, key=f"student_absent_{student_name}")
             with col3:
-                st.metric("إجمالي السجلات", total_count)
+                st.metric("إجمالي السجلات", total_count, key=f"student_total_{student_name}")
             with col4:
                 if total_count > 0:
                     attendance_rate = (present_count / total_count) * 100
-                    st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+                    st.metric("نسبة الحضور", f"{attendance_rate:.1f}%", key=f"student_rate_{student_name}")
                 else:
-                    st.metric("نسبة الحضور", "0%")
+                    st.metric("نسبة الحضور", "0%", key=f"student_rate_zero_{student_name}")
             
             # عرض الجدول
             st.markdown("### 📋 تفاصيل السجلات:")
@@ -1716,13 +1717,14 @@ elif st.session_state.logged_in:
             
             # زر تحميل CSV
             csv_data = df_student.to_csv(index=False, encoding='utf-8-sig')
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             st.download_button(
                 "📥 تحميل تقرير (CSV)",
                 data=csv_data,
                 file_name=f"تقرير_غياب_{student_name}_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 use_container_width=True,
-                key=f"download_student_{student_name}_{datetime.now().strftime('%Y%m%d')}"
+                key=f"download_student_{student_name}_{timestamp}"
             )
         
         # زر العودة للصفحة الرئيسية في الأسفل
@@ -1799,15 +1801,16 @@ elif st.session_state.logged_in:
                 })
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
                 
-                # تحميل جميع البيانات
+                # تحميل جميع البيانات - زر واحد فقط
                 csv_data = df_all.to_csv(index=False, encoding='utf-8-sig')
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
                 st.download_button(
                     label="📥 تحميل جميع البيانات (CSV)",
                     data=csv_data,
                     file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv",
                     use_container_width=True,
-                    key=f"download_all_data_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    key=f"download_all_data_{timestamp}"
                 )
             else:
                 st.info("📭 لا توجد بيانات في Google Sheets بعد.")
@@ -2113,13 +2116,14 @@ elif st.session_state.logged_in:
                     with col2:
                         # تصدير البيانات المصفاة
                         csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
+                        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
                         st.download_button(
                             label="📥 تصدير البيانات المصفاة (CSV)",
                             data=csv_data,
                             file_name=f"بيانات_الغياب_المصفاة_{datetime.now().strftime('%Y%m%d')}.csv",
                             mime="text/csv",
                             use_container_width=True,
-                            key=f"download_filtered_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                            key=f"download_filtered_{timestamp}"
                         )
                 else:
                     st.info("❌ لا توجد بيانات مطابقة للتصفية.")
@@ -2147,14 +2151,14 @@ elif st.session_state.logged_in:
                     df_export["date"] = df_export["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
                     
                     csv_data = df_export.to_csv(index=False, encoding='utf-8-sig')
-                    
+                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
                     st.download_button(
                         label="📥 تحميل جميع البيانات (CSV)",
                         data=csv_data,
                         file_name=f"جميع_بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
                         mime="text/csv",
                         use_container_width=True,
-                        key=f"download_all_data_final_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                        key=f"download_export_all_{timestamp}"
                     )
                     
                     st.success(f"✅ جاهز للتحميل: {len(df_all)} سجل")
@@ -2225,13 +2229,14 @@ elif st.session_state.logged_in:
                             
                             backup_json = json.dumps(backup_data, ensure_ascii=False, indent=2)
                             
+                            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
                             st.download_button(
                                 label="📥 تحميل النسخة الاحتياطية",
                                 data=backup_json,
                                 file_name=f"نسخة_احتياطية_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                                 mime="application/json",
                                 use_container_width=True,
-                                key=f"download_backup_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                                key=f"download_backup_{timestamp}"
                             )
                             
                             st.success("✅ تم إنشاء النسخة الاحتياطية بنجاح")

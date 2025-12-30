@@ -11,9 +11,8 @@ import time
 import csv
 import tempfile
 from datetime import date, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import random
+import string
 
 # ------------------ Page config ------------------
 st.set_page_config(page_title="نظام الغياب", layout="wide")
@@ -313,13 +312,9 @@ def generate_class_report(class_name, start_date=None, end_date=None):
         "records": records
     }
 
-def create_attendance_chart(data, chart_type="bar"):
-    """إنشاء مخطط بياني"""
-    if chart_type == "bar":
-        fig = px.bar(data, x='x', y='y', title='مخطط الحضور')
-    elif chart_type == "pie":
-        fig = px.pie(data, names='x', values='y', title='نسب الحضور')
-    return fig
+def generate_password(length=6):
+    """توليد كلمة مرور عشوائية"""
+    return ''.join(random.choices(string.digits, k=length))
 
 # ------------------ وظائف المساعدة الأصلية ------------------
 def get_today_date():
@@ -745,6 +740,21 @@ st.markdown("""
         font-size: 24px;
         margin-bottom: 10px;
     }
+    
+    .status-present {
+        color: green;
+        font-weight: bold;
+    }
+    
+    .status-excused {
+        color: orange;
+        font-weight: bold;
+    }
+    
+    .status-unexcused {
+        color: red;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -839,37 +849,16 @@ elif st.session_state.logged_in:
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.markdown("""
-                <div class="quick-action" onclick="window.location='?action=students'">
-                    <div class="quick-action-icon">👥</div>
-                    <div><strong>إدارة الطلاب</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">إضافة/حذف/تعديل</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("👥 إدارة الطلاب", use_container_width=True, key="quick_manage_students"):
                     st.session_state.page = "manage_students"
                     st.rerun()
             
             with col2:
-                st.markdown("""
-                <div class="quick-action">
-                    <div class="quick-action-icon">🏫</div>
-                    <div><strong>إدارة الفصول</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">تنظيم الفصول والمعلمين</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("🏫 إدارة الفصول", use_container_width=True, key="quick_manage_classes"):
                     st.session_state.page = "manage_classes"
                     st.rerun()
             
             with col3:
-                st.markdown("""
-                <div class="quick-action">
-                    <div class="quick-action-icon">👨‍🏫</div>
-                    <div><strong>إدارة المعلمين</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">المعلمون والمهام</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("👨‍🏫 إدارة المعلمين", use_container_width=True, key="quick_manage_teachers"):
                     st.session_state.page = "manage_teachers"
                     st.rerun()
@@ -878,37 +867,16 @@ elif st.session_state.logged_in:
             col4, col5, col6 = st.columns(3)
             
             with col4:
-                st.markdown("""
-                <div class="quick-action">
-                    <div class="quick-action-icon">📋</div>
-                    <div><strong>إدارة الغياب</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">سجلات وإحصائيات</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("📋 إدارة الغياب", use_container_width=True, key="quick_manage_attendance"):
                     st.session_state.page = "manage_attendance"
                     st.rerun()
             
             with col5:
-                st.markdown("""
-                <div class="quick-action">
-                    <div class="quick-action-icon">📊</div>
-                    <div><strong>التقارير</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">تقارير وإحصائيات</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("📊 التقارير والإحصائيات", use_container_width=True, key="quick_reports"):
                     st.session_state.page = "reports"
                     st.rerun()
             
             with col6:
-                st.markdown("""
-                <div class="quick-action">
-                    <div class="quick-action-icon">📥</div>
-                    <div><strong>استيراد/تصدير</strong></div>
-                    <div style="font-size: 12px; color: #64748b;">بيانات النظام</div>
-                </div>
-                """, unsafe_allow_html=True)
                 if st.button("📥 استيراد/تصدير", use_container_width=True, key="quick_import_export"):
                     st.session_state.page = "import_export"
                     st.rerun()
@@ -961,41 +929,19 @@ elif st.session_state.logged_in:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # الرسوم البيانية
-            st.markdown("#### 📈 نظرة سريعة")
+            # عرض توزيع الطلاب على الفصول
+            st.markdown("#### 📊 توزيع الطلاب على الفصول")
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # مخطط توزيع الطلاب على الفصول
-                class_distribution = []
-                for class_name, students in CLASSES.items():
-                    class_distribution.append({
-                        "الفصل": class_name,
-                        "عدد الطلاب": len(students)
-                    })
+            for class_name, students in CLASSES.items():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"**{class_name}**")
+                with col2:
+                    st.write(f"**{len(students)}** طالب")
                 
-                if class_distribution:
-                    df_dist = pd.DataFrame(class_distribution)
-                    fig = px.pie(df_dist, values='عدد الطلاب', names='الفصل', 
-                                 title='توزيع الطلاب على الفصول')
-                    st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                # مخطط نسب الحضور
-                status_counts = {}
-                for record in st.session_state.attendance_data:
-                    status = record["status"]
-                    status_counts[status] = status_counts.get(status, 0) + 1
-                
-                if status_counts:
-                    df_status = pd.DataFrame({
-                        "الحالة": list(status_counts.keys()),
-                        "العدد": list(status_counts.values())
-                    })
-                    fig = px.bar(df_status, x='الحالة', y='العدد',
-                                 title='توزيع حالات الحضور', color='الحالة')
-                    st.plotly_chart(fig, use_container_width=True)
+                # شريط التقدم
+                progress = len(students) / max(len(s) for s in CLASSES.values()) if CLASSES.values() else 0
+                st.progress(progress)
         
         elif st.session_state.user_role == "teacher":
             col1, col2 = st.columns(2)
@@ -1100,7 +1046,7 @@ elif st.session_state.logged_in:
                     new_student_class = st.selectbox("الفصل*", list(CLASSES.keys()), key="new_student_class")
                 
                 with col3:
-                    new_student_password = st.text_input("كلمة المرور*", type="password", key="new_student_password")
+                    new_student_password = st.text_input("كلمة المرور*", type="password", key="new_student_password", value=generate_password())
                 
                 # أزرار الإضافة
                 col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
@@ -1110,12 +1056,10 @@ elif st.session_state.logged_in:
                     generate_pass = st.form_submit_button("🎲 توليد كلمة مرور", use_container_width=True)
                 
                 if generate_pass:
-                    if new_student_name:
-                        import random
-                        import string
-                        password = ''.join(random.choices(string.digits, k=6))
-                        st.session_state["new_student_password"] = password
-                        st.info(f"كلمة المرور المقترحة: {password}")
+                    new_password = generate_password()
+                    st.session_state["new_student_password"] = new_password
+                    st.info(f"كلمة المرور المولدة: **{new_password}**")
+                    st.rerun()
                 
                 if submit_add:
                     if new_student_name and new_student_class and new_student_password:
@@ -1535,7 +1479,7 @@ elif st.session_state.logged_in:
                     new_teacher_name = st.text_input("اسم المعلم*", key="new_teacher_name")
                 
                 with col2:
-                    new_teacher_password = st.text_input("كلمة المرور*", type="password", key="new_teacher_password")
+                    new_teacher_password = st.text_input("كلمة المرور*", type="password", key="new_teacher_password", value=generate_password())
                 
                 with col3:
                     available_classes = list(CLASSES.keys())
@@ -1759,12 +1703,11 @@ elif st.session_state.logged_in:
                     # تنسيق الألوان حسب الحالة
                     def color_status(val):
                         if val == "حاضر":
-                            color = "green"
+                            return 'color: green; font-weight: bold'
                         elif "بعذر" in val:
-                            color = "orange"
+                            return 'color: orange; font-weight: bold'
                         else:
-                            color = "red"
-                        return f'color: {color}; font-weight: bold'
+                            return 'color: red; font-weight: bold'
                     
                     styled_df = display_df.style.applymap(color_status, subset=['الحالة'])
                     
@@ -1962,24 +1905,18 @@ elif st.session_state.logged_in:
                     stats_df = pd.DataFrame(class_stats)
                     st.dataframe(stats_df, use_container_width=True, hide_index=True)
                     
-                    # مخطط دائري لنسب الحضور
-                    st.markdown("#### 📈 مخطط نسب الحضور")
+                    # عرض نسب الحضور
+                    st.markdown("#### 📈 نسب الحضور")
                     
-                    # جمع البيانات للمخطط
-                    pie_data = {
-                        "الحالة": ["حاضر", "غياب بعذر", "غياب بدون عذر"],
-                        "العدد": [present_count, absent_excused, absent_unexcused]
-                    }
-                    
-                    df_pie = pd.DataFrame(pie_data)
-                    fig = px.pie(df_pie, values='العدد', names='الحالة', 
-                                 title='توزيع حالات الحضور في النظام',
-                                 color='الحالة',
-                                 color_discrete_map={'حاضر': 'green', 
-                                                   'غياب بعذر': 'orange',
-                                                   'غياب بدون عذر': 'red'})
-                    
-                    st.plotly_chart(fig, use_container_width=True)
+                    for stat in class_stats:
+                        col1, col2, col3 = st.columns([2, 3, 1])
+                        with col1:
+                            st.write(f"**{stat['الفصل']}**")
+                        with col2:
+                            progress = int(stat['نسبة الحضور'].replace('%', '')) / 100
+                            st.progress(progress)
+                        with col3:
+                            st.write(f"**{stat['نسبة الحضور']}**")
                 else:
                     st.info("📭 لا توجد سجلات للفصول")
             else:
@@ -2050,11 +1987,18 @@ elif st.session_state.logged_in:
                             student_df = pd.DataFrame(report["student_reports"])
                             st.dataframe(student_df, use_container_width=True, hide_index=True)
                             
-                            # مخطط نسب الحضور للطلاب
-                            fig = px.bar(student_df, x='student_name', y='attendance_rate',
-                                         title='نسب الحضور للطلاب',
-                                         labels={'student_name': 'اسم الطالب', 'attendance_rate': 'نسبة الحضور %'})
-                            st.plotly_chart(fig, use_container_width=True)
+                            # عرض نسب الحضور للطلاب
+                            st.markdown("#### 📊 نسب الحضور للطلاب")
+                            
+                            for student_report in report["student_reports"]:
+                                col1, col2, col3 = st.columns([3, 3, 1])
+                                with col1:
+                                    st.write(f"**{student_report['student_name']}**")
+                                with col2:
+                                    progress = student_report['attendance_rate'] / 100
+                                    st.progress(progress)
+                                with col3:
+                                    st.write(f"**{student_report['attendance_rate']:.1f}%**")
                         
                         # زر تصدير التقرير
                         csv_data = pd.DataFrame(report["student_reports"]).to_csv(index=False, encoding='utf-8-sig')
@@ -2149,21 +2093,21 @@ elif st.session_state.logged_in:
                                 
                                 st.dataframe(display_df, use_container_width=True, hide_index=True)
                                 
-                                # مخطط توزيع الحضور
-                                status_data = {
+                                # عرض نسب الحضور
+                                st.markdown("#### 📊 توزيع حالات الحضور")
+                                
+                                status_data = pd.DataFrame({
                                     "الحالة": ["حاضر", "غياب بعذر", "غياب بدون عذر"],
                                     "العدد": [report["present_count"], report["absent_excused"], report["absent_unexcused"]]
-                                }
+                                })
                                 
-                                df_status = pd.DataFrame(status_data)
-                                fig = px.pie(df_status, values='العدد', names='الحالة',
-                                             title='توزيع حالات الحضور للطالب',
-                                             color='الحالة',
-                                             color_discrete_map={'حاضر': 'green', 
-                                                               'غياب بعذر': 'orange',
-                                                               'غياب بدون عذر': 'red'})
-                                
-                                st.plotly_chart(fig, use_container_width=True)
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("حاضر", report["present_count"])
+                                with col2:
+                                    st.metric("غياب بعذر", report["absent_excused"])
+                                with col3:
+                                    st.metric("غياب بدون عذر", report["absent_unexcused"])
                             
                             # زر تصدير التقرير
                             csv_data = display_df.to_csv(index=False, encoding='utf-8-sig')
@@ -2246,11 +2190,18 @@ elif st.session_state.logged_in:
                             stats_df = pd.DataFrame(class_stats)
                             st.dataframe(stats_df, use_container_width=True, hide_index=True)
                             
-                            # مخطط بياني
-                            fig = px.bar(stats_df, x='الفصل', y='نسبة الحضور',
-                                         title='نسب الحضور للفصول',
-                                         text='نسبة الحضور')
-                            st.plotly_chart(fig, use_container_width=True)
+                            # عرض نسب الحضور
+                            st.markdown("#### 📈 نسب الحضور للفصول")
+                            
+                            for stat in class_stats:
+                                col1, col2, col3 = st.columns([2, 3, 1])
+                                with col1:
+                                    st.write(f"**{stat['الفصل']}**")
+                                with col2:
+                                    progress = int(stat['نسبة الحضور'].replace('%', '')) / 100
+                                    st.progress(progress)
+                                with col3:
+                                    st.write(f"**{stat['نسبة الحضور']}**")
                     else:
                         st.info("📭 لا توجد سجلات للمعلم")
             else:
@@ -2284,7 +2235,6 @@ elif st.session_state.logged_in:
             
             if st.button("📊 إنشاء التقرير الزمني", use_container_width=True):
                 st.info("🚧 هذه الميزة قيد التطوير")
-                # هنا يمكنك إضافة كود إنشاء التقارير الزمنية
     
     # ------------------ صفحة استيراد/تصدير ------------------
     elif st.session_state.page == "import_export":
@@ -2404,7 +2354,7 @@ elif st.session_state.logged_in:
                             for _, row in import_df.iterrows():
                                 student_name = str(row["اسم_الطالب"]).strip()
                                 class_name = str(row["الفصل"]).strip()
-                                password = str(row.get("كلمة_المرور", f"stu{hash(student_name) % 10000:04d}")).strip()
+                                password = str(row.get("كلمة_المرور", generate_password())).strip()
                                 
                                 if class_name in CLASSES and student_name not in CLASSES[class_name]:
                                     success = add_student(student_name, class_name, password)

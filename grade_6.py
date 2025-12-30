@@ -7,7 +7,7 @@ import json
 import logging
 import base64
 import requests
-import time  # إضافة time لإنشاء مفاتيح فريدة
+import time
 
 # Google Sheets / Auth
 import gspread
@@ -884,7 +884,7 @@ elif st.session_state.logged_in:
     
     # الصفحة الرئيسية المشتركة
     if st.session_state.page == "home":
-        st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
+        st.markdown("# 🏠 الصفحة الرئيسية")
         
         role_badge = ""
         if st.session_state.user_role == "admin":
@@ -967,7 +967,7 @@ elif st.session_state.logged_in:
         teacher_classes = st.session_state.get('teacher_classes', [])
         
         if not st.session_state.selected_class:
-            st.markdown('<div class="home-title">🎯 اختر الفصل</div>', unsafe_allow_html=True)
+            st.markdown("# 🎯 اختر الفصل")
             
             st.markdown(f"### 👨‍🏫 المعلم: **{teacher_name}**")
             st.markdown(f"### 📚 اختر الفصل:")
@@ -990,7 +990,7 @@ elif st.session_state.logged_in:
             selected_class = st.session_state.selected_class
             
             if st.session_state.teacher_mode == "record":
-                st.markdown(f'<div class="home-title">📝 تسجيل غياب {selected_class}</div>', unsafe_allow_html=True)
+                st.markdown(f"# 📝 تسجيل غياب {selected_class}")
                 
                 if st.button("🔄 اختيار فصل آخر", 
                             key="change_class_btn", 
@@ -1005,11 +1005,11 @@ elif st.session_state.logged_in:
                 if class_students:
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("اسم المعلم", teacher_name, key=f"metric_teacher_{selected_class}")
+                        st.metric("اسم المعلم", teacher_name)
                     with col2:
-                        st.metric("اسم الفصل", selected_class, key=f"metric_class_{selected_class}")
+                        st.metric("اسم الفصل", selected_class)
                     with col3:
-                        st.metric("عدد الطلاب", len(class_students), key=f"metric_students_{selected_class}")
+                        st.metric("عدد الطلاب", len(class_students))
                     
                     st.markdown("---")
                     
@@ -1056,7 +1056,7 @@ elif st.session_state.logged_in:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             
             elif st.session_state.teacher_mode == "statistics":
-                st.markdown(f'<div class="home-title">📊 إحصائيات {selected_class}</div>', unsafe_allow_html=True)
+                st.markdown(f"# 📊 إحصائيات {selected_class}")
                 
                 if st.button("🔄 اختيار فصل آخر", 
                             key="change_class_stats_btn", 
@@ -1090,17 +1090,17 @@ elif st.session_state.logged_in:
                 st.markdown("### 📈 الإحصائيات العامة")
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("عدد الطلاب", stats["total_students"], key=f"stat_students_{selected_class}")
+                    st.metric("عدد الطلاب", stats["total_students"])
                 with col2:
-                    st.metric("إجمالي السجلات", stats["total_records"], key=f"stat_records_{selected_class}")
+                    st.metric("إجمالي السجلات", stats["total_records"])
                 with col3:
-                    st.metric("نسبة الحضور", f"{stats['attendance_rate']:.1f}%", key=f"stat_rate_{selected_class}")
+                    st.metric("نسبة الحضور", f"{stats['attendance_rate']:.1f}%")
                 with col4:
                     if stats["total_records"] > 0:
                         daily_avg = stats["total_records"] / stats["total_students"] if stats["total_students"] > 0 else 0
-                        st.metric("متوسط السجلات للطالب", f"{daily_avg:.1f}", key=f"stat_avg_{selected_class}")
+                        st.metric("متوسط السجلات للطالب", f"{daily_avg:.1f}")
                     else:
-                        st.metric("متوسط السجلات للطالب", "0", key=f"stat_avg_zero_{selected_class}")
+                        st.metric("متوسط السجلات للطالب", "0")
                 
                 st.markdown("---")
                 
@@ -1108,10 +1108,10 @@ elif st.session_state.logged_in:
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.markdown("##### ✅ الحضور")
-                    st.metric("عدد مرات الحضور", stats["present_count"], key=f"stat_present_{selected_class}")
+                    st.metric("عدد مرات الحضور", stats["present_count"])
                 with col_b:
                     st.markdown("##### ❌ الغياب")
-                    st.metric("عدد مرات الغياب", stats["absent_count"], key=f"stat_absent_{selected_class}")
+                    st.metric("عدد مرات الغياب", stats["absent_count"])
                 
                 st.markdown("---")
                 
@@ -1133,13 +1133,13 @@ elif st.session_state.logged_in:
                 else:
                     st.info("📭 لا توجد سجلات لهذا الفصل بعد.")
                 
-                # زر تنزيل واحد فقط - لا يتكرر
+                # زر تنزيل واحد فقط
                 st.markdown("---")
                 st.markdown("### 📥 تصدير بيانات الفصل")
                 
                 if not history_df.empty:
                     csv_data = history_df.to_csv(index=False, encoding='utf-8-sig')
-                    timestamp = int(time.time() * 1000)  # استخدام timestamp فريد
+                    timestamp = int(time.time() * 1000)
                     st.download_button(
                         label="📄 تحميل بيانات الفصل (CSV)",
                         data=csv_data,
@@ -1165,7 +1165,7 @@ elif st.session_state.logged_in:
     
     # صفحة الطالب
     elif st.session_state.user_role == "student" and st.session_state.page == "student_dashboard":
-        st.markdown('<div class="home-title">📊 تقرير الغياب الخاص بي</div>', unsafe_allow_html=True)
+        st.markdown("# 📊 تقرير الغياب الخاص بي")
         
         if st.button("🏠 العودة للصفحة الرئيسية", 
                     key="back_to_home_student", 
@@ -1188,17 +1188,17 @@ elif st.session_state.logged_in:
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("عدد مرات الحضور", present_count, key=f"student_present_{student_name}")
+                st.metric("عدد مرات الحضور", present_count)
             with col2:
-                st.metric("عدد مرات الغياب", absent_count, key=f"student_absent_{student_name}")
+                st.metric("عدد مرات الغياب", absent_count)
             with col3:
-                st.metric("إجمالي السجلات", total_count, key=f"student_total_{student_name}")
+                st.metric("إجمالي السجلات", total_count)
             with col4:
                 if total_count > 0:
                     attendance_rate = (present_count / total_count) * 100
-                    st.metric("نسبة الحضور", f"{attendance_rate:.1f}%", key=f"student_rate_{student_name}")
+                    st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
                 else:
-                    st.metric("نسبة الحضور", "0%", key=f"student_rate_zero_{student_name}")
+                    st.metric("نسبة الحضور", "0%")
             
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
@@ -1225,7 +1225,7 @@ elif st.session_state.logged_in:
     
     # صفحة مدير النظام
     elif st.session_state.user_role == "admin" and st.session_state.page == "admin_dashboard":
-        st.markdown('<div class="home-title">👑 لوحة تحكم مدير النظام</div>', unsafe_allow_html=True)
+        st.markdown("# 👑 لوحة تحكم مدير النظام")
         
         if st.button("🏠 العودة للصفحة الرئيسية", 
                     key="back_to_home_admin", 
@@ -1244,16 +1244,16 @@ elif st.session_state.logged_in:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 total_records = len(df_all) if not df_all.empty else 0
-                st.metric("إجمالي السجلات", total_records, key="admin_metric_records")
+                st.metric("إجمالي السجلات", total_records)
             with col2:
                 total_students = len(ALL_STUDENTS)
-                st.metric("عدد الطلاب", total_students, key="admin_metric_students")
+                st.metric("عدد الطلاب", total_students)
             with col3:
                 total_classes = len(CLASSES)
-                st.metric("عدد الفصول", total_classes, key="admin_metric_classes")
+                st.metric("عدد الفصول", total_classes)
             with col4:
                 total_teachers = len(TEACHER_CLASSES)
-                st.metric("عدد المعلمين", total_teachers, key="admin_metric_teachers")
+                st.metric("عدد المعلمين", total_teachers)
             
             if not df_all.empty:
                 st.success(f"📊 تم تحميل {len(df_all)} سجل من Google Sheets")

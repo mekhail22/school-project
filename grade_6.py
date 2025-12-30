@@ -31,9 +31,6 @@ if "user_name" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# الحالة للإدارة
-if "current_tab" not in st.session_state:
-    st.session_state.current_tab = "نظرة عامة"
 if "attendance_data" not in st.session_state:
     st.session_state.attendance_data = []
 if "messages" not in st.session_state:
@@ -58,8 +55,23 @@ def load_students_from_google_sheets():
         # تجميع الطلاب حسب الفصل
         for _, row in students_df.iterrows():
             student_name = row['اسم الطالب']
-            student_class = f"الصف {row['الفصل']}"  # تحويل إلى أسماء عربية
+            student_class = row['الفصل']
             student_password = row['كلمة المرور']
+            
+            # تحويل الفصل إلى صيغة عربية
+            if isinstance(student_class, str):
+                # إذا كان الفصل بالإنجليزية، تحويله للعربية
+                class_mapping = {
+                    'A': 'الصف الأول',
+                    'B': 'الصف الثاني', 
+                    'C': 'الصف الثالث',
+                    'D': 'الصف الرابع',
+                    'أ': 'الصف الأول',
+                    'ب': 'الصف الثاني',
+                    'ج': 'الصف الثالث',
+                    'د': 'الصف الرابع'
+                }
+                student_class = class_mapping.get(student_class.upper(), f"الصف {student_class}")
             
             if student_class not in CLASSES:
                 CLASSES[student_class] = []
@@ -68,9 +80,10 @@ def load_students_from_google_sheets():
             STUDENT_PASSWORDS[student_name] = student_password
         
         return CLASSES, STUDENT_PASSWORDS
+        
     except Exception as e:
-        st.error(f"❌ خطأ في قراءة بيانات الطلاب: {str(e)}")
-        return get_default_students_data()
+        st.error(f"❌ خطأ في قراءة بيانات الطلاب من Google Sheets: {str(e)}")
+        return {}, {}
 
 def load_attendance_from_google_sheets():
     """قراءة بيانات الغياب من Google Sheets"""
@@ -84,19 +97,35 @@ def load_attendance_from_google_sheets():
         # تحويل البيانات إلى الصيغة المطلوبة
         attendance_data = []
         for idx, row in attendance_df.iterrows():
+            # تحويل الفصل إلى صيغة عربية
+            class_name = row['الفصل']
+            if isinstance(class_name, str):
+                class_mapping = {
+                    'A': 'الصف الأول',
+                    'B': 'الصف الثاني', 
+                    'C': 'الصف الثالث',
+                    'D': 'الصف الرابع',
+                    'أ': 'الصف الأول',
+                    'ب': 'الصف الثاني',
+                    'ج': 'الصف الثالث',
+                    'د': 'الصف الرابع'
+                }
+                class_name = class_mapping.get(class_name.upper(), f"الصف {class_name}")
+            
             record = {
                 "id": idx + 1,
                 "date": row['التاريخ'],
                 "student": row['اسم الطالب'],
-                "class": f"الصف {row['الفصل']}",
+                "class": class_name,
                 "teacher": row['المعلم'],
                 "status": row['الحالة']
             }
             attendance_data.append(record)
         
         return attendance_data
+        
     except Exception as e:
-        st.warning(f"⚠️ لم يتم العثور على بيانات الغياب: {str(e)}")
+        st.error(f"❌ خطأ في قراءة بيانات الغياب من Google Sheets: {str(e)}")
         return []
 
 def load_teachers_from_google_sheets():
@@ -126,19 +155,21 @@ def load_teachers_from_google_sheets():
             # تحويل الفصول من نص إلى قائمة
             classes = []
             if isinstance(classes_str, str):
-                # تحويل من A,B,C إلى أسماء عربية
-                class_mapping = {
-                    'A': 'الصف الأول',
-                    'B': 'الصف الثاني',
-                    'C': 'الصف الثالث',
-                    'D': 'الصف الرابع'
-                }
+                # تحويل الفصول إلى الصيغة العربية
                 for c in classes_str.split(','):
                     c = c.strip()
-                    if c in class_mapping:
-                        classes.append(class_mapping[c])
-                    else:
-                        classes.append(f"الصف {c}")
+                    class_mapping = {
+                        'A': 'الصف الأول',
+                        'B': 'الصف الثاني', 
+                        'C': 'الصف الثالث',
+                        'D': 'الصف الرابع',
+                        'أ': 'الصف الأول',
+                        'ب': 'الصف الثاني',
+                        'ج': 'الصف الثالث',
+                        'د': 'الصف الرابع'
+                    }
+                    class_name = class_mapping.get(c.upper(), f"الصف {c}")
+                    classes.append(class_name)
             
             TEACHERS[teacher_name] = classes
             
@@ -151,71 +182,10 @@ def load_teachers_from_google_sheets():
             }
         
         return TEACHERS, USERS
+        
     except Exception as e:
-        st.warning(f"⚠️ لم يتم العثور على بيانات المعلمين: {str(e)}")
-        return get_default_teachers_data()
-
-def get_default_students_data():
-    """البيانات الافتراضية للطلاب"""
-    CLASSES = {
-        "الصف الأول": [
-            "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
-            "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
-            "نبيل جمال نبيل", "جمال هشام جمال"
-        ],
-        "الصف الثاني": [
-            "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
-            "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
-            "هشام نبيل هشام", "وليد جمال وليد"
-        ],
-        "الصف الثالث": [
-            "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
-            "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
-            "مجدي جمال مجدي", "سليمان هشام سليمان"
-        ],
-        "الصف الرابع": [
-            "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
-            "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
-            "فاروق جمال فاروق", "أنور هشام أنور"
-        ]
-    }
-    
-    STUDENT_PASSWORDS = {}
-    for class_name, students in CLASSES.items():
-        for idx, student in enumerate(students, 1):
-            class_number = ''.join(filter(str.isdigit, class_name)) or "1"
-            STUDENT_PASSWORDS[student] = f"{class_number}{1000 + idx}"
-    
-    return CLASSES, STUDENT_PASSWORDS
-
-def get_default_teachers_data():
-    """البيانات الافتراضية للمعلمين"""
-    TEACHERS = {
-        "مينا سمير": ["الصف الأول", "الصف الثاني"],
-        "فادي حبيب": ["الصف الثالث", "الصف الرابع"]
-    }
-    
-    USERS = {
-        "admin": {
-            "password": "admin1234",
-            "role": "admin",
-            "name": "مدير النظام"
-        },
-        "مينا سمير": {
-            "password": "mina1234",
-            "role": "teacher",
-            "name": "مينا سمير",
-            "classes": ["الصف الأول", "الصف الثاني"]
-        },
-        "فادي حبيب": {
-            "password": "fady5678",
-            "role": "teacher",
-            "name": "فادي حبيب",
-            "classes": ["الصف الثالث", "الصف الرابع"]
-        },
-    }
-    
-    return TEACHERS, USERS
+        st.error(f"❌ خطأ في قراءة بيانات المعلمين من Google Sheets: {str(e)}")
+        return {}, {}
 
 # ------------------ تحميل البيانات من Google Sheets ------------------
 st.info("🔄 جاري تحميل البيانات من Google Sheets...")
@@ -229,6 +199,11 @@ TEACHERS, USERS = load_teachers_from_google_sheets()
 # تحميل بيانات الغياب
 attendance_from_sheets = load_attendance_from_google_sheets()
 
+# إذا لم يتم تحميل بيانات الطلاب، لا نكمل
+if not CLASSES:
+    st.error("❌ لم يتم تحميل بيانات الطلاب من Google Sheets. تأكد من الرابط وصيغة البيانات.")
+    st.stop()
+
 # إضافة الطلاب إلى قاعدة المستخدمين
 for class_name, students in CLASSES.items():
     for student in students:
@@ -240,6 +215,7 @@ for class_name, students in CLASSES.items():
                 "class": class_name
             }
         else:
+            # إذا لم توجد كلمة مرور، نستخدم رقم افتراضي
             USERS[student] = {
                 "password": f"stu{hash(student) % 10000:04d}",
                 "role": "student",
@@ -248,21 +224,11 @@ for class_name, students in CLASSES.items():
             }
 
 # تهيئة بيانات الغياب
-if len(st.session_state.attendance_data) == 0:
-    if attendance_from_sheets:
-        st.session_state.attendance_data = attendance_from_sheets
-        st.success(f"✅ تم تحميل {len(attendance_from_sheets)} سجل غياب من Google Sheets")
-    else:
-        # بيانات افتراضية للغياب
-        sample_data = [
-            {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "الصف الأول", "teacher": "مينا سمير", "status": "حاضر"},
-            {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "الصف الأول", "teacher": "مينا سمير", "status": "غياب بعذر"},
-            {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "الصف الثاني", "teacher": "مينا سمير", "status": "حاضر"},
-            {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "الصف الثاني", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
-            {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "الصف الثالث", "teacher": "فادي حبيب", "status": "حاضر"},
-        ]
-        st.session_state.attendance_data = sample_data
-        st.info("ℹ️ استخدام بيانات افتراضية للغياب")
+if attendance_from_sheets:
+    st.session_state.attendance_data = attendance_from_sheets
+    st.success(f"✅ تم تحميل {len(attendance_from_sheets)} سجل غياب من Google Sheets")
+else:
+    st.warning("⚠️ لا توجد سجلات غياب في Google Sheets")
 
 # ------------------ وظائف المساعدة ------------------
 def send_notification(to_user, message, notification_type="info"):
@@ -277,125 +243,6 @@ def send_notification(to_user, message, notification_type="info"):
     }
     st.session_state.messages.append(notification)
     return True
-
-def get_unread_notifications(user_name):
-    """الحصول على الإشعارات غير المقروءة"""
-    return [msg for msg in st.session_state.messages 
-            if msg["to"] == user_name and not msg["read"]]
-
-def mark_notification_as_read(notification_id):
-    """تحديد الإشعار كمقروء"""
-    for msg in st.session_state.messages:
-        if msg["id"] == notification_id:
-            msg["read"] = True
-            return True
-    return False
-
-def add_event(event_title, event_date, event_type, description="", participants=[]):
-    """إضافة حدث جديد"""
-    event = {
-        "id": len(st.session_state.events) + 1,
-        "title": event_title,
-        "date": event_date,
-        "type": event_type,
-        "description": description,
-        "participants": participants,
-        "created_by": st.session_state.user_name,
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    st.session_state.events.append(event)
-    return True
-
-def get_upcoming_events(days=7):
-    """الحصول على الأحداث القادمة"""
-    today = date.today()
-    future_date = today + timedelta(days=days)
-    
-    upcoming = []
-    for event in st.session_state.events:
-        event_date = datetime.strptime(event["date"], "%Y-%m-%d").date()
-        if today <= event_date <= future_date:
-            upcoming.append(event)
-    
-    return sorted(upcoming, key=lambda x: x["date"])
-
-def generate_student_report(student_name, start_date=None, end_date=None):
-    """تقرير مفصل للطالب"""
-    records = get_student_attendance(student_name)
-    
-    if start_date and end_date:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
-    
-    if not records:
-        return None
-    
-    # تحليل البيانات
-    total_days = len(records)
-    present_count = len([r for r in records if r["status"] == "حاضر"])
-    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
-    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
-    
-    attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
-    
-    return {
-        "student_name": student_name,
-        "total_days": total_days,
-        "present_count": present_count,
-        "absent_excused": absent_excused,
-        "absent_unexcused": absent_unexcused,
-        "attendance_rate": attendance_rate,
-        "records": records
-    }
-
-def generate_class_report(class_name, start_date=None, end_date=None):
-    """تقرير مفصل للفصل"""
-    records = get_class_attendance(class_name)
-    
-    if start_date and end_date:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
-    
-    if not records:
-        return None
-    
-    # تحليل البيانات
-    students = CLASSES[class_name]
-    student_reports = []
-    
-    for student in students:
-        student_records = [r for r in records if r["student"] == student]
-        if student_records:
-            total_days = len(student_records)
-            present_count = len([r for r in student_records if r["status"] == "حاضر"])
-            attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
-            
-            student_reports.append({
-                "student_name": student,
-                "total_days": total_days,
-                "present_count": present_count,
-                "attendance_rate": attendance_rate
-            })
-    
-    # إحصائيات الفصل
-    total_records = len(records)
-    present_count = len([r for r in records if r["status"] == "حاضر"])
-    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
-    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
-    
-    return {
-        "class_name": class_name,
-        "total_students": len(students),
-        "total_records": total_records,
-        "present_count": present_count,
-        "absent_excused": absent_excused,
-        "absent_unexcused": absent_unexcused,
-        "attendance_rate": (present_count / total_records * 100) if total_records > 0 else 0,
-        "student_reports": student_reports,
-        "records": records
-    }
 
 def generate_password(length=6):
     """توليد كلمة مرور عشوائية"""
@@ -419,6 +266,12 @@ def arabic_date():
 
 def save_attendance_record(record):
     """حفظ سجل حضور"""
+    # إضافة معرف للسجل
+    if st.session_state.attendance_data:
+        record["id"] = max([r["id"] for r in st.session_state.attendance_data]) + 1
+    else:
+        record["id"] = 1
+    
     st.session_state.attendance_data.append(record)
     return True
 
@@ -447,6 +300,9 @@ def delete_attendance_record(record_id):
 
 def add_student(student_name, class_name, password):
     """إضافة طالب جديد"""
+    if class_name not in CLASSES:
+        CLASSES[class_name] = []
+    
     if student_name not in CLASSES[class_name]:
         CLASSES[class_name].append(student_name)
         STUDENT_PASSWORDS[student_name] = password
@@ -515,6 +371,84 @@ def delete_teacher(teacher_name):
             del USERS[teacher_name]
         return True
     return False
+
+def generate_student_report(student_name, start_date=None, end_date=None):
+    """تقرير مفصل للطالب"""
+    records = get_student_attendance(student_name)
+    
+    if start_date and end_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
+    
+    if not records:
+        return None
+    
+    # تحليل البيانات
+    total_days = len(records)
+    present_count = len([r for r in records if r["status"] == "حاضر"])
+    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
+    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
+    
+    attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
+    
+    return {
+        "student_name": student_name,
+        "total_days": total_days,
+        "present_count": present_count,
+        "absent_excused": absent_excused,
+        "absent_unexcused": absent_unexcused,
+        "attendance_rate": round(attendance_rate, 1),
+        "records": records
+    }
+
+def generate_class_report(class_name, start_date=None, end_date=None):
+    """تقرير مفصل للفصل"""
+    records = get_class_attendance(class_name)
+    
+    if start_date and end_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
+    
+    if not records:
+        return None
+    
+    # تحليل البيانات
+    students = CLASSES.get(class_name, [])
+    student_reports = []
+    
+    for student in students:
+        student_records = [r for r in records if r["student"] == student]
+        if student_records:
+            total_days = len(student_records)
+            present_count = len([r for r in student_records if r["status"] == "حاضر"])
+            attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
+            
+            student_reports.append({
+                "student_name": student,
+                "total_days": total_days,
+                "present_count": present_count,
+                "attendance_rate": round(attendance_rate, 1)
+            })
+    
+    # إحصائيات الفصل
+    total_records = len(records)
+    present_count = len([r for r in records if r["status"] == "حاضر"])
+    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
+    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
+    
+    return {
+        "class_name": class_name,
+        "total_students": len(students),
+        "total_records": total_records,
+        "present_count": present_count,
+        "absent_excused": absent_excused,
+        "absent_unexcused": absent_unexcused,
+        "attendance_rate": round((present_count / total_records * 100) if total_records > 0 else 0, 1),
+        "student_reports": student_reports,
+        "records": records
+    }
 
 # ------------------ CSS ------------------
 st.markdown("""
@@ -756,75 +690,6 @@ st.markdown("""
         background: #f8fafc;
     }
     
-    .notification-badge {
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        background: #ef4444;
-        color: white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .event-card {
-        background: white;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        border-left: 4px solid;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    .event-meeting {
-        border-color: #3b82f6;
-    }
-    
-    .event-exam {
-        border-color: #ef4444;
-    }
-    
-    .event-holiday {
-        border-color: #10b981;
-    }
-    
-    .event-other {
-        border-color: #8b5cf6;
-    }
-    
-    .chart-container {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        margin: 20px 0;
-    }
-    
-    .quick-action {
-        text-align: center;
-        padding: 15px;
-        border-radius: 10px;
-        background: white;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
-        cursor: pointer;
-        height: 100%;
-    }
-    
-    .quick-action:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    .quick-action-icon {
-        font-size: 24px;
-        margin-bottom: 10px;
-    }
-    
     .status-present {
         color: green;
         font-weight: bold;
@@ -1015,7 +880,7 @@ elif st.session_state.logged_in:
             total_classes = len(CLASSES)
             total_teachers = len(TEACHERS)
             total_records = len(st.session_state.attendance_data)
-            present_count = len([r for r in st.session_state.attendance_data if r["status"] == "حاضر"])
+            present_count = len([r for r in st.session_state.attendance_data if r.get("status") == "حاضر"])
             attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
             
             # عرض الإحصائيات
@@ -1056,22 +921,22 @@ elif st.session_state.logged_in:
             st.markdown("---")
             
             # 📊 توزيع الطلاب على الفصول
-            st.markdown("### 📊 توزيع الطلاب على الفصول")
-            
-            # إنشاء مخطط توزيع الطلاب
-            class_distribution_html = """
-            <div class="class-distribution">
-            """
-            
-            class_colors = {
-                "الصف الأول": "class-first",
-                "الصف الثاني": "class-second", 
-                "الصف الثالث": "class-third",
-                "الصف الرابع": "class-fourth"
-            }
-            
-            for class_name in ["الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع"]:
-                if class_name in CLASSES:
+            if CLASSES:
+                st.markdown("### 📊 توزيع الطلاب على الفصول")
+                
+                # إنشاء مخطط توزيع الطلاب
+                class_distribution_html = """
+                <div class="class-distribution">
+                """
+                
+                class_colors = {
+                    "الصف الأول": "class-first",
+                    "الصف الثاني": "class-second", 
+                    "الصف الثالث": "class-third",
+                    "الصف الرابع": "class-fourth"
+                }
+                
+                for class_name in CLASSES.keys():
                     student_count = len(CLASSES[class_name])
                     color_class = class_colors.get(class_name, "class-first")
                     class_distribution_html += f"""
@@ -1080,21 +945,19 @@ elif st.session_state.logged_in:
                         <div class="class-label">{class_name}</div>
                     </div>
                     """
-            
-            class_distribution_html += "</div>"
-            st.markdown(class_distribution_html, unsafe_allow_html=True)
-            
-            # عرض تفاصيل كل فصل
-            st.markdown("#### 📋 تفاصيل الفصول")
-            
-            for class_name in ["الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع"]:
-                if class_name in CLASSES:
-                    students = CLASSES[class_name]
+                
+                class_distribution_html += "</div>"
+                st.markdown(class_distribution_html, unsafe_allow_html=True)
+                
+                # عرض تفاصيل كل فصل
+                st.markdown("#### 📋 تفاصيل الفصول")
+                
+                for class_name, students in CLASSES.items():
                     with st.expander(f"{class_name} ({len(students)} طالب)"):
                         # حساب نسبة الحضور للفصل
                         class_records = get_class_attendance(class_name)
                         if class_records:
-                            present_count = len([r for r in class_records if r["status"] == "حاضر"])
+                            present_count = len([r for r in class_records if r.get("status") == "حاضر"])
                             attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
                             st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
                         
@@ -1107,7 +970,7 @@ elif st.session_state.logged_in:
                                 # عدد أيام الغياب للطالب
                                 student_records = get_student_attendance(student)
                                 if student_records:
-                                    absences = len([r for r in student_records if "غياب" in r["status"]])
+                                    absences = len([r for r in student_records if "غياب" in r.get("status", "")])
                                     if absences > 0:
                                         st.write(f"❌ {absences} غياب")
                                     else:
@@ -1158,50 +1021,53 @@ elif st.session_state.logged_in:
         with tab1:
             st.markdown("### 📋 قائمة الطلاب حسب الفصول")
             
-            # خيارات البحث والتصفية
-            col1, col2 = st.columns(2)
-            with col1:
-                search_query = st.text_input("🔍 بحث عن طالب", placeholder="اكتب اسم الطالب...")
-            with col2:
-                filter_class = st.selectbox("تصفية بالفصل", ["الكل"] + list(CLASSES.keys()))
-            
-            for class_name, students in CLASSES.items():
-                if filter_class != "الكل" and filter_class != class_name:
-                    continue
+            if not CLASSES:
+                st.error("❌ لا توجد فصول مدرسية. تأكد من تحميل البيانات من Google Sheets.")
+            else:
+                # خيارات البحث والتصفية
+                col1, col2 = st.columns(2)
+                with col1:
+                    search_query = st.text_input("🔍 بحث عن طالب", placeholder="اكتب اسم الطالب...")
+                with col2:
+                    filter_class = st.selectbox("تصفية بالفصل", ["الكل"] + list(CLASSES.keys()))
                 
-                # تطبيق البحث
-                display_students = students
-                if search_query:
-                    display_students = [s for s in students if search_query in s]
-                
-                if display_students:
-                    with st.expander(f"🎯 {class_name} ({len(display_students)}/{len(students)} طالب)"):
-                        # إنشاء DataFrame للطلاب
-                        student_data = []
-                        for idx, student in enumerate(display_students, 1):
-                            password = STUDENT_PASSWORDS.get(student, "غير معرف")
-                            student_data.append({
-                                "م": idx,
-                                "اسم الطالب": student,
-                                "كلمة المرور": password
-                            })
-                        
-                        df = pd.DataFrame(student_data)
-                        st.dataframe(df, use_container_width=True, hide_index=True)
-                        
-                        # إحصائيات الفصل
-                        col_a, col_b, col_c = st.columns(3)
-                        with col_a:
-                            st.metric("عدد الطلاب", len(students))
-                        with col_b:
-                            # حساب نسبة الحضور للفصل
-                            class_records = get_class_attendance(class_name)
-                            if class_records:
-                                present_count = len([r for r in class_records if r["status"] == "حاضر"])
-                                attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
-                                st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
-                            else:
-                                st.metric("نسبة الحضور", "0%")
+                for class_name, students in CLASSES.items():
+                    if filter_class != "الكل" and filter_class != class_name:
+                        continue
+                    
+                    # تطبيق البحث
+                    display_students = students
+                    if search_query:
+                        display_students = [s for s in students if search_query in s]
+                    
+                    if display_students:
+                        with st.expander(f"🎯 {class_name} ({len(display_students)}/{len(students)} طالب)"):
+                            # إنشاء DataFrame للطلاب
+                            student_data = []
+                            for idx, student in enumerate(display_students, 1):
+                                password = STUDENT_PASSWORDS.get(student, "غير معرف")
+                                student_data.append({
+                                    "م": idx,
+                                    "اسم الطالب": student,
+                                    "كلمة المرور": password
+                                })
+                            
+                            df = pd.DataFrame(student_data)
+                            st.dataframe(df, use_container_width=True, hide_index=True)
+                            
+                            # إحصائيات الفصل
+                            col_a, col_b, col_c = st.columns(3)
+                            with col_a:
+                                st.metric("عدد الطلاب", len(students))
+                            with col_b:
+                                # حساب نسبة الحضور للفصل
+                                class_records = get_class_attendance(class_name)
+                                if class_records:
+                                    present_count = len([r for r in class_records if r.get("status") == "حاضر"])
+                                    attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
+                                    st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+                                else:
+                                    st.metric("نسبة الحضور", "0%")
         
         with tab2:
             st.markdown("### ➕ إضافة طالب جديد")
@@ -1368,80 +1234,83 @@ elif st.session_state.logged_in:
         with tab1:
             st.markdown("### 📋 قائمة الفصول")
             
-            for class_name, students in CLASSES.items():
-                with st.container():
-                    st.markdown(f"#### {class_name}")
-                    
-                    col1, col2, col3 = st.columns([3, 2, 1])
-                    
-                    with col1:
-                        st.write(f"**عدد الطلاب:** {len(students)}")
+            if not CLASSES:
+                st.error("❌ لا توجد فصول مدرسية. تأكد من تحميل البيانات من Google Sheets.")
+            else:
+                for class_name, students in CLASSES.items():
+                    with st.container():
+                        st.markdown(f"#### {class_name}")
                         
-                        # عرض المعلم المسؤول
-                        teacher_names = []
-                        for teacher, classes in TEACHERS.items():
-                            if class_name in classes:
-                                teacher_names.append(teacher)
+                        col1, col2, col3 = st.columns([3, 2, 1])
                         
-                        if teacher_names:
-                            st.write(f"**المعلم المسؤول:** {', '.join(teacher_names)}")
-                        else:
-                            st.write("**المعلم المسؤول:** غير معين")
+                        with col1:
+                            st.write(f"**عدد الطلاب:** {len(students)}")
+                            
+                            # عرض المعلم المسؤول
+                            teacher_names = []
+                            for teacher, classes in TEACHERS.items():
+                                if class_name in classes:
+                                    teacher_names.append(teacher)
+                            
+                            if teacher_names:
+                                st.write(f"**المعلم المسؤول:** {', '.join(teacher_names)}")
+                            else:
+                                st.write("**المعلم المسؤول:** غير معين")
+                            
+                            # زر عرض الطلاب
+                            with st.expander("👥 عرض قائمة الطلاب"):
+                                for student in students:
+                                    st.write(f"- {student}")
                         
-                        # زر عرض الطلاب
-                        with st.expander("👥 عرض قائمة الطلاب"):
-                            for student in students:
-                                st.write(f"- {student}")
-                    
-                    with col2:
-                        # اختيار معلم جديد
-                        teacher_options = ["غير معين"] + list(TEACHERS.keys())
-                        
-                        # تحديد المعلم الحالي
-                        current_teacher = "غير معين"
-                        for teacher in TEACHERS:
-                            if class_name in TEACHERS[teacher]:
-                                current_teacher = teacher
-                                break
-                        
-                        new_teacher = st.selectbox(
-                            "تغيير المعلم",
-                            teacher_options,
-                            index=teacher_options.index(current_teacher) if current_teacher in teacher_options else 0,
-                            key=f"change_teacher_{class_name}"
-                        )
-                        
-                        if st.button("💾 حفظ", key=f"save_teacher_{class_name}"):
-                            # إزالة الفصل من جميع المعلمين
+                        with col2:
+                            # اختيار معلم جديد
+                            teacher_options = ["غير معين"] + list(TEACHERS.keys())
+                            
+                            # تحديد المعلم الحالي
+                            current_teacher = "غير معين"
                             for teacher in TEACHERS:
                                 if class_name in TEACHERS[teacher]:
-                                    TEACHERS[teacher].remove(class_name)
+                                    current_teacher = teacher
+                                    break
                             
-                            # إضافة الفصل للمعلم الجديد
-                            if new_teacher != "غير معين":
-                                if new_teacher not in TEACHERS:
-                                    TEACHERS[new_teacher] = []
-                                if class_name not in TEACHERS[new_teacher]:
-                                    TEACHERS[new_teacher].append(class_name)
+                            new_teacher = st.selectbox(
+                                "تغيير المعلم",
+                                teacher_options,
+                                index=teacher_options.index(current_teacher) if current_teacher in teacher_options else 0,
+                                key=f"change_teacher_{class_name}"
+                            )
                             
-                            # تحديث بيانات المستخدم للمعلم
-                            if new_teacher != "غير معين" and new_teacher in USERS:
-                                USERS[new_teacher]["classes"] = TEACHERS[new_teacher]
-                            
-                            st.success(f"✅ تم تحديث المعلم المسؤول للفصل {class_name}")
-                            st.rerun()
-                    
-                    with col3:
-                        # إحصائيات الفصل
-                        class_records = get_class_attendance(class_name)
-                        if class_records:
-                            present_count = len([r for r in class_records if r["status"] == "حاضر"])
-                            attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
-                            st.metric("الحضور", f"{attendance_rate:.1f}%")
-                        else:
-                            st.metric("الحضور", "0%")
-                    
-                    st.markdown("---")
+                            if st.button("💾 حفظ", key=f"save_teacher_{class_name}"):
+                                # إزالة الفصل من جميع المعلمين
+                                for teacher in TEACHERS:
+                                    if class_name in TEACHERS[teacher]:
+                                        TEACHERS[teacher].remove(class_name)
+                                
+                                # إضافة الفصل للمعلم الجديد
+                                if new_teacher != "غير معين":
+                                    if new_teacher not in TEACHERS:
+                                        TEACHERS[new_teacher] = []
+                                    if class_name not in TEACHERS[new_teacher]:
+                                        TEACHERS[new_teacher].append(class_name)
+                                
+                                # تحديث بيانات المستخدم للمعلم
+                                if new_teacher != "غير معين" and new_teacher in USERS:
+                                    USERS[new_teacher]["classes"] = TEACHERS[new_teacher]
+                                
+                                st.success(f"✅ تم تحديث المعلم المسؤول للفصل {class_name}")
+                                st.rerun()
+                        
+                        with col3:
+                            # إحصائيات الفصل
+                            class_records = get_class_attendance(class_name)
+                            if class_records:
+                                present_count = len([r for r in class_records if r.get("status") == "حاضر"])
+                                attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
+                                st.metric("الحضور", f"{attendance_rate:.1f}%")
+                            else:
+                                st.metric("الحضور", "0%")
+                        
+                        st.markdown("---")
         
         with tab2:
             st.markdown("### ➕ إضافة فصل جديد")
@@ -1570,44 +1439,47 @@ elif st.session_state.logged_in:
         with tab1:
             st.markdown("### 📋 قائمة المعلمين")
             
-            for teacher_name, classes in TEACHERS.items():
-                with st.container():
-                    col1, col2, col3 = st.columns([3, 2, 1])
-                    
-                    with col1:
-                        st.markdown(f"#### {teacher_name}")
-                        st.write(f"**الفصول المسؤول عنها:** {', '.join(classes) if classes else 'لا يوجد'}")
-                        st.write(f"**عدد الفصول:** {len(classes)}")
+            if not TEACHERS:
+                st.error("❌ لا توجد بيانات معلمين. تأكد من تحميل البيانات من Google Sheets.")
+            else:
+                for teacher_name, classes in TEACHERS.items():
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 2, 1])
                         
-                        # عرض تفاصيل الفصول
-                        if classes:
-                            with st.expander("📚 تفاصيل الفصول"):
-                                for class_name in classes:
-                                    student_count = len(CLASSES.get(class_name, []))
-                                    st.write(f"- {class_name} ({student_count} طالب)")
-                    
-                    with col2:
-                        # تغيير كلمة المرور
-                        st.markdown("#### 🔑 تغيير كلمة المرور")
-                        new_password = st.text_input(
-                            "كلمة المرور الجديدة",
-                            type="password",
-                            key=f"new_pass_{teacher_name}",
-                            placeholder="اترك فارغاً للحفاظ على الكلمة الحالية"
-                        )
+                        with col1:
+                            st.markdown(f"#### {teacher_name}")
+                            st.write(f"**الفصول المسؤول عنها:** {', '.join(classes) if classes else 'لا يوجد'}")
+                            st.write(f"**عدد الفصول:** {len(classes)}")
+                            
+                            # عرض تفاصيل الفصول
+                            if classes:
+                                with st.expander("📚 تفاصيل الفصول"):
+                                    for class_name in classes:
+                                        student_count = len(CLASSES.get(class_name, []))
+                                        st.write(f"- {class_name} ({student_count} طالب)")
                         
-                        if st.button("💾 حفظ", key=f"change_pass_{teacher_name}"):
-                            if new_password:
-                                USERS[teacher_name]["password"] = new_password
-                                st.success(f"✅ تم تغيير كلمة مرور {teacher_name}")
-                                st.rerun()
-                    
-                    with col3:
-                        # إحصائيات المعلم
-                        total_students = sum(len(CLASSES.get(class_name, [])) for class_name in classes)
-                        st.metric("الطلاب", total_students)
-                    
-                    st.markdown("---")
+                        with col2:
+                            # تغيير كلمة المرور
+                            st.markdown("#### 🔑 تغيير كلمة المرور")
+                            new_password = st.text_input(
+                                "كلمة المرور الجديدة",
+                                type="password",
+                                key=f"new_pass_{teacher_name}",
+                                placeholder="اترك فارغاً للحفاظ على الكلمة الحالية"
+                            )
+                            
+                            if st.button("💾 حفظ", key=f"change_pass_{teacher_name}"):
+                                if new_password:
+                                    USERS[teacher_name]["password"] = new_password
+                                    st.success(f"✅ تم تغيير كلمة مرور {teacher_name}")
+                                    st.rerun()
+                        
+                        with col3:
+                            # إحصائيات المعلم
+                            total_students = sum(len(CLASSES.get(class_name, [])) for class_name in classes)
+                            st.metric("الطلاب", total_students)
+                        
+                        st.markdown("---")
         
         with tab2:
             st.markdown("### ➕ إضافة معلم جديد")
@@ -1684,35 +1556,36 @@ elif st.session_state.logged_in:
         tab1, tab2, tab3 = st.tabs(["🔍 البحث والتصفية", "🗑️ حذف السجلات", "📊 الإحصائيات"])
         
         with tab1:
-            st.markdown("### 🔍 البحث في سجلات الغياب")
+            st.markdown("### 🔍 البحث في سجلالغياب")
             
-            with st.form("search_form"):
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    search_student = st.text_input("بحث باسم الطالب", key="search_student")
-                
-                with col2:
-                    search_class = st.selectbox(
-                        "تصفية بالفصل",
-                        ["الكل"] + list(CLASSES.keys()),
-                        key="search_class"
-                    )
-                
-                with col3:
-                    search_status = st.selectbox(
-                        "تصفية بالحالة",
-                        ["الكل", "حاضر", "غياب بعذر", "غياب بدون عذر"],
-                        key="search_status"
-                    )
-                
-                search_submit = st.form_submit_button("🔍 بحث", use_container_width=True)
+            attendance_records = get_attendance_records()
             
-            if search_submit:
-                # الحصول على سجلات الغياب
-                attendance_records = get_attendance_records()
+            if not attendance_records:
+                st.info("📭 لا توجد سجلات غياب في النظام")
+            else:
+                with st.form("search_form"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        search_student = st.text_input("بحث باسم الطالب", key="search_student")
+                    
+                    with col2:
+                        search_class = st.selectbox(
+                            "تصفية بالفصل",
+                            ["الكل"] + list(CLASSES.keys()),
+                            key="search_class"
+                        )
+                    
+                    with col3:
+                        search_status = st.selectbox(
+                            "تصفية بالحالة",
+                            ["الكل", "حاضر", "غياب بعذر", "غياب بدون عذر"],
+                            key="search_status"
+                        )
+                    
+                    search_submit = st.form_submit_button("🔍 بحث", use_container_width=True)
                 
-                if attendance_records:
+                if search_submit:
                     # تحويل إلى DataFrame للبحث
                     records_df = pd.DataFrame(attendance_records)
                     
@@ -1742,8 +1615,6 @@ elif st.session_state.logged_in:
                         st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
                         st.info("📭 لا توجد سجلات مطابقة لبحثك")
-                else:
-                    st.info("📭 لا توجد سجلات غياب في النظام")
         
         with tab2:
             st.markdown("### 🗑️ حذف سجلات الغياب")
@@ -1838,56 +1709,65 @@ elif st.session_state.logged_in:
         with tab1:
             st.markdown("### 📈 تقارير الفصول")
             
-            selected_class = st.selectbox(
-                "اختر الفصل",
-                list(CLASSES.keys()),
-                key="class_report_select"
-            )
-            
-            if selected_class:
-                # نطاق التاريخ
-                col1, col2 = st.columns(2)
-                with col1:
-                    start_date = st.date_input("من تاريخ", key="class_start_date")
-                with col2:
-                    end_date = st.date_input("إلى تاريخ", key="class_end_date")
+            if not CLASSES:
+                st.error("❌ لا توجد فصول مدرسية.")
+            else:
+                selected_class = st.selectbox(
+                    "اختر الفصل",
+                    list(CLASSES.keys()),
+                    key="class_report_select"
+                )
                 
-                if st.button("📊 إنشاء التقرير", use_container_width=True, key="create_class_report"):
-                    report = generate_class_report(
-                        selected_class,
-                        start_date.strftime("%Y-%m-%d") if start_date else None,
-                        end_date.strftime("%Y-%m-%d") if end_date else None
-                    )
+                if selected_class:
+                    # نطاق التاريخ
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        start_date = st.date_input("من تاريخ", key="class_start_date")
+                    with col2:
+                        end_date = st.date_input("إلى تاريخ", key="class_end_date")
                     
-                    if report:
-                        st.markdown(f"#### تقرير الفصل: {selected_class}")
+                    if st.button("📊 إنشاء التقرير", use_container_width=True, key="create_class_report"):
+                        report = generate_class_report(
+                            selected_class,
+                            start_date.strftime("%Y-%m-%d") if start_date else None,
+                            end_date.strftime("%Y-%m-%d") if end_date else None
+                        )
                         
-                        # عرض إحصائيات الفصل
-                        col_a, col_b, col_c, col_d = st.columns(4)
-                        
-                        with col_a:
-                            st.metric("عدد الطلاب", report["total_students"])
-                        
-                        with col_b:
-                            st.metric("إجمالي السجلات", report["total_records"])
-                        
-                        with col_c:
-                            st.metric("نسبة الحضور", f"{report['attendance_rate']:.1f}%")
-                        
-                        with col_d:
-                            absences = report["absent_excused"] + report["absent_unexcused"]
-                            st.metric("إجمالي الغياب", absences)
-                        
-                        st.markdown("---")
-                        
-                        # تفاصيل الطلاب
-                        st.markdown("#### 📋 تفاصيل الطلاب")
-                        
-                        if report["student_reports"]:
-                            student_df = pd.DataFrame(report["student_reports"])
-                            st.dataframe(student_df, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("📭 لا توجد بيانات للفصل في هذه الفترة")
+                        if report:
+                            st.markdown(f"#### تقرير الفصل: {selected_class}")
+                            
+                            # عرض إحصائيات الفصل
+                            col_a, col_b, col_c, col_d = st.columns(4)
+                            
+                            with col_a:
+                                st.metric("عدد الطلاب", report["total_students"])
+                            
+                            with col_b:
+                                st.metric("إجمالي السجلات", report["total_records"])
+                            
+                            with col_c:
+                                st.metric("نسبة الحضور", f"{report['attendance_rate']}%")
+                            
+                            with col_d:
+                                absences = report["absent_excused"] + report["absent_unexcused"]
+                                st.metric("إجمالي الغياب", absences)
+                            
+                            st.markdown("---")
+                            
+                            # تفاصيل الطلاب
+                            st.markdown("#### 📋 تفاصيل الطلاب")
+                            
+                            if report["student_reports"]:
+                                student_df = pd.DataFrame(report["student_reports"])
+                                student_df = student_df.rename(columns={
+                                    "student_name": "اسم الطالب",
+                                    "total_days": "إجمالي الأيام",
+                                    "present_count": "أيام الحضور",
+                                    "attendance_rate": "نسبة الحضور"
+                                })
+                                st.dataframe(student_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("📭 لا توجد بيانات للفصل في هذه الفترة")
         
         with tab2:
             st.markdown("### 👤 تقارير الطلاب")
@@ -1940,13 +1820,13 @@ elif st.session_state.logged_in:
                                 st.metric("أيام الحضور", report["present_count"])
                             
                             with col_c:
-                                st.metric("نسبة الحضور", f"{report['attendance_rate']:.1f}%")
+                                st.metric("نسبة الحضور", f"{report['attendance_rate']}%")
                             
                             with col_d:
                                 total_absent = report["absent_excused"] + report["absent_unexcused"]
                                 st.metric("إجمالي الغياب", total_absent)
                             
-                            # سجلات الطالب
+                            # سجلالطالب
                             st.markdown("#### 📋 سجل الغياب")
                             
                             if report["records"]:

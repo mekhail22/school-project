@@ -442,24 +442,15 @@ def get_class_statistics(class_name):
         }
     
     # تصفية البيانات للفصل المحدد
-    # معالجة مشكلة أسماء الفصول بالعربية والإنجليزية
     class_df = pd.DataFrame()
     
-    # البحث عن الفصل بأي شكل من الأشكال
     if not df.empty:
-        # تحويل جميع أسماء الفصول إلى حروف صغيرة وإزالة المسافات
-        df_lower = df.copy()
-        df_lower['class_lower'] = df_lower['class'].astype(str).str.strip().str.lower()
-        search_class = str(class_name).strip().lower()
+        # البحث عن الفصل
+        class_df = df[df["class"].astype(str).str.strip() == class_name.strip()]
         
-        # البحث عن التطابقات
-        class_matches = df_lower[df_lower['class_lower'] == search_class]
-        
-        if not class_matches.empty:
-            class_df = class_matches.copy()
-        else:
-            # محاولة البحث الجزئي
-            class_df = df[df['class'].astype(str).str.contains(str(class_name).strip(), case=False, na=False)]
+        if class_df.empty:
+            # محاولة البحث بدون حساسية لحالة الحروف
+            class_df = df[df["class"].astype(str).str.strip().str.lower() == class_name.strip().lower()]
     
     if class_df.empty:
         return {
@@ -516,23 +507,15 @@ def get_class_attendance_history(class_name):
         return pd.DataFrame()
     
     # تصفية البيانات للفصل المحدد
-    # معالجة مشكلة أسماء الفصول بالعربية والإنجليزية
     class_df = pd.DataFrame()
     
     if not df.empty:
-        # تحويل جميع أسماء الفصول إلى حروف صغيرة وإزالة المسافات
-        df_lower = df.copy()
-        df_lower['class_lower'] = df_lower['class'].astype(str).str.strip().str.lower()
-        search_class = str(class_name).strip().lower()
+        # البحث عن الفصل
+        class_df = df[df["class"].astype(str).str.strip() == class_name.strip()]
         
-        # البحث عن التطابقات
-        class_matches = df_lower[df_lower['class_lower'] == search_class]
-        
-        if not class_matches.empty:
-            class_df = class_matches.copy()
-        else:
-            # محاولة البحث الجزئي
-            class_df = df[df['class'].astype(str).str.contains(str(class_name).strip(), case=False, na=False)]
+        if class_df.empty:
+            # محاولة البحث بدون حساسية لحالة الحروف
+            class_df = df[df["class"].astype(str).str.strip().str.lower() == class_name.strip().lower()]
     
     if class_df.empty:
         return pd.DataFrame()
@@ -2289,6 +2272,14 @@ st.markdown("""
         border-radius: 5px !important;
         border: 1px solid #bae6fd !important;
     }
+    
+    /* خلايا كلمات المرور الظاهرة */
+    .password-cell {
+        background-color: #f0f9ff !important;
+        color: #1e40af !important;
+        font-weight: 600 !important;
+        font-family: 'Courier New', monospace !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -2685,7 +2676,7 @@ elif st.session_state.logged_in:
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
                 
-                # 🆕 **تعديل: عرض جميع السجلات في آخر جزء**
+                # 🆕 **عرض جميع السجلات للفصل**
                 st.markdown("---")
                 st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
                 
@@ -2699,19 +2690,32 @@ elif st.session_state.logged_in:
                         "status_clean": "الحالة"
                     })
                     
-                    st.dataframe(all_history, use_container_width=True, hide_index=True)
+                    # 🔧 **إصلاح: عرض كل السجلات بدون تحديد عدد**
+                    st.dataframe(all_history, use_container_width=True, height=400)
                     
                     # إظهار عدد السجلات الفعلي
-                    st.info(f"**عدد السجلات المعروضة:** {len(all_history)}")
+                    st.info(f"**عدد السجلات المعروضة:** {len(all_history)} سجل")
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
                     
                     # زر اختبار الاتصال
                     if st.button("🔍 اختبار الاتصال بالسجلات", key="test_records_connection"):
                         df = read_sheet()
-                        st.info(f"**إجمالي السجلات في النظام:** {len(df)}")
+                        total_records = len(df)
+                        st.info(f"**إجمالي السجلات في النظام:** {total_records}")
+                        
                         if not df.empty:
-                            st.dataframe(df.head(10), use_container_width=True)
+                            # عرض آخر 10 سجلات
+                            recent_records = df.head(10).copy()
+                            recent_records["date_clean"] = recent_records["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
+                            recent_records = recent_records.rename(columns={
+                                "student": "الطالب",
+                                "teacher": "المعلم",
+                                "class": "الفصل",
+                                "date_clean": "التاريخ",
+                                "status": "الحالة"
+                            })
+                            st.dataframe(recent_records[["الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]], use_container_width=True)
         
         # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
         st.markdown("---")
@@ -2942,11 +2946,11 @@ elif st.session_state.logged_in:
                 
                 with col2:
                     # إدخال كلمة المرور (إجباري)
-                    new_student_password = st.text_input("كلمة المرور *", type="password", key="new_student_password",
+                    new_student_password = st.text_input("كلمة المرور *", key="new_student_password",
                                                         help="كلمة المرور مطلوبة")
                     
                     # تأكيد كلمة المرور
-                    new_student_password_confirm = st.text_input("تأكيد كلمة المرور *", type="password", 
+                    new_student_password_confirm = st.text_input("تأكيد كلمة المرور *", 
                                                                 key="new_student_password_confirm")
                 
                 # زر الإضافة
@@ -2998,7 +3002,7 @@ elif st.session_state.logged_in:
                         with col2:
                             # إدخال كلمة المرور الجديدة (اختياري)
                             st.info("اترك كلمة المرور فارغة إذا لم ترغب في تغييرها")
-                            new_student_password = st.text_input("كلمة المرور الجديدة", type="password", 
+                            new_student_password = st.text_input("كلمة المرور الجديدة", 
                                                                key="edit_student_password",
                                                                help="اتركه فارغاً للحفاظ على كلمة المرور الحالية")
                         
@@ -3061,7 +3065,13 @@ elif st.session_state.logged_in:
                         "كلمة المرور": [USERS.get(student, {}).get("password", "غير معروفة") for student in ALL_STUDENTS]
                     })
                     
-                    st.dataframe(students_df, use_container_width=True, hide_index=True)
+                    # تطبيق CSS لجعل كلمات المرور ظاهرة
+                    st.dataframe(
+                        students_df.style.apply(lambda x: ['background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: Courier New, monospace' 
+                                                         if x.name == 'كلمة المرور' else '' for i in range(len(x))], axis=0),
+                        use_container_width=True,
+                        hide_index=True
+                    )
                     
                     # عرض عدد الطلاب
                     st.info(f"**إجمالي عدد الطلاب:** {len(ALL_STUDENTS)}")
@@ -3116,11 +3126,11 @@ elif st.session_state.logged_in:
                     new_teacher_name = st.text_input("اسم المعلم الجديد *", key="new_teacher_name")
                     
                     # إدخال كلمة المرور (إجباري)
-                    new_teacher_password = st.text_input("كلمة المرور *", type="password", key="new_teacher_password")
+                    new_teacher_password = st.text_input("كلمة المرور *", key="new_teacher_password")
                 
                 with col2:
                     # تأكيد كلمة المرور
-                    new_teacher_password_confirm = st.text_input("تأكيد كلمة المرور *", type="password", 
+                    new_teacher_password_confirm = st.text_input("تأكيد كلمة المرور *", 
                                                                key="new_teacher_password_confirm")
                     
                     # اختيار الفصول
@@ -3172,7 +3182,7 @@ elif st.session_state.logged_in:
                             
                             # إدخال كلمة المرور الجديدة (اختياري)
                             st.info("اترك كلمة المرور فارغة إذا لم ترغب في تغييرها")
-                            new_teacher_password = st.text_input("كلمة المرور الجديدة", type="password", 
+                            new_teacher_password = st.text_input("كلمة المرور الجديدة", 
                                                                key="edit_teacher_password")
                         
                         with col2:
@@ -3245,7 +3255,14 @@ elif st.session_state.logged_in:
                         })
                     
                     teachers_df = pd.DataFrame(teachers_data)
-                    st.dataframe(teachers_df, use_container_width=True, hide_index=True)
+                    
+                    # تطبيق CSS لجعل كلمات المرور ظاهرة
+                    st.dataframe(
+                        teachers_df.style.apply(lambda x: ['background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: Courier New, monospace' 
+                                                         if x.name == 'كلمة المرور' else '' for i in range(len(x))], axis=0),
+                        use_container_width=True,
+                        hide_index=True
+                    )
                     
                     # عرض عدد المعلمين
                     st.info(f"**إجمالي عدد المعلمين:** {len(TEACHERS)}")
@@ -3475,7 +3492,7 @@ elif st.session_state.logged_in:
             st.markdown("---")
             
             # تقارير الفصول (باللغة الإنجليزية للفصول)
-            st.markdown("#### 🏫 تقارير الفصول (Class Reports)")
+            st.markdown("#### 🏫 تقارير الفصول")
             st.markdown("قم بتحميل تقارير PDF لكل فصل على حدة. **يرجى كتابة اسم الفصل بالإنجليزية:**")
             
             # زر لإظهار أسماء الفصول الإنجليزية
@@ -3490,53 +3507,51 @@ elif st.session_state.logged_in:
                 **ملاحظة:** يرجى كتابة اسم الفصل بالإنجليزية كما هو موضح أعلاه.
                 """)
             
-            # إدخال اسم الفصل بالإنجليزية
-            report_class_name = st.text_input("اكتب اسم الفصل (بالإنجليزية)", 
-                                            placeholder="مثال: Class B",
-                                            key="report_class_name_input")
+            # إدخال اسم الفصل بالإنجليزية مع اقتراحات
+            class_options = list(CLASSES.keys())
+            report_class_name = st.selectbox(
+                "اختر الفصل لتوليد التقرير",
+                ["--- اختر الفصل ---"] + class_options,
+                key="report_class_name_select"
+            )
             
-            if report_class_name.strip():
+            if report_class_name and report_class_name != "--- اختر الفصل ---":
                 selected_report_class = report_class_name.strip()
                 
-                # التحقق من أن اسم الفصل موجود
-                if selected_report_class not in CLASSES:
-                    st.warning(f"⚠️ الفصل '{selected_report_class}' غير موجود في النظام.")
-                    st.info("**الفصول المتاحة:** " + ", ".join(CLASSES.keys()))
-                else:
-                    # الحصول على إحصائيات الفصل
-                    stats = get_class_statistics(selected_report_class)
-                    history_df = get_class_attendance_history(selected_report_class)
+                # الحصول على إحصائيات الفصل
+                stats = get_class_statistics(selected_report_class)
+                history_df = get_class_attendance_history(selected_report_class)
+                
+                # عرض معلومات سريعة عن الفصل
+                st.info(f"**الفصل:** {selected_report_class}")
+                st.info(f"**عدد الطلاب:** {len(CLASSES.get(selected_report_class, []))}")
+                st.info(f"**عدد السجلات:** {stats['total_records']}")
+                
+                # اسم المعلم (افتراضي أو من البيانات)
+                teacher_name = "المعلم"
+                if not history_df.empty and "teacher" in history_df.columns:
+                    teachers = history_df["teacher"].unique()
+                    if len(teachers) > 0:
+                        teacher_name = teachers[0]
+                
+                try:
+                    class_report_buffer = generate_class_full_report(selected_report_class, teacher_name, stats, history_df)
                     
-                    # عرض معلومات سريعة عن الفصل
-                    st.info(f"**الفصل:** {selected_report_class}")
-                    st.info(f"**عدد الطلاب:** {len(CLASSES.get(selected_report_class, []))}")
-                    st.info(f"**عدد السجلات:** {stats['total_records']}")
-                    
-                    # اسم المعلم (افتراضي أو من البيانات)
-                    teacher_name = "المعلم"
-                    if not history_df.empty and "teacher" in history_df.columns:
-                        teachers = history_df["teacher"].unique()
-                        if len(teachers) > 0:
-                            teacher_name = teachers[0]
-                    
-                    try:
-                        class_report_buffer = generate_class_full_report(selected_report_class, teacher_name, stats, history_df)
-                        
-                        st.download_button(
-                            label=f"📥 تحميل تقرير {selected_report_class}",
-                            data=class_report_buffer,
-                            file_name=f"تقرير_{selected_report_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+                    st.download_button(
+                        label=f"📥 تحميل تقرير {selected_report_class}",
+                        data=class_report_buffer,
+                        file_name=f"تقرير_{selected_report_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
             
             st.markdown("---")
             
             # تصدير البيانات
             st.markdown("#### 📊 تصدير البيانات")
-            st.markdown("تصدير جميع بيانات الغياب بتنسيق CSV (بدلاً من Excel لتجنب المشاكل):")
+            st.markdown("تصدير جميع بيانات الغياب بتنسيق CSV:")
             
             all_records = get_all_records()
             if not all_records.empty:
@@ -3611,13 +3626,19 @@ elif st.session_state.logged_in:
                 background-color: #f0f9ff !important;
                 color: #1e40af !important;
                 font-weight: 600 !important;
+                font-family: 'Courier New', monospace !important;
                 border: 1px solid #bae6fd !important;
             }
             </style>
             """, unsafe_allow_html=True)
             
-            # عرض جدول المستخدمين
-            st.dataframe(users_df, use_container_width=True, hide_index=True)
+            # عرض جدول المستخدمين مع كلمات المرور الظاهرة
+            st.dataframe(
+                users_df.style.apply(lambda x: ['background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: Courier New, monospace' 
+                                             if x.name == 'كلمة المرور' else '' for i in range(len(x))], axis=0),
+                use_container_width=True,
+                hide_index=True
+            )
             
             # زر تصدير بيانات المستخدمين
             if not users_df.empty:

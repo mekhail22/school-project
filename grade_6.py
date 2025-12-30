@@ -8,7 +8,6 @@ import logging
 import base64
 import requests
 import time
-import csv
 import tempfile
 from datetime import date, timedelta
 import random
@@ -49,22 +48,22 @@ if "events" not in st.session_state:
 # ------------------ تهيئة البيانات ------------------
 # البيانات الأولية للفصول
 CLASSES = {
-    "Class B": [
+    "الصف السادس أ": [
         "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
         "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
         "نبيل جمال نبيل", "جمال هشام جمال"
     ],
-    "Class C": [
+    "الصف السادس ب": [
         "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
         "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
         "هشام نبيل هشام", "وليد جمال وليد"
     ],
-    "Class D": [
+    "الصف السادس ج": [
         "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
         "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
         "مجدي جمال مجدي", "سليمان هشام سليمان"
     ],
-    "Class E": [
+    "الصف السادس د": [
         "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
         "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
         "فاروق جمال فاروق", "أنور هشام أنور"
@@ -73,13 +72,13 @@ CLASSES = {
 
 # بيانات المعلمين
 TEACHERS = {
-    "مينا سمير": ["Class B", "Class C"],
-    "فادي حبيب": ["Class D", "Class E"]
+    "مينا سمير": ["الصف السادس أ", "الصف السادس ب"],
+    "فادي حبيب": ["الصف السادس ج", "الصف السادس د"]
 }
 
 # كلمات مرور الطلاب
 STUDENT_PASSWORDS = {
-    # Class C
+    # الصف السادس ب
     "أحمد محمد أحمد": "c1001",
     "محمود سعيد حسين": "c1002",
     "علي كمال علي": "c1003",
@@ -91,7 +90,7 @@ STUDENT_PASSWORDS = {
     "هشام نبيل هشام": "c1009",
     "وليد جمال وليد": "c1010",
     
-    # Class B
+    # الصف السادس أ
     "محمد علي محمد": "b1001",
     "حسن أحمد حسن": "b1002",
     "محمود حسين محمود": "b1003",
@@ -103,7 +102,7 @@ STUDENT_PASSWORDS = {
     "نبيل جمال نبيل": "b1009",
     "جمال هشام جمال": "b1010",
     
-    # Class D
+    # الصف السادس ج
     "فؤاد محمد فؤاد": "d1001",
     "رشاد أحمد رشاد": "d1002",
     "صابر حسين صابر": "d1003",
@@ -115,7 +114,7 @@ STUDENT_PASSWORDS = {
     "مجدي جمال مجدي": "d1009",
     "سليمان هشام سليمان": "d1010",
     
-    # Class E
+    # الصف السادس د
     "نبيل محمد نبيل": "e1001",
     "رامي أحمد رامي": "e1002",
     "عماد حسين عماد": "e1003",
@@ -139,13 +138,13 @@ USERS = {
         "password": "mina1234",
         "role": "teacher",
         "name": "مينا سمير",
-        "classes": ["Class B", "Class C"]
+        "classes": ["الصف السادس أ", "الصف السادس ب"]
     },
     "فادي حبيب": {
         "password": "fady5678",
         "role": "teacher",
         "name": "فادي حبيب",
-        "classes": ["Class D", "Class E"]
+        "classes": ["الصف السادس ج", "الصف السادس د"]
     },
 }
 
@@ -171,15 +170,15 @@ for class_name, students in CLASSES.items():
 if len(st.session_state.attendance_data) == 0:
     # إضافة بيانات افتراضية للاختبار
     sample_data = [
-        {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "Class B", "teacher": "مينا سمير", "status": "حاضر"},
-        {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "Class B", "teacher": "مينا سمير", "status": "غياب بعذر"},
-        {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "Class C", "teacher": "مينا سمير", "status": "حاضر"},
-        {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "Class C", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
-        {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "Class D", "teacher": "فادي حبيب", "status": "حاضر"},
+        {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "الصف السادس أ", "teacher": "مينا سمير", "status": "حاضر"},
+        {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "الصف السادس أ", "teacher": "مينا سمير", "status": "غياب بعذر"},
+        {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "الصف السادس ب", "teacher": "مينا سمير", "status": "حاضر"},
+        {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "الصف السادس ب", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
+        {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "الصف السادس ج", "teacher": "فادي حبيب", "status": "حاضر"},
     ]
     st.session_state.attendance_data = sample_data
 
-# ------------------ وظائف المساعدة الجديدة ------------------
+# ------------------ وظائف المساعدة ------------------
 def send_notification(to_user, message, notification_type="info"):
     """إرسال إشعار"""
     notification = {
@@ -316,7 +315,6 @@ def generate_password(length=6):
     """توليد كلمة مرور عشوائية"""
     return ''.join(random.choices(string.digits, k=length))
 
-# ------------------ وظائف المساعدة الأصلية ------------------
 def get_today_date():
     """الحصول على تاريخ اليوم"""
     return date.today().strftime("%Y-%m-%d")
@@ -432,7 +430,7 @@ def delete_teacher(teacher_name):
         return True
     return False
 
-# ------------------ CSS محسّن ------------------
+# ------------------ CSS ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -765,7 +763,7 @@ def show_toolbar():
         <div class="logo-container">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1280px-Flag_of_Egypt.svg.png" class="logo-img" alt="شعار المدرسة">
             <div class="school-info">
-                <p class="school-name">مدرسة السلام الإعدادية الثانويه المشتركه</p>
+                <p class="school-name">مدرسة السلام الإعدادية الثانوية المشتركة</p>
                 <p class="school-date">{arabic_date()}</p>
             </div>
         </div>

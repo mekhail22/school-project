@@ -1286,7 +1286,6 @@ elif st.session_state.logged_in:
             st.markdown("### 👥 إدارة الطلاب")
             
             for class_name, students in CLASSES.items():
-                # استخدم st.expander بدون key أو مع key صحيح
                 expander = st.expander(f"📚 {class_name} ({len(students)} طالب)")
                 with expander:
                     student_data = []

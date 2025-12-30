@@ -12,6 +12,9 @@ import tempfile
 from datetime import date, timedelta
 import random
 import string
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2 import service_account
 
 # ------------------ Page config ------------------
 st.set_page_config(page_title="نظام الغياب", layout="wide")
@@ -45,108 +48,181 @@ if "messages" not in st.session_state:
 if "events" not in st.session_state:
     st.session_state.events = []
 
-# ------------------ تهيئة البيانات ------------------
-# البيانات الأولية للفصول
-CLASSES = {
-    "الصف السادس أ": [
-        "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
-        "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
-        "نبيل جمال نبيل", "جمال هشام جمال"
-    ],
-    "الصف السادس ب": [
-        "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
-        "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
-        "هشام نبيل هشام", "وليد جمال وليد"
-    ],
-    "الصف السادس ج": [
-        "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
-        "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
-        "مجدي جمال مجدي", "سليمان هشام سليمان"
-    ],
-    "الصف السادس د": [
-        "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
-        "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
-        "فاروق جمال فاروق", "أنور هشام أنور"
-    ]
-}
+# ------------------ وظائف قراءة Google Sheets ------------------
+def load_students_from_google_sheets():
+    """قراءة بيانات الطلاب من Google Sheets"""
+    try:
+        # رابط Google Sheets للطلاب (افتراضي)
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_XohJg8cVgDQO1kU-HW5z7J5pCD-zKbJ8cD2nK7Z7l6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6/pub?output=csv"
+        
+        # تحميل البيانات
+        students_df = pd.read_csv(sheet_url)
+        
+        # معالجة البيانات
+        CLASSES = {}
+        STUDENT_PASSWORDS = {}
+        
+        # تجميع الطلاب حسب الفصل
+        for _, row in students_df.iterrows():
+            student_name = row['اسم الطالب']
+            student_class = f"Class {row['الفصل']}"  # تحويل إلى Class A, B, C, D
+            student_password = row['كلمة المرور']
+            
+            if student_class not in CLASSES:
+                CLASSES[student_class] = []
+            
+            CLASSES[student_class].append(student_name)
+            STUDENT_PASSWORDS[student_name] = student_password
+        
+        return CLASSES, STUDENT_PASSWORDS
+    except Exception as e:
+        st.error(f"❌ خطأ في قراءة بيانات الطلاب: {str(e)}")
+        return get_default_students_data()
 
-# بيانات المعلمين
-TEACHERS = {
-    "مينا سمير": ["الصف السادس أ", "الصف السادس ب"],
-    "فادي حبيب": ["الصف السادس ج", "الصف السادس د"]
-}
+def load_attendance_from_google_sheets():
+    """قراءة بيانات الغياب من Google Sheets"""
+    try:
+        # رابط Google Sheets للغياب
+        attendance_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_XohJg8cVgDQO1kU-HW5z7J5pCD-zKbJ8cD2nK7Z7l6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6/pub?output=csv"
+        
+        # تحميل البيانات
+        attendance_df = pd.read_csv(attendance_url)
+        
+        # تحويل البيانات إلى الصيغة المطلوبة
+        attendance_data = []
+        for idx, row in attendance_df.iterrows():
+            record = {
+                "id": idx + 1,
+                "date": row['التاريخ'],
+                "student": row['اسم الطالب'],
+                "class": f"Class {row['الفصل']}",
+                "teacher": row['المعلم'],
+                "status": row['الحالة']
+            }
+            attendance_data.append(record)
+        
+        return attendance_data
+    except Exception as e:
+        st.warning(f"⚠️ لم يتم العثور على بيانات الغياب: {str(e)}")
+        return []
 
-# كلمات مرور الطلاب
-STUDENT_PASSWORDS = {
-    # الصف السادس ب
-    "أحمد محمد أحمد": "c1001",
-    "محمود سعيد حسين": "c1002",
-    "علي كمال علي": "c1003",
-    "يوسف خالد يوسف": "c1004",
-    "خالد أمين خالد": "c1005",
-    "سامي رفعت سامي": "c1006",
-    "طارق وليد طارق": "c1007",
-    "مصطفى حامد مصطفى": "c1008",
-    "هشام نبيل هشام": "c1009",
-    "وليد جمال وليد": "c1010",
-    
-    # الصف السادس أ
-    "محمد علي محمد": "b1001",
-    "حسن أحمد حسن": "b1002",
-    "محمود حسين محمود": "b1003",
-    "كريم سعيد كريم": "b1004",
-    "أمين خالد أمين": "b1005",
-    "ياسين رفعت ياسين": "b1006",
-    "عمر وليد عمر": "b1007",
-    "سعيد حامد سعيد": "b1008",
-    "نبيل جمال نبيل": "b1009",
-    "جمال هشام جمال": "b1010",
-    
-    # الصف السادس ج
-    "فؤاد محمد فؤاد": "d1001",
-    "رشاد أحمد رشاد": "d1002",
-    "صابر حسين صابر": "d1003",
-    "عادل سعيد عادل": "d1004",
-    "فكري خالد فكري": "d1005",
-    "رأفت رفعت رأفت": "d1006",
-    "حسام وليد حسام": "d1007",
-    "عاطف حامد عاطف": "d1008",
-    "مجدي جمال مجدي": "d1009",
-    "سليمان هشام سليمان": "d1010",
-    
-    # الصف السادس د
-    "نبيل محمد نبيل": "e1001",
-    "رامي أحمد رامي": "e1002",
-    "عماد حسين عماد": "e1003",
-    "صلاح سعيد صلاح": "e1004",
-    "مجد خالد مجد": "e1005",
-    "رافت رفعت رافت": "e1006",
-    "بسام وليد بسام": "e1007",
-    "كمال حامد كمال": "e1008",
-    "فاروق جمال فاروق": "e1009",
-    "أنور هشام أنور": "e1010",
-}
+def load_teachers_from_google_sheets():
+    """قراءة بيانات المعلمين من Google Sheets"""
+    try:
+        # رابط Google Sheets للمعلمين
+        teachers_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_XohJg8cVgDQO1kU-HW5z7J5pCD-zKbJ8cD2nK7Z7l6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6mY6Qp6/pub?output=csv"
+        
+        # تحميل البيانات
+        teachers_df = pd.read_csv(teachers_url)
+        
+        # معالجة البيانات
+        TEACHERS = {}
+        USERS = {
+            "admin": {
+                "password": "admin1234",
+                "role": "admin",
+                "name": "مدير النظام"
+            }
+        }
+        
+        for _, row in teachers_df.iterrows():
+            teacher_name = row['اسم المعلم']
+            teacher_password = row['كلمة المرور']
+            classes_str = row['الفصول']
+            
+            # تحويل الفصول من نص إلى قائمة
+            classes = []
+            if isinstance(classes_str, str):
+                classes = [f"Class {c.strip()}" for c in classes_str.split(',')]
+            
+            TEACHERS[teacher_name] = classes
+            
+            # إضافة المعلم إلى المستخدمين
+            USERS[teacher_name] = {
+                "password": teacher_password,
+                "role": "teacher",
+                "name": teacher_name,
+                "classes": classes
+            }
+        
+        return TEACHERS, USERS
+    except Exception as e:
+        st.warning(f"⚠️ لم يتم العثور على بيانات المعلمين: {str(e)}")
+        return get_default_teachers_data()
 
-# قاعدة بيانات المستخدمين
-USERS = {
-    "admin": {
-        "password": "admin1234",
-        "role": "admin",
-        "name": "مدير النظام"
-    },
-    "مينا سمير": {
-        "password": "mina1234",
-        "role": "teacher",
-        "name": "مينا سمير",
-        "classes": ["الصف السادس أ", "الصف السادس ب"]
-    },
-    "فادي حبيب": {
-        "password": "fady5678",
-        "role": "teacher",
-        "name": "فادي حبيب",
-        "classes": ["الصف السادس ج", "الصف السادس د"]
-    },
-}
+def get_default_students_data():
+    """البيانات الافتراضية للطلاب"""
+    CLASSES = {
+        "Class A": [
+            "محمد علي محمد", "حسن أحمد حسن", "محمود حسين محمود", "كريم سعيد كريم",
+            "أمين خالد أمين", "ياسين رفعت ياسين", "عمر وليد عمر", "سعيد حامد سعيد",
+            "نبيل جمال نبيل", "جمال هشام جمال"
+        ],
+        "Class B": [
+            "أحمد محمد أحمد", "محمود سعيد حسين", "علي كمال علي", "يوسف خالد يوسف",
+            "خالد أمين خالد", "سامي رفعت سامي", "طارق وليد طارق", "مصطفى حامد مصطفى",
+            "هشام نبيل هشام", "وليد جمال وليد"
+        ],
+        "Class C": [
+            "فؤاد محمد فؤاد", "رشاد أحمد رشاد", "صابر حسين صابر", "عادل سعيد عادل",
+            "فكري خالد فكري", "رأفت رفعت رأفت", "حسام وليد حسام", "عاطف حامد عاطف",
+            "مجدي جمال مجدي", "سليمان هشام سليمان"
+        ],
+        "Class D": [
+            "نبيل محمد نبيل", "رامي أحمد رامي", "عماد حسين عماد", "صلاح سعيد صلاح",
+            "مجد خالد مجد", "رافت رفعت رافت", "بسام وليد بسام", "كمال حامد كمال",
+            "فاروق جمال فاروق", "أنور هشام أنور"
+        ]
+    }
+    
+    STUDENT_PASSWORDS = {}
+    for class_name, students in CLASSES.items():
+        for idx, student in enumerate(students, 1):
+            class_code = class_name[-1].lower()
+            STUDENT_PASSWORDS[student] = f"{class_code}{1000 + idx}"
+    
+    return CLASSES, STUDENT_PASSWORDS
+
+def get_default_teachers_data():
+    """البيانات الافتراضية للمعلمين"""
+    TEACHERS = {
+        "مينا سمير": ["Class A", "Class B"],
+        "فادي حبيب": ["Class C", "Class D"]
+    }
+    
+    USERS = {
+        "admin": {
+            "password": "admin1234",
+            "role": "admin",
+            "name": "مدير النظام"
+        },
+        "مينا سمير": {
+            "password": "mina1234",
+            "role": "teacher",
+            "name": "مينا سمير",
+            "classes": ["Class A", "Class B"]
+        },
+        "فادي حبيب": {
+            "password": "fady5678",
+            "role": "teacher",
+            "name": "فادي حبيب",
+            "classes": ["Class C", "Class D"]
+        },
+    }
+    
+    return TEACHERS, USERS
+
+# ------------------ تحميل البيانات من Google Sheets ------------------
+st.info("🔄 جاري تحميل البيانات من Google Sheets...")
+
+# تحميل بيانات الطلاب
+CLASSES, STUDENT_PASSWORDS = load_students_from_google_sheets()
+
+# تحميل بيانات المعلمين
+TEACHERS, USERS = load_teachers_from_google_sheets()
+
+# تحميل بيانات الغياب
+attendance_from_sheets = load_attendance_from_google_sheets()
 
 # إضافة الطلاب إلى قاعدة المستخدمين
 for class_name, students in CLASSES.items():
@@ -166,17 +242,22 @@ for class_name, students in CLASSES.items():
                 "class": class_name
             }
 
-# البيانات الأولية للغياب (إذا كانت فارغة)
+# تهيئة بيانات الغياب
 if len(st.session_state.attendance_data) == 0:
-    # إضافة بيانات افتراضية للاختبار
-    sample_data = [
-        {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "الصف السادس أ", "teacher": "مينا سمير", "status": "حاضر"},
-        {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "الصف السادس أ", "teacher": "مينا سمير", "status": "غياب بعذر"},
-        {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "الصف السادس ب", "teacher": "مينا سمير", "status": "حاضر"},
-        {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "الصف السادس ب", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
-        {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "الصف السادس ج", "teacher": "فادي حبيب", "status": "حاضر"},
-    ]
-    st.session_state.attendance_data = sample_data
+    if attendance_from_sheets:
+        st.session_state.attendance_data = attendance_from_sheets
+        st.success(f"✅ تم تحميل {len(attendance_from_sheets)} سجل غياب من Google Sheets")
+    else:
+        # بيانات افتراضية للغياب
+        sample_data = [
+            {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "Class A", "teacher": "مينا سمير", "status": "حاضر"},
+            {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "Class A", "teacher": "مينا سمير", "status": "غياب بعذر"},
+            {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "Class B", "teacher": "مينا سمير", "status": "حاضر"},
+            {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "Class B", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
+            {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "Class C", "teacher": "فادي حبيب", "status": "حاضر"},
+        ]
+        st.session_state.attendance_data = sample_data
+        st.info("ℹ️ استخدام بيانات افتراضية للغياب")
 
 # ------------------ وظائف المساعدة ------------------
 def send_notification(to_user, message, notification_type="info"):
@@ -753,6 +834,46 @@ st.markdown("""
         color: red;
         font-weight: bold;
     }
+    
+    .class-distribution {
+        display: flex;
+        justify-content: space-between;
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    
+    .class-box {
+        text-align: center;
+        padding: 15px;
+        border-radius: 10px;
+        flex: 1;
+        margin: 0 10px;
+        transition: all 0.3s;
+    }
+    
+    .class-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .class-a { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+    .class-b { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .class-c { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .class-d { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+    
+    .class-count {
+        font-size: 36px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .class-label {
+        font-size: 16px;
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -927,19 +1048,65 @@ elif st.session_state.logged_in:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # عرض توزيع الطلاب على الفصول
-            st.markdown("#### 📊 توزيع الطلاب على الفصول")
+            st.markdown("---")
             
-            for class_name, students in CLASSES.items():
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(f"**{class_name}**")
-                with col2:
-                    st.write(f"**{len(students)}** طالب")
-                
-                # شريط التقدم
-                progress = len(students) / max(len(s) for s in CLASSES.values()) if CLASSES.values() else 0
-                st.progress(progress)
+            # 📊 توزيع الطلاب على الفصول
+            st.markdown("### 📊 توزيع الطلاب على الفصول")
+            
+            # إنشاء مخطط توزيع الطلاب
+            class_distribution_html = """
+            <div class="class-distribution">
+            """
+            
+            class_colors = {
+                "Class A": "class-a",
+                "Class B": "class-b", 
+                "Class C": "class-c",
+                "Class D": "class-d"
+            }
+            
+            for class_name in ["Class A", "Class B", "Class C", "Class D"]:
+                if class_name in CLASSES:
+                    student_count = len(CLASSES[class_name])
+                    color_class = class_colors.get(class_name, "class-a")
+                    class_distribution_html += f"""
+                    <div class="class-box {color_class}">
+                        <div class="class-count">{student_count}</div>
+                        <div class="class-label">{class_name}</div>
+                    </div>
+                    """
+            
+            class_distribution_html += "</div>"
+            st.markdown(class_distribution_html, unsafe_allow_html=True)
+            
+            # عرض تفاصيل كل فصل
+            st.markdown("#### 📋 تفاصيل الفصول")
+            
+            for class_name in ["Class A", "Class B", "Class C", "Class D"]:
+                if class_name in CLASSES:
+                    students = CLASSES[class_name]
+                    with st.expander(f"{class_name} ({len(students)} طالب)"):
+                        # حساب نسبة الحضور للفصل
+                        class_records = get_class_attendance(class_name)
+                        if class_records:
+                            present_count = len([r for r in class_records if r["status"] == "حاضر"])
+                            attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
+                            st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+                        
+                        # عرض قائمة الطلاب
+                        for student in students:
+                            col1, col2 = st.columns([3, 1])
+                            with col1:
+                                st.write(f"👨‍🎓 {student}")
+                            with col2:
+                                # عدد أيام الغياب للطالب
+                                student_records = get_student_attendance(student)
+                                if student_records:
+                                    absences = len([r for r in student_records if "غياب" in r["status"]])
+                                    if absences > 0:
+                                        st.write(f"❌ {absences} غياب")
+                                    else:
+                                        st.write("✅ حاضر دائمًا")
         
         elif st.session_state.user_role == "teacher":
             col1, col2 = st.columns(2)

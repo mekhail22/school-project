@@ -10,7 +10,10 @@ import requests
 import time
 import csv
 import tempfile
-from datetime import date
+from datetime import date, timedelta
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ------------------ Page config ------------------
 st.set_page_config(page_title="نظام الغياب", layout="wide")
@@ -39,6 +42,10 @@ if "editing_id" not in st.session_state:
     st.session_state.editing_id = None
 if "attendance_data" not in st.session_state:
     st.session_state.attendance_data = []
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "events" not in st.session_state:
+    st.session_state.events = []
 
 # ------------------ تهيئة البيانات ------------------
 # البيانات الأولية للفصول
@@ -161,7 +168,160 @@ for class_name, students in CLASSES.items():
                 "class": class_name
             }
 
-# ------------------ وظائف المساعدة ------------------
+# البيانات الأولية للغياب (إذا كانت فارغة)
+if len(st.session_state.attendance_data) == 0:
+    # إضافة بيانات افتراضية للاختبار
+    sample_data = [
+        {"id": 1, "date": "2024-01-15", "student": "محمد علي محمد", "class": "Class B", "teacher": "مينا سمير", "status": "حاضر"},
+        {"id": 2, "date": "2024-01-15", "student": "حسن أحمد حسن", "class": "Class B", "teacher": "مينا سمير", "status": "غياب بعذر"},
+        {"id": 3, "date": "2024-01-16", "student": "أحمد محمد أحمد", "class": "Class C", "teacher": "مينا سمير", "status": "حاضر"},
+        {"id": 4, "date": "2024-01-16", "student": "محمود سعيد حسين", "class": "Class C", "teacher": "مينا سمير", "status": "غياب بدون عذر"},
+        {"id": 5, "date": "2024-01-17", "student": "فؤاد محمد فؤاد", "class": "Class D", "teacher": "فادي حبيب", "status": "حاضر"},
+    ]
+    st.session_state.attendance_data = sample_data
+
+# ------------------ وظائف المساعدة الجديدة ------------------
+def send_notification(to_user, message, notification_type="info"):
+    """إرسال إشعار"""
+    notification = {
+        "id": len(st.session_state.messages) + 1,
+        "to": to_user,
+        "message": message,
+        "type": notification_type,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "read": False
+    }
+    st.session_state.messages.append(notification)
+    return True
+
+def get_unread_notifications(user_name):
+    """الحصول على الإشعارات غير المقروءة"""
+    return [msg for msg in st.session_state.messages 
+            if msg["to"] == user_name and not msg["read"]]
+
+def mark_notification_as_read(notification_id):
+    """تحديد الإشعار كمقروء"""
+    for msg in st.session_state.messages:
+        if msg["id"] == notification_id:
+            msg["read"] = True
+            return True
+    return False
+
+def add_event(event_title, event_date, event_type, description="", participants=[]):
+    """إضافة حدث جديد"""
+    event = {
+        "id": len(st.session_state.events) + 1,
+        "title": event_title,
+        "date": event_date,
+        "type": event_type,
+        "description": description,
+        "participants": participants,
+        "created_by": st.session_state.user_name,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    st.session_state.events.append(event)
+    return True
+
+def get_upcoming_events(days=7):
+    """الحصول على الأحداث القادمة"""
+    today = date.today()
+    future_date = today + timedelta(days=days)
+    
+    upcoming = []
+    for event in st.session_state.events:
+        event_date = datetime.strptime(event["date"], "%Y-%m-%d").date()
+        if today <= event_date <= future_date:
+            upcoming.append(event)
+    
+    return sorted(upcoming, key=lambda x: x["date"])
+
+def generate_student_report(student_name, start_date=None, end_date=None):
+    """تقرير مفصل للطالب"""
+    records = get_student_attendance(student_name)
+    
+    if start_date and end_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
+    
+    if not records:
+        return None
+    
+    # تحليل البيانات
+    total_days = len(records)
+    present_count = len([r for r in records if r["status"] == "حاضر"])
+    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
+    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
+    
+    attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
+    
+    return {
+        "student_name": student_name,
+        "total_days": total_days,
+        "present_count": present_count,
+        "absent_excused": absent_excused,
+        "absent_unexcused": absent_unexcused,
+        "attendance_rate": attendance_rate,
+        "records": records
+    }
+
+def generate_class_report(class_name, start_date=None, end_date=None):
+    """تقرير مفصل للفصل"""
+    records = get_class_attendance(class_name)
+    
+    if start_date and end_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        records = [r for r in records if start_dt <= datetime.strptime(r["date"], "%Y-%m-%d") <= end_dt]
+    
+    if not records:
+        return None
+    
+    # تحليل البيانات
+    students = CLASSES[class_name]
+    student_reports = []
+    
+    for student in students:
+        student_records = [r for r in records if r["student"] == student]
+        if student_records:
+            total_days = len(student_records)
+            present_count = len([r for r in student_records if r["status"] == "حاضر"])
+            attendance_rate = (present_count / total_days * 100) if total_days > 0 else 0
+            
+            student_reports.append({
+                "student_name": student,
+                "total_days": total_days,
+                "present_count": present_count,
+                "attendance_rate": attendance_rate
+            })
+    
+    # إحصائيات الفصل
+    total_records = len(records)
+    present_count = len([r for r in records if r["status"] == "حاضر"])
+    absent_excused = len([r for r in records if r["status"] == "غياب بعذر"])
+    absent_unexcused = len([r for r in records if r["status"] == "غياب بدون عذر"])
+    
+    return {
+        "class_name": class_name,
+        "total_students": len(students),
+        "total_records": total_records,
+        "present_count": present_count,
+        "absent_excused": absent_excused,
+        "absent_unexcused": absent_unexcused,
+        "attendance_rate": (present_count / total_records * 100) if total_records > 0 else 0,
+        "student_reports": student_reports,
+        "records": records
+    }
+
+def create_attendance_chart(data, chart_type="bar"):
+    """إنشاء مخطط بياني"""
+    if chart_type == "bar":
+        fig = px.bar(data, x='x', y='y', title='مخطط الحضور')
+    elif chart_type == "pie":
+        fig = px.pie(data, names='x', values='y', title='نسب الحضور')
+    return fig
+
+# ------------------ وظائف المساعدة الأصلية ------------------
 def get_today_date():
     """الحصول على تاريخ اليوم"""
     return date.today().strftime("%Y-%m-%d")
@@ -277,7 +437,7 @@ def delete_teacher(teacher_name):
         return True
     return False
 
-# ------------------ CSS ------------------
+# ------------------ CSS محسّن ------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -450,9 +610,48 @@ st.markdown("""
     .admin-card {
         background: white;
         padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         margin-bottom: 20px;
+        border-left: 5px solid #3b82f6;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        text-align: center;
+        border-top: 4px solid;
+    }
+    
+    .stat-card-primary {
+        border-color: #3b82f6;
+    }
+    
+    .stat-card-success {
+        border-color: #10b981;
+    }
+    
+    .stat-card-warning {
+        border-color: #f59e0b;
+    }
+    
+    .stat-card-danger {
+        border-color: #ef4444;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .data-table {
@@ -476,6 +675,75 @@ st.markdown("""
     
     .data-table tr:hover {
         background: #f8fafc;
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .event-card {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 10px 0;
+        border-left: 4px solid;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .event-meeting {
+        border-color: #3b82f6;
+    }
+    
+    .event-exam {
+        border-color: #ef4444;
+    }
+    
+    .event-holiday {
+        border-color: #10b981;
+    }
+    
+    .event-other {
+        border-color: #8b5cf6;
+    }
+    
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin: 20px 0;
+    }
+    
+    .quick-action {
+        text-align: center;
+        padding: 15px;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .quick-action:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .quick-action-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -565,41 +833,169 @@ elif st.session_state.logged_in:
         
         # الأزرار حسب نوع المستخدم
         if st.session_state.user_role == "admin":
+            st.markdown("### ⚡ الإجراءات السريعة")
+            
+            # صف الإجراءات السريعة 1
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("📊 لوحة التحكم", use_container_width=True, key="admin_dashboard"):
-                    st.session_state.page = "admin_dashboard"
-                    st.rerun()
-            
-            with col2:
-                if st.button("👥 إدارة الطلاب", use_container_width=True, key="manage_students"):
+                st.markdown("""
+                <div class="quick-action" onclick="window.location='?action=students'">
+                    <div class="quick-action-icon">👥</div>
+                    <div><strong>إدارة الطلاب</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">إضافة/حذف/تعديل</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("👥 إدارة الطلاب", use_container_width=True, key="quick_manage_students"):
                     st.session_state.page = "manage_students"
                     st.rerun()
             
+            with col2:
+                st.markdown("""
+                <div class="quick-action">
+                    <div class="quick-action-icon">🏫</div>
+                    <div><strong>إدارة الفصول</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">تنظيم الفصول والمعلمين</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("🏫 إدارة الفصول", use_container_width=True, key="quick_manage_classes"):
+                    st.session_state.page = "manage_classes"
+                    st.rerun()
+            
             with col3:
-                if st.button("📋 إدارة الغياب", use_container_width=True, key="manage_attendance"):
+                st.markdown("""
+                <div class="quick-action">
+                    <div class="quick-action-icon">👨‍🏫</div>
+                    <div><strong>إدارة المعلمين</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">المعلمون والمهام</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("👨‍🏫 إدارة المعلمين", use_container_width=True, key="quick_manage_teachers"):
+                    st.session_state.page = "manage_teachers"
+                    st.rerun()
+            
+            # صف الإجراءات السريعة 2
+            col4, col5, col6 = st.columns(3)
+            
+            with col4:
+                st.markdown("""
+                <div class="quick-action">
+                    <div class="quick-action-icon">📋</div>
+                    <div><strong>إدارة الغياب</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">سجلات وإحصائيات</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("📋 إدارة الغياب", use_container_width=True, key="quick_manage_attendance"):
                     st.session_state.page = "manage_attendance"
+                    st.rerun()
+            
+            with col5:
+                st.markdown("""
+                <div class="quick-action">
+                    <div class="quick-action-icon">📊</div>
+                    <div><strong>التقارير</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">تقارير وإحصائيات</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("📊 التقارير والإحصائيات", use_container_width=True, key="quick_reports"):
+                    st.session_state.page = "reports"
+                    st.rerun()
+            
+            with col6:
+                st.markdown("""
+                <div class="quick-action">
+                    <div class="quick-action-icon">📥</div>
+                    <div><strong>استيراد/تصدير</strong></div>
+                    <div style="font-size: 12px; color: #64748b;">بيانات النظام</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("📥 استيراد/تصدير", use_container_width=True, key="quick_import_export"):
+                    st.session_state.page = "import_export"
                     st.rerun()
             
             st.markdown("---")
             
-            col4, col5, col6 = st.columns(3)
+            # لوحة الإحصائيات
+            st.markdown("### 📊 لوحة إحصائيات النظام")
+            
+            # جمع الإحصائيات
+            total_students = sum(len(students) for students in CLASSES.values())
+            total_classes = len(CLASSES)
+            total_teachers = len(TEACHERS)
+            total_records = len(st.session_state.attendance_data)
+            present_count = len([r for r in st.session_state.attendance_data if r["status"] == "حاضر"])
+            attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
+            
+            # عرض الإحصائيات
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-value">{total_students}</div>
+                    <div class="stat-label">الطلاب</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="stat-card stat-card-success">
+                    <div class="stat-value">{total_classes}</div>
+                    <div class="stat-label">الفصول</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="stat-card stat-card-warning">
+                    <div class="stat-value">{total_teachers}</div>
+                    <div class="stat-label">المعلمين</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col4:
-                if st.button("🏫 إدارة الفصول", use_container_width=True, key="manage_classes"):
-                    st.session_state.page = "manage_classes"
-                    st.rerun()
+                st.markdown(f"""
+                <div class="stat-card stat-card-danger">
+                    <div class="stat-value">{attendance_rate:.1f}%</div>
+                    <div class="stat-label">نسبة الحضور</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            with col5:
-                if st.button("👨‍🏫 إدارة المعلمين", use_container_width=True, key="manage_teachers"):
-                    st.session_state.page = "manage_teachers"
-                    st.rerun()
+            # الرسوم البيانية
+            st.markdown("#### 📈 نظرة سريعة")
             
-            with col6:
-                if st.button("📥 استيراد/تصدير", use_container_width=True, key="import_export"):
-                    st.session_state.page = "import_export"
-                    st.rerun()
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # مخطط توزيع الطلاب على الفصول
+                class_distribution = []
+                for class_name, students in CLASSES.items():
+                    class_distribution.append({
+                        "الفصل": class_name,
+                        "عدد الطلاب": len(students)
+                    })
+                
+                if class_distribution:
+                    df_dist = pd.DataFrame(class_distribution)
+                    fig = px.pie(df_dist, values='عدد الطلاب', names='الفصل', 
+                                 title='توزيع الطلاب على الفصول')
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # مخطط نسب الحضور
+                status_counts = {}
+                for record in st.session_state.attendance_data:
+                    status = record["status"]
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                
+                if status_counts:
+                    df_status = pd.DataFrame({
+                        "الحالة": list(status_counts.keys()),
+                        "العدد": list(status_counts.values())
+                    })
+                    fig = px.bar(df_status, x='الحالة', y='العدد',
+                                 title='توزيع حالات الحضور', color='الحالة')
+                    st.plotly_chart(fig, use_container_width=True)
         
         elif st.session_state.user_role == "teacher":
             col1, col2 = st.columns(2)
@@ -628,28 +1024,45 @@ elif st.session_state.logged_in:
             st.session_state.page = "login"
             st.rerun()
     
-    # ------------------ صفحة إدارة الطلاب للمدير ------------------
+    # ------------------ صفحة إدارة الطلاب الكاملة ------------------
     elif st.session_state.page == "manage_students":
         st.markdown("# 👥 إدارة الطلاب")
         
-        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🏠 الرئيسية", use_container_width=True):
+                st.session_state.page = "home"
+                st.rerun()
         
         st.markdown("---")
         
         # تبويبات إدارة الطلاب
-        tab1, tab2, tab3 = st.tabs(["📋 عرض الطلاب", "➕ إضافة طالب", "🗑️ حذف طالب"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📋 عرض الطلاب", "➕ إضافة طالب", "✏️ تعديل طالب", "🗑️ حذف طالب"])
         
         with tab1:
             st.markdown("### 📋 قائمة الطلاب حسب الفصول")
             
+            # خيارات البحث والتصفية
+            col1, col2 = st.columns(2)
+            with col1:
+                search_query = st.text_input("🔍 بحث عن طالب", placeholder="اكتب اسم الطالب...")
+            with col2:
+                filter_class = st.selectbox("تصفية بالفصل", ["الكل"] + list(CLASSES.keys()))
+            
             for class_name, students in CLASSES.items():
-                with st.expander(f"🎯 {class_name} ({len(students)} طالب)"):
-                    if students:
+                if filter_class != "الكل" and filter_class != class_name:
+                    continue
+                
+                # تطبيق البحث
+                display_students = students
+                if search_query:
+                    display_students = [s for s in students if search_query in s]
+                
+                if display_students:
+                    with st.expander(f"🎯 {class_name} ({len(display_students)}/{len(students)} طالب)"):
                         # إنشاء DataFrame للطلاب
                         student_data = []
-                        for idx, student in enumerate(students, 1):
+                        for idx, student in enumerate(display_students, 1):
                             password = STUDENT_PASSWORDS.get(student, "غير معرف")
                             student_data.append({
                                 "م": idx,
@@ -659,35 +1072,126 @@ elif st.session_state.logged_in:
                         
                         df = pd.DataFrame(student_data)
                         st.dataframe(df, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("📭 لا يوجد طلاب في هذا الفصل")
+                        
+                        # إحصائيات الفصل
+                        col_a, col_b, col_c = st.columns(3)
+                        with col_a:
+                            st.metric("عدد الطلاب", len(students))
+                        with col_b:
+                            # حساب نسبة الحضور للفصل
+                            class_records = get_class_attendance(class_name)
+                            if class_records:
+                                present_count = len([r for r in class_records if r["status"] == "حاضر"])
+                                attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
+                                st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+                            else:
+                                st.metric("نسبة الحضور", "0%")
         
         with tab2:
             st.markdown("### ➕ إضافة طالب جديد")
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                new_student_name = st.text_input("اسم الطالب", key="new_student_name")
-            
-            with col2:
-                new_student_class = st.selectbox("الفصل", list(CLASSES.keys()), key="new_student_class")
-            
-            with col3:
-                new_student_password = st.text_input("كلمة المرور", type="password", key="new_student_password")
-            
-            if st.button("➕ إضافة الطالب", use_container_width=True, key="add_student_button"):
-                if new_student_name and new_student_class and new_student_password:
-                    success = add_student(new_student_name, new_student_class, new_student_password)
-                    if success:
-                        st.success(f"✅ تم إضافة الطالب {new_student_name} إلى الفصل {new_student_class}")
-                        st.rerun()
+            with st.form("add_student_form"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    new_student_name = st.text_input("اسم الطالب*", key="new_student_name")
+                
+                with col2:
+                    new_student_class = st.selectbox("الفصل*", list(CLASSES.keys()), key="new_student_class")
+                
+                with col3:
+                    new_student_password = st.text_input("كلمة المرور*", type="password", key="new_student_password")
+                
+                # أزرار الإضافة
+                col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+                with col_btn1:
+                    submit_add = st.form_submit_button("➕ إضافة الطالب", use_container_width=True)
+                with col_btn2:
+                    generate_pass = st.form_submit_button("🎲 توليد كلمة مرور", use_container_width=True)
+                
+                if generate_pass:
+                    if new_student_name:
+                        import random
+                        import string
+                        password = ''.join(random.choices(string.digits, k=6))
+                        st.session_state["new_student_password"] = password
+                        st.info(f"كلمة المرور المقترحة: {password}")
+                
+                if submit_add:
+                    if new_student_name and new_student_class and new_student_password:
+                        success = add_student(new_student_name, new_student_class, new_student_password)
+                        if success:
+                            st.success(f"✅ تم إضافة الطالب {new_student_name} إلى الفصل {new_student_class}")
+                            st.rerun()
+                        else:
+                            st.error("❌ الطالب موجود بالفعل!")
                     else:
-                        st.error("❌ الطالب موجود بالفعل!")
-                else:
-                    st.warning("⚠️ من فضلك املأ جميع الحقول")
+                        st.warning("⚠️ من فضلك املأ جميع الحقول المطلوبة (*)")
         
         with tab3:
+            st.markdown("### ✏️ تعديل بيانات طالب")
+            
+            # جمع جميع الطلاب
+            all_students = []
+            for class_name, students in CLASSES.items():
+                for student in students:
+                    all_students.append({
+                        "name": student,
+                        "class": class_name,
+                        "password": STUDENT_PASSWORDS.get(student, "")
+                    })
+            
+            if all_students:
+                student_options = [f"{s['name']} ({s['class']})" for s in all_students]
+                
+                selected_student_str = st.selectbox(
+                    "اختر الطالب للتعديل",
+                    student_options,
+                    key="edit_student_select"
+                )
+                
+                if selected_student_str:
+                    # استخراج بيانات الطالب
+                    selected_name = selected_student_str.split(" (")[0]
+                    selected_student = next((s for s in all_students if s["name"] == selected_name), None)
+                    
+                    if selected_student:
+                        with st.form("edit_student_form"):
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                edit_name = st.text_input("اسم الطالب", value=selected_student["name"])
+                            
+                            with col2:
+                                edit_class = st.selectbox(
+                                    "الفصل",
+                                    list(CLASSES.keys()),
+                                    index=list(CLASSES.keys()).index(selected_student["class"])
+                                )
+                            
+                            with col3:
+                                edit_password = st.text_input(
+                                    "كلمة المرور",
+                                    value=selected_student["password"],
+                                    type="password"
+                                )
+                            
+                            if st.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
+                                if edit_name and edit_class and edit_password:
+                                    # حذف الطالب القديم
+                                    delete_student(selected_student["name"])
+                                    
+                                    # إضافة الطالب الجديد
+                                    add_student(edit_name, edit_class, edit_password)
+                                    
+                                    st.success(f"✅ تم تحديث بيانات الطالب بنجاح")
+                                    st.rerun()
+                                else:
+                                    st.warning("⚠️ من فضلك املأ جميع الحقول")
+            else:
+                st.info("📭 لا يوجد طلاب في النظام")
+        
+        with tab4:
             st.markdown("### 🗑️ حذف طالب")
             
             # جمع جميع الطلاب في قائمة واحدة
@@ -712,17 +1216,29 @@ elif st.session_state.logged_in:
                     # استخراج اسم الطالب من النص المختار
                     selected_student = selected_student_str.split(" (")[0]
                     
-                    if st.button("🗑️ حذف الطالب", use_container_width=True, key="confirm_delete_student"):
-                        success, class_name = delete_student(selected_student)
-                        if success:
-                            st.success(f"✅ تم حذف الطالب {selected_student} من الفصل {class_name}")
-                            st.rerun()
-                        else:
-                            st.error("❌ فشل في حذف الطالب")
+                    # عرض معلومات الطالب قبل الحذف
+                    st.warning(f"⚠️ أنت على وشك حذف الطالب: **{selected_student}**")
+                    
+                    # عرض سجل الغياب للطالب
+                    student_records = get_student_attendance(selected_student)
+                    if student_records:
+                        st.info(f"📋 هذا الطالب لديه {len(student_records)} سجل غياب سيتم حذفها أيضاً")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        confirm = st.checkbox("أقر بأنني أريد حذف هذا الطالب وجميع سجلاته")
+                    with col2:
+                        if st.button("🗑️ حذف الطالب", use_container_width=True, disabled=not confirm):
+                            success, class_name = delete_student(selected_student)
+                            if success:
+                                st.success(f"✅ تم حذف الطالب {selected_student} من الفصل {class_name}")
+                                st.rerun()
+                            else:
+                                st.error("❌ فشل في حذف الطالب")
             else:
                 st.info("📭 لا يوجد طلاب في النظام")
     
-    # ------------------ صفحة إدارة الفصول للمدير ------------------
+    # ------------------ صفحة إدارة الفصول الكاملة ------------------
     elif st.session_state.page == "manage_classes":
         st.markdown("# 🏫 إدارة الفصول")
         
@@ -733,94 +1249,115 @@ elif st.session_state.logged_in:
         st.markdown("---")
         
         # تبويبات إدارة الفصول
-        tab1, tab2, tab3 = st.tabs(["📋 عرض الفصول", "➕ إضافة فصل", "🗑️ حذف فصل"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📋 عرض الفصول", "➕ إضافة فصل", "✏️ تعديل فصل", "🗑️ حذف فصل"])
         
         with tab1:
             st.markdown("### 📋 قائمة الفصول")
             
+            # البحث عن فصل
+            search_class = st.text_input("🔍 بحث عن فصل", placeholder="اكتب اسم الفصل...")
+            
             for class_name, students in CLASSES.items():
-                col1, col2, col3 = st.columns([3, 2, 1])
+                if search_class and search_class.lower() not in class_name.lower():
+                    continue
                 
-                with col1:
+                # بطاقة الفصل
+                with st.container():
                     st.markdown(f"#### {class_name}")
-                    st.write(f"**عدد الطلاب:** {len(students)}")
                     
-                    # عرض المعلم المسؤول
-                    teacher_names = []
-                    for teacher, classes in TEACHERS.items():
-                        if class_name in classes:
-                            teacher_names.append(teacher)
+                    col1, col2, col3 = st.columns([3, 2, 1])
                     
-                    if teacher_names:
-                        st.write(f"**المعلم المسؤول:** {', '.join(teacher_names)}")
-                    else:
-                        st.write("**المعلم المسؤول:** غير معين")
-                
-                with col2:
-                    # اختيار معلم جديد
-                    teacher_options = ["غير معين"] + list(TEACHERS.keys())
-                    new_teacher = st.selectbox(
-                        "تغيير المعلم",
-                        teacher_options,
-                        key=f"change_teacher_{class_name}"
-                    )
+                    with col1:
+                        st.write(f"**عدد الطلاب:** {len(students)}")
+                        
+                        # عرض المعلم المسؤول
+                        teacher_names = []
+                        for teacher, classes in TEACHERS.items():
+                            if class_name in classes:
+                                teacher_names.append(teacher)
+                        
+                        if teacher_names:
+                            st.write(f"**المعلم المسؤول:** {', '.join(teacher_names)}")
+                        else:
+                            st.write("**المعلم المسؤول:** غير معين")
+                        
+                        # زر عرض الطلاب
+                        with st.expander("👥 عرض قائمة الطلاب"):
+                            for student in students:
+                                st.write(f"- {student}")
                     
-                    if st.button("💾 حفظ", key=f"save_teacher_{class_name}"):
-                        # إزالة الفصل من جميع المعلمين
+                    with col2:
+                        # اختيار معلم جديد
+                        teacher_options = ["غير معين"] + list(TEACHERS.keys())
+                        
+                        # تحديد المعلم الحالي
+                        current_teacher = "غير معين"
                         for teacher in TEACHERS:
                             if class_name in TEACHERS[teacher]:
-                                TEACHERS[teacher].remove(class_name)
+                                current_teacher = teacher
+                                break
                         
-                        # إضافة الفصل للمعلم الجديد
-                        if new_teacher != "غير معين":
-                            if new_teacher not in TEACHERS:
-                                TEACHERS[new_teacher] = []
-                            TEACHERS[new_teacher].append(class_name)
+                        new_teacher = st.selectbox(
+                            "تغيير المعلم",
+                            teacher_options,
+                            index=teacher_options.index(current_teacher) if current_teacher in teacher_options else 0,
+                            key=f"change_teacher_{class_name}"
+                        )
                         
-                        # تحديث بيانات المستخدم للمعلم
-                        if new_teacher != "غير معين" and new_teacher in USERS:
-                            USERS[new_teacher]["classes"] = TEACHERS[new_teacher]
-                        
-                        st.success(f"✅ تم تحديث المعلم المسؤول للفصل {class_name}")
-                        st.rerun()
-                
-                with col3:
-                    # زر حذف الفصل
-                    if len(students) == 0:
-                        if st.button(f"🗑️", key=f"delete_class_{class_name}"):
-                            delete_class(class_name)
-                            st.success(f"✅ تم حذف الفصل {class_name}")
+                        if st.button("💾 حفظ", key=f"save_teacher_{class_name}"):
+                            # إزالة الفصل من جميع المعلمين
+                            for teacher in TEACHERS:
+                                if class_name in TEACHERS[teacher]:
+                                    TEACHERS[teacher].remove(class_name)
+                            
+                            # إضافة الفصل للمعلم الجديد
+                            if new_teacher != "غير معين":
+                                if new_teacher not in TEACHERS:
+                                    TEACHERS[new_teacher] = []
+                                if class_name not in TEACHERS[new_teacher]:
+                                    TEACHERS[new_teacher].append(class_name)
+                            
+                            # تحديث بيانات المستخدم للمعلم
+                            if new_teacher != "غير معين" and new_teacher in USERS:
+                                USERS[new_teacher]["classes"] = TEACHERS[new_teacher]
+                            
+                            st.success(f"✅ تم تحديث المعلم المسؤول للفصل {class_name}")
                             st.rerun()
-                    else:
-                        st.warning("لا يمكن حذف فصل به طلاب")
-                
-                # عرض قائمة الطلاب
-                if students:
-                    with st.expander("👥 عرض الطلاب"):
-                        for student in students:
-                            st.write(f"- {student}")
-                
-                st.markdown("---")
+                    
+                    with col3:
+                        # إحصائيات الفصل
+                        class_records = get_class_attendance(class_name)
+                        if class_records:
+                            present_count = len([r for r in class_records if r["status"] == "حاضر"])
+                            attendance_rate = (present_count / len(class_records) * 100) if class_records else 0
+                            st.metric("الحضور", f"{attendance_rate:.1f}%")
+                        else:
+                            st.metric("الحضور", "0%")
+                    
+                    st.markdown("---")
         
         with tab2:
             st.markdown("### ➕ إضافة فصل جديد")
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                new_class_name = st.text_input("اسم الفصل الجديد", key="new_class_name")
-            
-            with col2:
-                new_class_teacher = st.selectbox(
-                    "المعلم المسؤول",
-                    ["غير معين"] + list(TEACHERS.keys()),
-                    key="new_class_teacher"
-                )
-            
-            with col3:
-                st.write("")  # مسافة
-                st.write("")
-                if st.button("➕ إضافة الفصل", use_container_width=True, key="add_class_button"):
+            with st.form("add_class_form"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    new_class_name = st.text_input("اسم الفصل الجديد*", key="new_class_name")
+                
+                with col2:
+                    new_class_teacher = st.selectbox(
+                        "المعلم المسؤول",
+                        ["غير معين"] + list(TEACHERS.keys()),
+                        key="new_class_teacher"
+                    )
+                
+                with col3:
+                    st.write("")  # مسافة
+                    st.write("")
+                    submit_add = st.form_submit_button("➕ إضافة الفصل", use_container_width=True)
+                
+                if submit_add:
                     if new_class_name:
                         success = add_class(new_class_name, new_class_teacher if new_class_teacher != "غير معين" else None)
                         if success:
@@ -832,6 +1369,80 @@ elif st.session_state.logged_in:
                         st.warning("⚠️ من فضلك أدخل اسم الفصل")
         
         with tab3:
+            st.markdown("### ✏️ تعديل بيانات الفصل")
+            
+            if CLASSES:
+                selected_class = st.selectbox(
+                    "اختر الفصل للتعديل",
+                    list(CLASSES.keys()),
+                    key="edit_class_select"
+                )
+                
+                if selected_class:
+                    # عرض الطلاب الحاليين
+                    current_students = CLASSES[selected_class]
+                    
+                    st.markdown(f"#### طلاب الفصل {selected_class}")
+                    
+                    if current_students:
+                        for student in current_students:
+                            col1, col2, col3 = st.columns([3, 1, 1])
+                            with col1:
+                                st.write(student)
+                            with col2:
+                                new_name = st.text_input("اسم جديد", key=f"edit_{student}_name", placeholder="اترك فارغاً للحفاظ على الاسم")
+                            with col3:
+                                if st.button("تحديث", key=f"update_{student}"):
+                                    if new_name and new_name != student:
+                                        # تحديث اسم الطالب في جميع الأماكن
+                                        index = CLASSES[selected_class].index(student)
+                                        CLASSES[selected_class][index] = new_name
+                                        
+                                        # تحديث كلمة المرور إذا كانت موجودة
+                                        if student in STUDENT_PASSWORDS:
+                                            STUDENT_PASSWORDS[new_name] = STUDENT_PASSWORDS[student]
+                                            del STUDENT_PASSWORDS[student]
+                                        
+                                        # تحديث بيانات المستخدم
+                                        if student in USERS:
+                                            USERS[new_name] = USERS[student]
+                                            USERS[new_name]["name"] = new_name
+                                            del USERS[student]
+                                        
+                                        st.success(f"✅ تم تحديث اسم الطالب")
+                                        st.rerun()
+                    else:
+                        st.info("📭 لا يوجد طلاب في هذا الفصل")
+                    
+                    # إضافة طالب جديد
+                    st.markdown("#### إضافة طالب جديد للفصل")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_student_name = st.text_input("اسم الطالب الجديد", key="add_to_class_student")
+                    with col2:
+                        new_student_pass = st.text_input("كلمة المرور", type="password", key="add_to_class_pass")
+                    
+                    if st.button("➕ إضافة طالب للفصل", use_container_width=True):
+                        if new_student_name and new_student_pass:
+                            if new_student_name not in CLASSES[selected_class]:
+                                CLASSES[selected_class].append(new_student_name)
+                                STUDENT_PASSWORDS[new_student_name] = new_student_pass
+                                USERS[new_student_name] = {
+                                    "password": new_student_pass,
+                                    "role": "student",
+                                    "name": new_student_name,
+                                    "class": selected_class
+                                }
+                                st.success(f"✅ تم إضافة الطالب {new_student_name} إلى الفصل {selected_class}")
+                                st.rerun()
+                            else:
+                                st.error("❌ الطالب موجود بالفعل في هذا الفصل")
+                        else:
+                            st.warning("⚠️ من فضلك املأ جميع الحقول")
+            else:
+                st.info("📭 لا توجد فصول في النظام")
+        
+        with tab4:
             st.markdown("### 🗑️ حذف فصل")
             
             # عرض الفصول الفارغة فقط للحذف
@@ -844,17 +1455,22 @@ elif st.session_state.logged_in:
                     key="delete_class_select"
                 )
                 
-                if st.button("🗑️ حذف الفصل", use_container_width=True, key="confirm_delete_class"):
-                    success = delete_class(selected_class)
-                    if success:
-                        st.success(f"✅ تم حذف الفصل {selected_class}")
-                        st.rerun()
-                    else:
-                        st.error("❌ فشل في حذف الفصل")
+                if selected_class:
+                    st.warning(f"⚠️ أنت على وشك حذف الفصل: **{selected_class}**")
+                    
+                    confirm = st.checkbox("أقر بأنني أريد حذف هذا الفصل")
+                    
+                    if st.button("🗑️ حذف الفصل", use_container_width=True, disabled=not confirm):
+                        success = delete_class(selected_class)
+                        if success:
+                            st.success(f"✅ تم حذف الفصل {selected_class}")
+                            st.rerun()
+                        else:
+                            st.error("❌ فشل في حذف الفصل")
             else:
                 st.info("📭 لا توجد فصول فارغة للحذف")
     
-    # ------------------ صفحة إدارة المعلمين للمدير ------------------
+    # ------------------ صفحة إدارة المعلمين الكاملة ------------------
     elif st.session_state.page == "manage_teachers":
         st.markdown("# 👨‍🏫 إدارة المعلمين")
         
@@ -865,99 +1481,76 @@ elif st.session_state.logged_in:
         st.markdown("---")
         
         # تبويبات إدارة المعلمين
-        tab1, tab2, tab3 = st.tabs(["📋 عرض المعلمين", "➕ إضافة معلم", "🗑️ حذف معلم"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📋 عرض المعلمين", "➕ إضافة معلم", "✏️ تعديل معلم", "🗑️ حذف معلم"])
         
         with tab1:
             st.markdown("### 📋 قائمة المعلمين")
             
             for teacher_name, classes in TEACHERS.items():
-                col1, col2, col3 = st.columns([3, 2, 1])
-                
-                with col1:
-                    st.markdown(f"#### {teacher_name}")
-                    st.write(f"**الفصول المسؤول عنها:** {', '.join(classes) if classes else 'لا يوجد'}")
-                    st.write(f"**عدد الفصول:** {len(classes)}")
-                
-                with col2:
-                    # تغيير كلمة المرور
-                    new_password = st.text_input(
-                        "كلمة المرور الجديدة",
-                        type="password",
-                        key=f"new_pass_{teacher_name}",
-                        placeholder="اترك فارغاً للحفاظ على الكلمة الحالية"
-                    )
+                with st.container():
+                    col1, col2, col3 = st.columns([3, 2, 1])
                     
-                    if st.button("🔑 تغيير", key=f"change_pass_{teacher_name}"):
-                        if new_password:
-                            USERS[teacher_name]["password"] = new_password
-                            st.success(f"✅ تم تغيير كلمة مرور {teacher_name}")
-                            st.rerun()
-                
-                with col3:
-                    # زر حذف المعلم
-                    if st.button("🗑️", key=f"delete_teacher_{teacher_name}"):
-                        if teacher_name != "مينا سمير" and teacher_name != "فادي حبيب":  # منع حذف المعلمين الأساسيين
-                            if classes:
-                                st.warning(f"⚠️ المعلم {teacher_name} مسؤول عن فصول. اختر معلم لنقل الفصول إليه:")
-                                
-                                other_teachers = [t for t in TEACHERS.keys() 
-                                               if t != teacher_name and t not in ["مينا سمير", "فادي حبيب"]]
-                                
-                                if other_teachers:
-                                    transfer_to = st.selectbox(
-                                        "نقل الفصول إلى",
-                                        other_teachers,
-                                        key=f"transfer_{teacher_name}"
-                                    )
-                                    
-                                    if st.button("✅ نقل وحذف", key=f"confirm_transfer_{teacher_name}"):
-                                        # نقل الفصول
-                                        for class_name in classes:
-                                            TEACHERS[transfer_to].append(class_name)
-                                        
-                                        # حذف المعلم
-                                        delete_teacher(teacher_name)
-                                        
-                                        # تحديث بيانات المستخدم للمعلم الجديد
-                                        if transfer_to in USERS:
-                                            USERS[transfer_to]["classes"] = TEACHERS[transfer_to]
-                                        
-                                        st.success(f"✅ تم نقل الفصول إلى {transfer_to} وحذف {teacher_name}")
-                                        st.rerun()
-                                else:
-                                    st.error("❌ لا يوجد معلمين آخرين لنقل الفصول إليهم!")
-                            else:
-                                delete_teacher(teacher_name)
-                                st.success(f"✅ تم حذف المعلم {teacher_name}")
+                    with col1:
+                        st.markdown(f"#### {teacher_name}")
+                        st.write(f"**الفصول المسؤول عنها:** {', '.join(classes) if classes else 'لا يوجد'}")
+                        st.write(f"**عدد الفصول:** {len(classes)}")
+                        
+                        # عرض تفاصيل الفصول
+                        if classes:
+                            with st.expander("📚 تفاصيل الفصول"):
+                                for class_name in classes:
+                                    student_count = len(CLASSES.get(class_name, []))
+                                    st.write(f"- {class_name} ({student_count} طالب)")
+                    
+                    with col2:
+                        # تغيير كلمة المرور
+                        st.markdown("#### 🔑 تغيير كلمة المرور")
+                        new_password = st.text_input(
+                            "كلمة المرور الجديدة",
+                            type="password",
+                            key=f"new_pass_{teacher_name}",
+                            placeholder="اترك فارغاً للحفاظ على الكلمة الحالية"
+                        )
+                        
+                        if st.button("💾 حفظ", key=f"change_pass_{teacher_name}"):
+                            if new_password:
+                                USERS[teacher_name]["password"] = new_password
+                                st.success(f"✅ تم تغيير كلمة مرور {teacher_name}")
                                 st.rerun()
-                        else:
-                            st.error("❌ لا يمكن حذف هذا المعلم الأساسي!")
-                
-                st.markdown("---")
+                    
+                    with col3:
+                        # إحصائيات المعلم
+                        total_students = sum(len(CLASSES.get(class_name, [])) for class_name in classes)
+                        st.metric("الطلاب", total_students)
+                    
+                    st.markdown("---")
         
         with tab2:
             st.markdown("### ➕ إضافة معلم جديد")
             
-            col1, col2, col3, col4 = st.columns([2, 2, 3, 1])
-            
-            with col1:
-                new_teacher_name = st.text_input("اسم المعلم", key="new_teacher_name")
-            
-            with col2:
-                new_teacher_password = st.text_input("كلمة المرور", type="password", key="new_teacher_password")
-            
-            with col3:
-                available_classes = list(CLASSES.keys())
-                new_teacher_classes = st.multiselect(
-                    "الفصول المسؤول عنها",
-                    available_classes,
-                    key="new_teacher_classes"
-                )
-            
-            with col4:
-                st.write("")
-                st.write("")
-                if st.button("➕ إضافة", use_container_width=True, key="add_teacher_button"):
+            with st.form("add_teacher_form"):
+                col1, col2, col3, col4 = st.columns([2, 2, 3, 1])
+                
+                with col1:
+                    new_teacher_name = st.text_input("اسم المعلم*", key="new_teacher_name")
+                
+                with col2:
+                    new_teacher_password = st.text_input("كلمة المرور*", type="password", key="new_teacher_password")
+                
+                with col3:
+                    available_classes = list(CLASSES.keys())
+                    new_teacher_classes = st.multiselect(
+                        "الفصول المسؤول عنها",
+                        available_classes,
+                        key="new_teacher_classes"
+                    )
+                
+                with col4:
+                    st.write("")
+                    st.write("")
+                    submit_add = st.form_submit_button("➕ إضافة", use_container_width=True)
+                
+                if submit_add:
                     if new_teacher_name and new_teacher_password:
                         success = add_teacher(new_teacher_name, new_teacher_password, new_teacher_classes)
                         if success:
@@ -966,9 +1559,62 @@ elif st.session_state.logged_in:
                         else:
                             st.error("❌ المعلم موجود بالفعل!")
                     else:
-                        st.warning("⚠️ من فضلك املأ جميع الحقول")
+                        st.warning("⚠️ من فضلك املأ جميع الحقول المطلوبة (*)")
         
         with tab3:
+            st.markdown("### ✏️ تعديل بيانات معلم")
+            
+            if TEACHERS:
+                selected_teacher = st.selectbox(
+                    "اختر المعلم للتعديل",
+                    list(TEACHERS.keys()),
+                    key="edit_teacher_select"
+                )
+                
+                if selected_teacher:
+                    current_classes = TEACHERS[selected_teacher]
+                    
+                    with st.form("edit_teacher_form"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # تغيير الفصول
+                            available_classes = list(CLASSES.keys())
+                            updated_classes = st.multiselect(
+                                "الفصول المسؤول عنها",
+                                available_classes,
+                                default=current_classes,
+                                key="updated_teacher_classes"
+                            )
+                        
+                        with col2:
+                            # تغيير كلمة المرور
+                            st.markdown("#### تغيير كلمة المرور")
+                            new_password = st.text_input(
+                                "كلمة المرور الجديدة",
+                                type="password",
+                                placeholder="اترك فارغاً للحفاظ على الكلمة الحالية",
+                                key="edit_teacher_password"
+                            )
+                        
+                        if st.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
+                            # تحديث الفصول
+                            TEACHERS[selected_teacher] = updated_classes
+                            
+                            # تحديث كلمة المرور إذا تم إدخالها
+                            if new_password:
+                                USERS[selected_teacher]["password"] = new_password
+                            
+                            # تحديث بيانات المستخدم
+                            if selected_teacher in USERS:
+                                USERS[selected_teacher]["classes"] = updated_classes
+                            
+                            st.success(f"✅ تم تحديث بيانات المعلم {selected_teacher}")
+                            st.rerun()
+            else:
+                st.info("📭 لا يوجد معلمين في النظام")
+        
+        with tab4:
             st.markdown("### 🗑️ حذف معلم")
             
             # عرض المعلمين الذين يمكن حذفهم (ليسوا معلمين أساسيين)
@@ -1004,7 +1650,8 @@ elif st.session_state.logged_in:
                             if st.button("✅ نقل وحذف", use_container_width=True, key="confirm_delete_transfer"):
                                 # نقل الفصول
                                 for class_name in teacher_classes:
-                                    TEACHERS[transfer_to].append(class_name)
+                                    if class_name not in TEACHERS[transfer_to]:
+                                        TEACHERS[transfer_to].append(class_name)
                                 
                                 # حذف المعلم
                                 delete_teacher(selected_teacher)
@@ -1025,7 +1672,7 @@ elif st.session_state.logged_in:
             else:
                 st.info("📭 لا يوجد معلمين يمكن حذفهم")
     
-    # ------------------ صفحة إدارة سجلات الغياب للمدير ------------------
+    # ------------------ صفحة إدارة سجلات الغياب الكاملة ------------------
     elif st.session_state.page == "manage_attendance":
         st.markdown("# 📋 إدارة سجلات الغياب")
         
@@ -1036,29 +1683,42 @@ elif st.session_state.logged_in:
         st.markdown("---")
         
         # تبويبات إدارة الغياب
-        tab1, tab2, tab3 = st.tabs(["🔍 البحث والتصفية", "🗑️ حذف السجلات", "📊 الإحصائيات"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🔍 البحث والتصفية", "✏️ تعديل السجلات", "🗑️ حذف السجلات", "📊 الإحصائيات"])
         
         with tab1:
             st.markdown("### 🔍 البحث في سجلات الغياب")
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                search_student = st.text_input("بحث باسم الطالب", key="search_student")
-            
-            with col2:
-                search_class = st.selectbox(
-                    "تصفية بالفصل",
-                    ["الكل"] + list(CLASSES.keys()),
-                    key="search_class"
-                )
-            
-            with col3:
-                search_status = st.selectbox(
-                    "تصفية بالحالة",
-                    ["الكل", "حاضر", "غياب"],
-                    key="search_status"
-                )
+            with st.form("search_form"):
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    search_student = st.text_input("بحث باسم الطالب", key="search_student")
+                
+                with col2:
+                    search_class = st.selectbox(
+                        "تصفية بالفصل",
+                        ["الكل"] + list(CLASSES.keys()),
+                        key="search_class"
+                    )
+                
+                with col3:
+                    search_status = st.selectbox(
+                        "تصفية بالحالة",
+                        ["الكل", "حاضر", "غياب بعذر", "غياب بدون عذر"],
+                        key="search_status"
+                    )
+                
+                with col4:
+                    date_range = st.checkbox("تحديد نطاق تاريخي")
+                
+                if date_range:
+                    col5, col6 = st.columns(2)
+                    with col5:
+                        start_date = st.date_input("من تاريخ")
+                    with col6:
+                        end_date = st.date_input("إلى تاريخ")
+                
+                search_submit = st.form_submit_button("🔍 بحث", use_container_width=True)
             
             # الحصول على سجلات الغياب
             attendance_records = get_attendance_records()
@@ -1077,6 +1737,12 @@ elif st.session_state.logged_in:
                 if search_status != "الكل":
                     records_df = records_df[records_df["status"] == search_status]
                 
+                if date_range:
+                    records_df["date_dt"] = pd.to_datetime(records_df["date"])
+                    records_df = records_df[(records_df["date_dt"] >= pd.Timestamp(start_date)) & 
+                                          (records_df["date_dt"] <= pd.Timestamp(end_date))]
+                    records_df = records_df.drop(columns=["date_dt"])
+                
                 st.markdown(f"### 📋 النتائج ({len(records_df)} سجل)")
                 
                 if not records_df.empty:
@@ -1090,7 +1756,19 @@ elif st.session_state.logged_in:
                         "status": "الحالة"
                     })
                     
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                    # تنسيق الألوان حسب الحالة
+                    def color_status(val):
+                        if val == "حاضر":
+                            color = "green"
+                        elif "بعذر" in val:
+                            color = "orange"
+                        else:
+                            color = "red"
+                        return f'color: {color}; font-weight: bold'
+                    
+                    styled_df = display_df.style.applymap(color_status, subset=['الحالة'])
+                    
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
                     
                     # زر تصدير النتائج
                     csv_data = display_df.to_csv(index=False, encoding='utf-8-sig')
@@ -1107,6 +1785,60 @@ elif st.session_state.logged_in:
                 st.info("📭 لا توجد سجلات غياب في النظام")
         
         with tab2:
+            st.markdown("### ✏️ تعديل سجلات الغياب")
+            
+            attendance_records = get_attendance_records()
+            
+            if attendance_records:
+                # اختيار السجل للتعديل
+                record_options = []
+                for record in attendance_records:
+                    option_text = f"{record['date']} - {record['student']} - {record['status']}"
+                    record_options.append(option_text)
+                
+                selected_record_text = st.selectbox(
+                    "اختر سجل للتعديل",
+                    record_options,
+                    key="edit_record_select"
+                )
+                
+                if selected_record_text:
+                    # استخراج بيانات السجل المختار
+                    record_index = record_options.index(selected_record_text)
+                    selected_record = attendance_records[record_index]
+                    
+                    with st.form("edit_record_form"):
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            new_date = st.date_input(
+                                "التاريخ",
+                                value=datetime.strptime(selected_record["date"], "%Y-%m-%d").date()
+                            )
+                        
+                        with col2:
+                            new_status = st.selectbox(
+                                "الحالة",
+                                ["حاضر", "غياب بعذر", "غياب بدون عذر"],
+                                index=["حاضر", "غياب بعذر", "غياب بدون عذر"].index(selected_record["status"])
+                            )
+                        
+                        with col3:
+                            st.write("")
+                            st.write("")
+                            submit_edit = st.form_submit_button("💾 حفظ التعديلات", use_container_width=True)
+                        
+                        if submit_edit:
+                            # تحديث السجل
+                            selected_record["date"] = new_date.strftime("%Y-%m-%d")
+                            selected_record["status"] = new_status
+                            
+                            st.success("✅ تم تحديث السجل بنجاح")
+                            st.rerun()
+            else:
+                st.info("📭 لا توجد سجلات للتعديل")
+        
+        with tab3:
             st.markdown("### 🗑️ حذف سجلات الغياب")
             
             attendance_records = get_attendance_records()
@@ -1138,17 +1870,43 @@ elif st.session_state.logged_in:
                                 st.rerun()
                 
                 with col2:
-                    # حذف جميع السجلات
-                    st.info(f"إجمالي السجلات: {len(attendance_records)}")
+                    # حذف سجلات فترة محددة
+                    st.markdown("#### حذف سجلات فترة محددة")
                     
-                    if st.button("🗑️ حذف جميع السجلات", use_container_width=True):
-                        st.session_state.attendance_data = []
-                        st.success("✅ تم حذف جميع السجلات")
-                        st.rerun()
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        delete_start_date = st.date_input("من تاريخ", key="delete_start")
+                    with col_b:
+                        delete_end_date = st.date_input("إلى تاريخ", key="delete_end")
+                    
+                    if delete_start_date and delete_end_date:
+                        period_records = [r for r in attendance_records 
+                                        if delete_start_date <= datetime.strptime(r["date"], "%Y-%m-%d").date() <= delete_end_date]
+                        
+                        st.info(f"عدد السجلات في الفترة: {len(period_records)}")
+                        
+                        if st.button("🗑️ حذف سجلات الفترة", use_container_width=True):
+                            st.session_state.attendance_data = [r for r in attendance_records 
+                                                               if not (delete_start_date <= datetime.strptime(r["date"], "%Y-%m-%d").date() <= delete_end_date)]
+                            st.success(f"✅ تم حذف {len(period_records)} سجل")
+                            st.rerun()
+                
+                st.markdown("---")
+                
+                # حذف جميع السجلات
+                st.markdown("#### حذف جميع السجلات")
+                st.info(f"إجمالي السجلات: {len(attendance_records)}")
+                
+                confirm_all = st.checkbox("أقر بأنني أريد حذف جميع السجلات")
+                
+                if st.button("🗑️ حذف جميع السجلات", use_container_width=True, disabled=not confirm_all):
+                    st.session_state.attendance_data = []
+                    st.success("✅ تم حذف جميع السجلات")
+                    st.rerun()
             else:
                 st.info("📭 لا توجد سجلات لحذفها")
         
-        with tab3:
+        with tab4:
             st.markdown("### 📊 إحصائيات الغياب")
             
             attendance_records = get_attendance_records()
@@ -1160,9 +1918,10 @@ elif st.session_state.logged_in:
                 # الإحصائيات العامة
                 total_records = len(records_df)
                 present_count = len(records_df[records_df["status"] == "حاضر"])
-                absent_count = len(records_df[records_df["status"] == "غياب"])
+                absent_excused = len(records_df[records_df["status"] == "غياب بعذر"])
+                absent_unexcused = len(records_df[records_df["status"] == "غياب بدون عذر"])
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
                     st.metric("إجمالي السجلات", total_records)
@@ -1171,7 +1930,12 @@ elif st.session_state.logged_in:
                     st.metric("عدد الحضور", present_count)
                 
                 with col3:
-                    st.metric("عدد الغياب", absent_count)
+                    st.metric("غياب بعذر", absent_excused)
+                
+                with col4:
+                    st.metric("غياب بدون عذر", absent_unexcused)
+                
+                st.markdown("---")
                 
                 # إحصائيات حسب الفصول
                 st.markdown("#### 📊 إحصائيات الفصول")
@@ -1181,26 +1945,348 @@ elif st.session_state.logged_in:
                     class_records = records_df[records_df["class"] == class_name]
                     if len(class_records) > 0:
                         class_present = len(class_records[class_records["status"] == "حاضر"])
-                        class_absent = len(class_records[class_records["status"] == "غياب"])
+                        class_absent_excused = len(class_records[class_records["status"] == "غياب بعذر"])
+                        class_absent_unexcused = len(class_records[class_records["status"] == "غياب بدون عذر"])
                         class_total = len(class_records)
                         
                         class_stats.append({
                             "الفصل": class_name,
                             "إجمالي السجلات": class_total,
                             "الحضور": class_present,
-                            "الغياب": class_absent,
+                            "غياب بعذر": class_absent_excused,
+                            "غياب بدون عذر": class_absent_unexcused,
                             "نسبة الحضور": f"{(class_present/class_total*100):.1f}%" if class_total > 0 else "0%"
                         })
                 
                 if class_stats:
                     stats_df = pd.DataFrame(class_stats)
                     st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                    
+                    # مخطط دائري لنسب الحضور
+                    st.markdown("#### 📈 مخطط نسب الحضور")
+                    
+                    # جمع البيانات للمخطط
+                    pie_data = {
+                        "الحالة": ["حاضر", "غياب بعذر", "غياب بدون عذر"],
+                        "العدد": [present_count, absent_excused, absent_unexcused]
+                    }
+                    
+                    df_pie = pd.DataFrame(pie_data)
+                    fig = px.pie(df_pie, values='العدد', names='الحالة', 
+                                 title='توزيع حالات الحضور في النظام',
+                                 color='الحالة',
+                                 color_discrete_map={'حاضر': 'green', 
+                                                   'غياب بعذر': 'orange',
+                                                   'غياب بدون عذر': 'red'})
+                    
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("📭 لا توجد سجلات للفصول")
             else:
                 st.info("📭 لا توجد سجلات لعرض الإحصائيات")
     
-    # ------------------ صفحة استيراد/تصدير للمدير ------------------
+    # ------------------ صفحة التقارير والإحصائيات ------------------
+    elif st.session_state.page == "reports":
+        st.markdown("# 📊 التقارير والإحصائيات")
+        
+        if st.button("🏠 العودة للصفحة الرئيسية", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # تبويبات التقارير
+        tab1, tab2, tab3, tab4 = st.tabs(["📈 تقارير الفصول", "👤 تقارير الطلاب", "👨‍🏫 تقارير المعلمين", "📅 التقارير الزمنية"])
+        
+        with tab1:
+            st.markdown("### 📈 تقارير الفصول")
+            
+            selected_class = st.selectbox(
+                "اختر الفصل",
+                list(CLASSES.keys()),
+                key="class_report_select"
+            )
+            
+            if selected_class:
+                # نطاق التاريخ
+                col1, col2 = st.columns(2)
+                with col1:
+                    start_date = st.date_input("من تاريخ", key="class_start_date")
+                with col2:
+                    end_date = st.date_input("إلى تاريخ", key="class_end_date")
+                
+                if st.button("📊 إنشاء التقرير", use_container_width=True):
+                    report = generate_class_report(
+                        selected_class,
+                        start_date.strftime("%Y-%m-%d") if start_date else None,
+                        end_date.strftime("%Y-%m-%d") if end_date else None
+                    )
+                    
+                    if report:
+                        st.markdown(f"#### تقرير الفصل: {selected_class}")
+                        
+                        # عرض إحصائيات الفصل
+                        col_a, col_b, col_c, col_d = st.columns(4)
+                        
+                        with col_a:
+                            st.metric("عدد الطلاب", report["total_students"])
+                        
+                        with col_b:
+                            st.metric("إجمالي السجلات", report["total_records"])
+                        
+                        with col_c:
+                            st.metric("نسبة الحضور", f"{report['attendance_rate']:.1f}%")
+                        
+                        with col_d:
+                            absences = report["absent_excused"] + report["absent_unexcused"]
+                            st.metric("إجمالي الغياب", absences)
+                        
+                        st.markdown("---")
+                        
+                        # تفاصيل الطلاب
+                        st.markdown("#### 📋 تفاصيل الطلاب")
+                        
+                        if report["student_reports"]:
+                            student_df = pd.DataFrame(report["student_reports"])
+                            st.dataframe(student_df, use_container_width=True, hide_index=True)
+                            
+                            # مخطط نسب الحضور للطلاب
+                            fig = px.bar(student_df, x='student_name', y='attendance_rate',
+                                         title='نسب الحضور للطلاب',
+                                         labels={'student_name': 'اسم الطالب', 'attendance_rate': 'نسبة الحضور %'})
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        # زر تصدير التقرير
+                        csv_data = pd.DataFrame(report["student_reports"]).to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="📥 تصدير تقرير الفصل",
+                            data=csv_data,
+                            file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                    else:
+                        st.info("📭 لا توجد بيانات للفصل في هذه الفترة")
+        
+        with tab2:
+            st.markdown("### 👤 تقارير الطلاب")
+            
+            # جمع جميع الطلاب
+            all_students = []
+            for class_name, students in CLASSES.items():
+                for student in students:
+                    all_students.append({
+                        "name": student,
+                        "class": class_name
+                    })
+            
+            if all_students:
+                student_options = [f"{s['name']} ({s['class']})" for s in all_students]
+                
+                selected_student_str = st.selectbox(
+                    "اختر الطالب",
+                    student_options,
+                    key="student_report_select"
+                )
+                
+                if selected_student_str:
+                    selected_student = selected_student_str.split(" (")[0]
+                    
+                    # نطاق التاريخ
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        start_date = st.date_input("من تاريخ", key="student_start_date")
+                    with col2:
+                        end_date = st.date_input("إلى تاريخ", key="student_end_date")
+                    
+                    if st.button("📊 إنشاء التقرير", use_container_width=True):
+                        report = generate_student_report(
+                            selected_student,
+                            start_date.strftime("%Y-%m-%d") if start_date else None,
+                            end_date.strftime("%Y-%m-%d") if end_date else None
+                        )
+                        
+                        if report:
+                            st.markdown(f"#### تقرير الطالب: {selected_student}")
+                            
+                            # إحصائيات الطالب
+                            col_a, col_b, col_c, col_d = st.columns(4)
+                            
+                            with col_a:
+                                st.metric("إجمالي الأيام", report["total_days"])
+                            
+                            with col_b:
+                                st.metric("أيام الحضور", report["present_count"])
+                            
+                            with col_c:
+                                st.metric("نسبة الحضور", f"{report['attendance_rate']:.1f}%")
+                            
+                            with col_d:
+                                total_absent = report["absent_excused"] + report["absent_unexcused"]
+                                st.metric("إجمالي الغياب", total_absent)
+                            
+                            # تفاصيل الغياب
+                            col_x, col_y = st.columns(2)
+                            with col_x:
+                                st.metric("غياب بعذر", report["absent_excused"])
+                            with col_y:
+                                st.metric("غياب بدون عذر", report["absent_unexcused"])
+                            
+                            st.markdown("---")
+                            
+                            # سجلات الطالب
+                            st.markdown("#### 📋 سجل الغياب")
+                            
+                            if report["records"]:
+                                records_df = pd.DataFrame(report["records"])
+                                display_df = records_df[["date", "class", "teacher", "status"]].copy()
+                                display_df = display_df.rename(columns={
+                                    "date": "التاريخ",
+                                    "class": "الفصل",
+                                    "teacher": "المعلم",
+                                    "status": "الحالة"
+                                })
+                                
+                                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                                
+                                # مخطط توزيع الحضور
+                                status_data = {
+                                    "الحالة": ["حاضر", "غياب بعذر", "غياب بدون عذر"],
+                                    "العدد": [report["present_count"], report["absent_excused"], report["absent_unexcused"]]
+                                }
+                                
+                                df_status = pd.DataFrame(status_data)
+                                fig = px.pie(df_status, values='العدد', names='الحالة',
+                                             title='توزيع حالات الحضور للطالب',
+                                             color='الحالة',
+                                             color_discrete_map={'حاضر': 'green', 
+                                                               'غياب بعذر': 'orange',
+                                                               'غياب بدون عذر': 'red'})
+                                
+                                st.plotly_chart(fig, use_container_width=True)
+                            
+                            # زر تصدير التقرير
+                            csv_data = display_df.to_csv(index=False, encoding='utf-8-sig')
+                            st.download_button(
+                                label="📥 تصدير تقرير الطالب",
+                                data=csv_data,
+                                file_name=f"تقرير_الطالب_{selected_student}_{datetime.now().strftime('%Y%m%d')}.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("📭 لا توجد بيانات للطالب في هذه الفترة")
+            else:
+                st.info("📭 لا يوجد طلاب في النظام")
+        
+        with tab3:
+            st.markdown("### 👨‍🏫 تقارير المعلمين")
+            
+            if TEACHERS:
+                selected_teacher = st.selectbox(
+                    "اختر المعلم",
+                    list(TEACHERS.keys()),
+                    key="teacher_report_select"
+                )
+                
+                if selected_teacher:
+                    teacher_classes = TEACHERS[selected_teacher]
+                    
+                    st.markdown(f"#### المعلم: {selected_teacher}")
+                    st.markdown(f"**الفصول المسؤول عنها:** {', '.join(teacher_classes)}")
+                    
+                    # إحصائيات المعلم
+                    attendance_records = get_attendance_records()
+                    teacher_records = [r for r in attendance_records if r["teacher"] == selected_teacher]
+                    
+                    if teacher_records:
+                        # تحليل البيانات
+                        total_records = len(teacher_records)
+                        present_count = len([r for r in teacher_records if r["status"] == "حاضر"])
+                        absent_excused = len([r for r in teacher_records if r["status"] == "غياب بعذر"])
+                        absent_unexcused = len([r for r in teacher_records if r["status"] == "غياب بدون عذر"])
+                        attendance_rate = (present_count / total_records * 100) if total_records > 0 else 0
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("إجمالي السجلات", total_records)
+                        
+                        with col2:
+                            st.metric("نسبة الحضور", f"{attendance_rate:.1f}%")
+                        
+                        with col3:
+                            st.metric("إجمالي الطلاب", sum(len(CLASSES[c]) for c in teacher_classes))
+                        
+                        with col4:
+                            st.metric("عدد الفصول", len(teacher_classes))
+                        
+                        st.markdown("---")
+                        
+                        # إحصائيات كل فصل
+                        st.markdown("#### 📊 إحصائيات الفصول")
+                        
+                        class_stats = []
+                        for class_name in teacher_classes:
+                            class_records = [r for r in teacher_records if r["class"] == class_name]
+                            if class_records:
+                                class_present = len([r for r in class_records if r["status"] == "حاضر"])
+                                class_absent = len(class_records) - class_present
+                                class_rate = (class_present / len(class_records) * 100) if class_records else 0
+                                
+                                class_stats.append({
+                                    "الفصل": class_name,
+                                    "عدد السجلات": len(class_records),
+                                    "الحضور": class_present,
+                                    "الغياب": class_absent,
+                                    "نسبة الحضور": f"{class_rate:.1f}%"
+                                })
+                        
+                        if class_stats:
+                            stats_df = pd.DataFrame(class_stats)
+                            st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                            
+                            # مخطط بياني
+                            fig = px.bar(stats_df, x='الفصل', y='نسبة الحضور',
+                                         title='نسب الحضور للفصول',
+                                         text='نسبة الحضور')
+                            st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("📭 لا توجد سجلات للمعلم")
+            else:
+                st.info("📭 لا يوجد معلمين في النظام")
+        
+        with tab4:
+            st.markdown("### 📅 التقارير الزمنية")
+            
+            # اختيار نوع التقرير
+            report_type = st.selectbox(
+                "نوع التقرير",
+                ["تقرير شهري", "تقرير أسبوعي", "تقرير سنوي"],
+                key="time_report_type"
+            )
+            
+            if report_type == "تقرير شهري":
+                selected_month = st.selectbox(
+                    "اختر الشهر",
+                    ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+                     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+                    key="month_select"
+                )
+                
+                selected_year = st.number_input("السنة", min_value=2023, max_value=2030, value=2024, key="year_select")
+            
+            elif report_type == "تقرير أسبوعي":
+                selected_week = st.date_input("اختر أسبوع", key="week_select")
+            
+            else:  # تقرير سنوي
+                selected_year = st.number_input("السنة", min_value=2023, max_value=2030, value=2024, key="annual_year_select")
+            
+            if st.button("📊 إنشاء التقرير الزمني", use_container_width=True):
+                st.info("🚧 هذه الميزة قيد التطوير")
+                # هنا يمكنك إضافة كود إنشاء التقارير الزمنية
+    
+    # ------------------ صفحة استيراد/تصدير ------------------
     elif st.session_state.page == "import_export":
         st.markdown("# 📥 استيراد/تصدير البيانات")
         

@@ -2122,8 +2122,6 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-
-                
                 # 🆕 **عرض جميع السجلات للفصل**
                 st.markdown("---")
                 st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
@@ -2145,25 +2143,6 @@ elif st.session_state.logged_in:
                     st.info(f"**عدد السجلات المعروضة:** {len(all_history)} سجل")
                 else:
                     st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
-                    
-                    # زر اختبار الاتصال
-                    if st.button("🔍 اختبار الاتصال بالسجلات", key="test_records_connection"):
-                        df = read_sheet()
-                        total_records = len(df)
-                        st.info(f"**إجمالي السجلات في النظام:** {total_records}")
-                        
-                        if not df.empty:
-                            # عرض آخر 10 سجلات
-                            recent_records = df.head(10).copy()
-                            recent_records["date_clean"] = recent_records["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
-                            recent_records = recent_records.rename(columns={
-                                "student": "الطالب",
-                                "teacher": "المعلم",
-                                "class": "الفصل",
-                                "date_clean": "التاريخ",
-                                "status": "الحالة"
-                            })
-                            st.dataframe(recent_records[["الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]], use_container_width=True)
         
         # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
         st.markdown("---")
@@ -2254,14 +2233,13 @@ elif st.session_state.logged_in:
         """
         st.markdown(welcome_html, unsafe_allow_html=True)
         
-        # علامات التبويب
-        tabs = ["dashboard", "students", "teachers", "classes", "reports", "settings"]
+        # علامات التبويب - إزالة قسم التقارير
+        tabs = ["dashboard", "students", "teachers", "classes", "settings"]
         tab_names = {
             "dashboard": "📊 لوحة التحكم",
             "students": "👥 إدارة الطلاب",
             "teachers": "👨‍🏫 إدارة المعلمين",
             "classes": "🏫 إدارة الفصول",
-            "reports": "📋 التقارير",
             "settings": "⚙️ الإعدادات"
         }
         
@@ -2513,13 +2491,7 @@ elif st.session_state.logged_in:
                         "كلمة المرور": [USERS.get(student, {}).get("password", "غير معروفة") for student in ALL_STUDENTS]
                     })
                     
-                    # تطبيق CSS لجعل كلمات المرور ظاهرة
-                    st.dataframe(
-                        students_df.style.apply(lambda x: ['background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: Courier New, monospace' 
-                                                         if x.name == 'كلمة المرور' else '' for i in range(len(x))], axis=0),
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.dataframe(students_df, use_container_width=True, hide_index=True)
                     
                     # عرض عدد الطلاب
                     st.info(f"**إجمالي عدد الطلاب:** {len(ALL_STUDENTS)}")
@@ -2704,13 +2676,7 @@ elif st.session_state.logged_in:
                     
                     teachers_df = pd.DataFrame(teachers_data)
                     
-                    # تطبيق CSS لجعل كلمات المرور ظاهرة
-                    st.dataframe(
-                        teachers_df.style.apply(lambda x: ['background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: Courier New, monospace' 
-                                                         if x.name == 'كلمة المرور' else '' for i in range(len(x))], axis=0),
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.dataframe(teachers_df, use_container_width=True, hide_index=True)
                     
                     # عرض عدد المعلمين
                     st.info(f"**إجمالي عدد المعلمين:** {len(TEACHERS)}")
@@ -2909,30 +2875,6 @@ elif st.session_state.logged_in:
             
             st.markdown('</div>', unsafe_allow_html=True)
         
-        elif st.session_state.admin_tab == "reports":
-            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
-            st.markdown("### 📋 التقارير")
-            
-            st.markdown("#### 📊 تصدير البيانات")
-            st.markdown("تصدير جميع بيانات الغياب بتنسيق CSV:")
-            
-            all_records = get_all_records()
-            if not all_records.empty:
-                # تحويل إلى CSV
-                csv_data = all_records.to_csv(index=False).encode('utf-8-sig')
-                
-                st.download_button(
-                    label="📥 تصدير جميع البيانات (CSV)",
-                    data=csv_data,
-                    file_name=f"بيانات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            else:
-                st.info("لا توجد بيانات للتصدير.")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
         elif st.session_state.admin_tab == "settings":
             st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### ⚙️ إعدادات النظام")
@@ -2961,103 +2903,6 @@ elif st.session_state.logged_in:
                     st.success("✅ Telegram Chat ID: متوفر")
                 else:
                     st.warning("⚠️ Telegram Chat ID: غير متوفر")
-            
-            # إدارة المستخدمين مع عرض كلمات المرور
-            st.markdown("#### 👥 إدارة المستخدمين")
-            
-            user_types = {
-                "admin": "👑 مدير النظام",
-                "teacher": "👨‍🏫 معلم",
-                "student": "👨‍🎓 طالب"
-            }
-            
-            # إنشاء DataFrame للمستخدمين مع كلمات المرور الظاهرة
-            users_data = []
-            for username, user_info in USERS.items():
-                users_data.append({
-                    "اسم المستخدم": username,
-                    "الدور": user_types.get(user_info.get("role", "unknown"), "غير معروف"),
-                    "كلمة المرور": user_info.get("password", "غير معروفة")
-                })
-            
-            users_df = pd.DataFrame(users_data)
-            
-            # 🔧 **إصلاح: عرض كلمات المرور بشكل صحيح**
-            # طريقة 1: استخدام CSS مباشرة
-            st.markdown("""
-            <style>
-            .password-data {
-                background-color: #f0f9ff !important;
-                color: #1e40af !important;
-                font-weight: 600 !important;
-                font-family: 'Courier New', monospace !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # طريقة 2: عرض البيانات كجدول HTML مع CSS مخصص
-            if not users_df.empty:
-                # إنشاء HTML للجدول مع تنسيق خاص لكلمات المرور
-                html_table = """
-                <div style="overflow-x: auto;">
-                <table border="1" style="border-collapse: collapse; width: 100%;">
-                    <thead>
-                        <tr style="background-color: #f1f5f9;">
-                            <th style="padding: 10px; text-align: right;">اسم المستخدم</th>
-                            <th style="padding: 10px; text-align: right;">الدور</th>
-                            <th style="padding: 10px; text-align: right;">كلمة المرور</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                """
-                
-                for _, row in users_df.iterrows():
-                    html_table += f"""
-                    <tr>
-                        <td style="padding: 10px; text-align: right;">{row['اسم المستخدم']}</td>
-                        <td style="padding: 10px; text-align: right;">{row['الدور']}</td>
-                        <td style="padding: 10px; text-align: right; background-color: #f0f9ff; color: #1e40af; font-weight: 600; font-family: 'Courier New', monospace;">
-                            {row['كلمة المرور']}
-                        </td>
-                    </tr>
-                    """
-                
-                html_table += """
-                    </tbody>
-                </table>
-                </div>
-                """
-                
-                st.markdown(html_table, unsafe_allow_html=True)
-                
-                # عرض عدد المستخدمين
-                st.info(f"**إجمالي عدد المستخدمين:** {len(users_df)}")
-                
-                # زر تصدير بيانات المستخدمين
-                csv_users = users_df.to_csv(index=False).encode('utf-8-sig')
-                st.download_button(
-                    label="📥 تحميل بيانات المستخدمين",
-                    data=csv_users,
-                    file_name=f"بيانات_المستخدمين_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            else:
-                st.info("لا يوجد مستخدمين في النظام.")
-            
-            # زر تفريغ البيانات المحلية
-            st.markdown("---")
-            st.markdown("#### 🗑️ إدارة البيانات المحلية")
-            st.markdown("يمكنك تفريغ البيانات المحلية المخزنة في الذاكرة المؤقتة:")
-            
-            if st.button("🗑️ تفريغ البيانات المحلية", key="clear_local_data", use_container_width=True):
-                if "local_attendance_data" in st.session_state:
-                    count = len(st.session_state["local_attendance_data"])
-                    del st.session_state["local_attendance_data"]
-                    st.success(f"✅ تم حذف {count} سجل من الذاكرة المحلية")
-                    st.rerun()
-                else:
-                    st.info("📭 لا توجد بيانات في الذاكرة المحلية")
             
             st.markdown('</div>', unsafe_allow_html=True)
         

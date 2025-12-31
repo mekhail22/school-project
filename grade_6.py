@@ -2233,7 +2233,7 @@ elif st.session_state.logged_in:
         """
         st.markdown(welcome_html, unsafe_allow_html=True)
         
-        # علامات التبويب - إزالة قسم التقارير
+        # علامات التبويب
         tabs = ["dashboard", "students", "teachers", "classes", "settings"]
         tab_names = {
             "dashboard": "📊 لوحة التحكم",
@@ -2255,6 +2255,7 @@ elif st.session_state.logged_in:
         
         # محتوى علامات التبويب
         if st.session_state.admin_tab == "dashboard":
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 📊 إحصائيات النظام")
             
             # الحصول على إحصائيات النظام
@@ -2284,6 +2285,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
             
             # عرض قائمة الفصول
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 🏫 الفصول")
             
             for class_name, students in CLASSES.items():
@@ -2295,6 +2297,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
             
             # عرض آخر السجلات
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 📅 آخر سجلات الغياب")
             
             all_records = get_all_records()
@@ -2329,6 +2332,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
         
         elif st.session_state.admin_tab == "students":
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 👥 إدارة الطلاب")
             
             # علامات تبويب فرعية لإدارة الطلاب
@@ -2507,6 +2511,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
         
         elif st.session_state.admin_tab == "teachers":
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 👨‍🏫 إدارة المعلمين")
             
             # علامات تبويب فرعية لإدارة المعلمين
@@ -2681,6 +2686,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
         
         elif st.session_state.admin_tab == "classes":
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### 🏫 إدارة الفصول")
             
             # علامات تبويب فرعية لإدارة الفصول
@@ -2870,6 +2876,7 @@ elif st.session_state.logged_in:
             st.markdown('</div>', unsafe_allow_html=True)
         
         elif st.session_state.admin_tab == "settings":
+            st.markdown('<div class="admin-section">', unsafe_allow_html=True)
             st.markdown("### ⚙️ إعدادات النظام")
             
             # معلومات النظام
@@ -2922,4 +2929,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

@@ -2199,15 +2199,7 @@ elif st.session_state.logged_in:
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
-            # زر تحميل CSV بدلاً من PDF
-            csv_data = df_student.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                "📥 تحميل تقرير CSV",
-                data=csv_data,
-                file_name=f"تقرير_غياب_{student_name}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            
         
         # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
         st.markdown("---")
@@ -2929,3 +2921,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

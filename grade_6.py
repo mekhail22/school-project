@@ -2731,71 +2731,7 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-                # زر فحص البيانات المحلية
-                st.markdown("---")
-                st.markdown("### 🔍 فحص البيانات المحلية")
-                
-                if st.button("🔍 فحص البيانات المحلية", key="check_local_data", use_container_width=True):
-                    if "local_attendance_data" in st.session_state:
-                        local_count = len(st.session_state["local_attendance_data"])
-                        st.success(f"✅ يوجد {local_count} سجل في الذاكرة المحلية")
-                        
-                        # عرض عينة من البيانات
-                        if local_count > 0:
-                            # تصفية البيانات للفصل المحدد
-                            local_df = pd.DataFrame(st.session_state["local_attendance_data"])
-                            if "class" in local_df.columns:
-                                class_local_df = local_df[local_df["class"] == selected_class]
-                                if not class_local_df.empty:
-                                    st.markdown(f"**سجلات الفصل {selected_class} في الذاكرة المحلية:**")
-                                    display_df = class_local_df[["student", "teacher", "date", "status"]].head(10)
-                                    st.dataframe(display_df, use_container_width=True)
-                                    st.info(f"إجمالي سجلات الفصل في الذاكرة المحلية: {len(class_local_df)}")
-                                else:
-                                    st.info(f"لا توجد سجلات للفصل {selected_class} في الذاكرة المحلية")
-                            else:
-                                st.dataframe(local_df.head(10), use_container_width=True)
-                    else:
-                        st.info("📭 لا توجد بيانات في الذاكرة المحلية")
-                
-                # 🆕 **زر تحميل تقرير الفصل الكامل**
-                st.markdown("---")
-                st.markdown("### 📥 تحميل تقرير كامل")
-                
-                # إنشاء تقرير PDF كامل
-                try:
-                    pdf_buffer = generate_class_full_report(selected_class, teacher_name, stats, history_df)
-                    
-                    # زر تحميل التقرير
-                    st.download_button(
-                        label="📄 تحميل تقرير الفصل الكامل (PDF)",
-                        data=pdf_buffer,
-                        file_name=f"تقرير_الفصل_{selected_class}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        help="سيحتوي التقرير على: الإحصائيات العامة، إحصائيات الطلاب، سجل الحضور التفصيلي"
-                    )
-                    
-                    # معلومات عن التقرير
-                    with st.expander("📋 محتويات التقرير"):
-                        st.markdown("""
-                        **يحتوي التقرير الكامل على:**
-                        1. **صفحة الغلاف**: معلومات الفصل والمعلم
-                        2. **الإحصائيات العامة**: 
-                           - عدد الطلاب
-                           - إجمالي السجلات
-                           - عدد الحضور والغياب
-                           - نسبة الحضور
-                        3. **إحصائيات الطلاب**: 
-                           - تفاصيل كل طالب (حضور، غياب، نسبة)
-                        4. **سجل الحضور التفصيلي**: 
-                           - جميع سجلات الحضور/الغياب
-                        5. **صفحة التوقيعات**:
-                           - توقيع المعلم
-                           - توقيع مدير المدرسة
-                        """)
-                except Exception as e:
-                    st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+
                 
                 # 🆕 **عرض جميع السجلات للفصل**
                 st.markdown("---")
@@ -3842,3 +3778,4 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+

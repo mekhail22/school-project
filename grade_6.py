@@ -527,7 +527,11 @@ def send_telegram_message(message):
     except requests.exceptions.RequestException:
         return False, {"exception": "Request failed"}
 
-def record_attendance(selected_absent, teacher_name, class_name, absent_label="غياب"):
+def record_attendance(selected_absent, teacher_name, class_name, absent_label=None):
+    """
+    تسجيل الحضور والغياب
+    إذا لم يتم تحديد absent_label (None) وكان هناك غائبين، نستخدم "غياب" كافتراضي
+    """
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
     
@@ -542,7 +546,10 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label="�
         # تحديد حالة الطالب
         if student in selected_absent:
             # إذا كان الطالب في قائمة الغائبين
-            status = absent_label
+            if absent_label:
+                status = absent_label
+            else:
+                status = "غياب"  # قيمة افتراضية
         else:
             # إذا لم يكن في القائمة، فهو حاضر
             status = "حاضر"
@@ -725,6 +732,8 @@ def get_all_records():
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
+        elif "حاضر" in status_str:
+            return "حاضر"
         return status_str
     
     if "status" in df.columns:
@@ -2004,13 +2013,9 @@ elif st.session_state.logged_in:
                         class_students,
                         label_visibility="collapsed"
                     )
-                    
-                    # **التعديل: نسأل عن نوع الغياب فقط إذا كان هناك غائبين**
-                    show_absence_type = False
+
+                    # **التعديل المهم: نعرض خيارات نوع الغياب فقط إذا كان هناك غائبين**
                     if selected:  # فقط إذا كان هناك طلاب غائبين
-                        show_absence_type = True
-                    
-                    if show_absence_type:
                         st.markdown("### 📝 اختر نوع الغياب")
                         col_a, col_b = st.columns(2)
                         with col_a:
@@ -2020,16 +2025,17 @@ elif st.session_state.logged_in:
 
                         if excuse and no_excuse:
                             st.warning("⚠️ اختر نوع واحد فقط.")
+                    # إذا لم يكن هناك غائبين، لا نعرض الخيارات ولا نطلبها
                     else:
-                        # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية
                         excuse = False
                         no_excuse = False
-                    
+
                     st.markdown("---")
                     
                     # زر تسجيل الغياب
                     if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
-                        if show_absence_type:  # إذا كان هناك غائبين، نحتاج للتحقق
+                        # إذا كان هناك غائبين، نحتاج للتحقق من اختيار نوع الغياب
+                        if selected:
                             if excuse and no_excuse:
                                 st.warning("⚠️ اختر نوع واحد فقط.")
                                 return
@@ -2039,8 +2045,8 @@ elif st.session_state.logged_in:
                             else:
                                 status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
                         else:
-                            # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية
-                            status_label = "غياب"  # قيمة افتراضية
+                            # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية None
+                            status_label = None
                         
                         # تسجيل الغياب
                         try:
@@ -2152,7 +2158,7 @@ elif st.session_state.logged_in:
                         "status_clean": "الحالة"
                     })
                     
-                    # 🔧 **إصلاح: عرض كل السجلات بدون تحديد عدد**
+                    # عرض كل السجلات
                     st.dataframe(all_history, use_container_width=True, height=400)
                     
                     # إظهار عدد السجلات الفعلي
@@ -2225,7 +2231,7 @@ elif st.session_state.logged_in:
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # 🆕 صفحة مدير النظام
+    # صفحة مدير النظام
     elif st.session_state.user_role == "admin" and st.session_state.page == "admin_dashboard":
         st.markdown('<div class="admin-page">', unsafe_allow_html=True)
         
@@ -2304,15 +2310,15 @@ elif st.session_state.logged_in:
             
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # عرض آخر السجلات
+            # **إصلاح: عرض جميع السجلات مباشرة بدون زر**
             st.markdown('<div class="admin-section">', unsafe_allow_html=True)
-            st.markdown("### 📅 آخر سجلات الغياب")
+            st.markdown("### 📅 جميع سجلات الغياب")
             
             all_records = get_all_records()
             if not all_records.empty:
-                recent_records = all_records.head(50)
-                recent_records_display = recent_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
-                recent_records_display = recent_records_display.rename(columns={
+                # عرض جميع السجلات مباشرة
+                all_records_display = all_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
+                all_records_display = all_records_display.rename(columns={
                     "student": "الطالب",
                     "teacher": "المعلم",
                     "class": "الفصل",
@@ -2320,20 +2326,8 @@ elif st.session_state.logged_in:
                     "status_clean": "الحالة"
                 })
                 
-                st.dataframe(recent_records_display, use_container_width=True, hide_index=True)
-                
-                if st.button("📋 عرض كل السجلال", key="view_all_records"):
-                    st.markdown("### 📋 جميع سجلات الغياب")
-                    all_records_display = all_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
-                    all_records_display = all_records_display.rename(columns={
-                        "student": "الطالب",
-                        "teacher": "المعلم",
-                        "class": "الفصل",
-                        "date_clean": "التاريخ",
-                        "status_clean": "الحالة"
-                    })
-                    
-                    st.dataframe(all_records_display, use_container_width=True, hide_index=True)
+                st.dataframe(all_records_display, use_container_width=True, height=400)
+                st.info(f"**إجمالي عدد السجلات:** {len(all_records_display)} سجل")
             else:
                 st.info("لا توجد سجلات غياب في النظام بعد.")
             

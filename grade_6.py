@@ -530,7 +530,6 @@ def send_telegram_message(message):
 def record_attendance(selected_absent, teacher_name, class_name, absent_label=None):
     """
     تسجيل الحضور والغياب
-    إذا لم يتم تحديد absent_label (None) وكان هناك غائبين، نستخدم "غياب" كافتراضي
     """
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
@@ -549,7 +548,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label=No
             if absent_label:
                 status = absent_label
             else:
-                status = "غياب"  # قيمة افتراضية
+                status = "غياب"  # قيمة افتراضية إذا لم يتم تحديد نوع
         else:
             # إذا لم يكن في القائمة، فهو حاضر
             status = "حاضر"
@@ -2013,10 +2012,11 @@ elif st.session_state.logged_in:
                         class_students,
                         label_visibility="collapsed"
                     )
-
-                    # **التعديل المهم: نعرض خيارات نوع الغياب فقط إذا كان هناك غائبين**
+                    
+                    # **هنا التعديل المهم: نعرض خيارات نوع الغياب فقط إذا كان هناك غائبين**
                     if selected:  # فقط إذا كان هناك طلاب غائبين
-                        st.markdown("### 📝 اختر نوع الغياب")
+                        st.markdown("### 📝 اختر نوع الغياب (اختياري)")
+                        st.info("إذا لم تختر نوع الغياب، سيتم تسجيله كـ 'غياب' افتراضياً")
                         col_a, col_b = st.columns(2)
                         with col_a:
                             excuse = st.checkbox("غياب بعذر", key="excuse")
@@ -2034,18 +2034,20 @@ elif st.session_state.logged_in:
                     
                     # زر تسجيل الغياب
                     if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
-                        # إذا كان هناك غائبين، نحتاج للتحقق من اختيار نوع الغياب
+                        # **هنا التعديل: لا نحتاج للتحقق إذا لم يكن هناك غائبين**
                         if selected:
                             if excuse and no_excuse:
                                 st.warning("⚠️ اختر نوع واحد فقط.")
-                                return
-                            elif not (excuse or no_excuse):
-                                st.warning("⚠️ من فضلك اختر نوع الغياب.")
-                                return
+                                st.stop()
+                            elif excuse:
+                                status_label = "غياب بعذر"
+                            elif no_excuse:
+                                status_label = "غياب بدون عذر"
                             else:
-                                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                                # إذا كان هناك غائبين ولم يتم اختيار نوع، نستخدم "غياب" كافتراضي
+                                status_label = "غياب"
                         else:
-                            # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية None
+                            # إذا لم يكن هناك غائبين، لا نحتاج إلى status_label
                             status_label = None
                         
                         # تسجيل الغياب
@@ -2077,6 +2079,9 @@ elif st.session_state.logged_in:
                                     
                                     if telegram_status == "✅ تم الإرسال بنجاح":
                                         st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
+                                
+                                # إعادة تعيين الحقول
+                                st.rerun()
                 else:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             
@@ -2316,6 +2321,7 @@ elif st.session_state.logged_in:
             
             all_records = get_all_records()
             if not all_records.empty:
+                # **إصلاح: نستخدم get_all_records بدلاً من read_sheet مباشرة**
                 # عرض جميع السجلات مباشرة
                 all_records_display = all_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
                 all_records_display = all_records_display.rename(columns={
@@ -2326,8 +2332,21 @@ elif st.session_state.logged_in:
                     "status_clean": "الحالة"
                 })
                 
+                # **إصلاح: نضيف ترقيم للسجلات**
+                all_records_display.insert(0, "الترتيب", range(1, len(all_records_display) + 1))
+                
                 st.dataframe(all_records_display, use_container_width=True, height=400)
                 st.info(f"**إجمالي عدد السجلات:** {len(all_records_display)} سجل")
+                
+                # زر تحميل البيانات
+                csv = all_records_display.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(
+                    label="📥 تحميل جميع السجلات (CSV)",
+                    data=csv,
+                    file_name=f"جميع_سجلات_الغياب_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
             else:
                 st.info("لا توجد سجلات غياب في النظام بعد.")
             

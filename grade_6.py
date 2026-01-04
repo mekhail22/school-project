@@ -527,7 +527,7 @@ def send_telegram_message(message):
     except requests.exceptions.RequestException:
         return False, {"exception": "Request failed"}
 
-def record_attendance(selected_absent, teacher_name, class_name, absent_label):
+def record_attendance(selected_absent, teacher_name, class_name, absent_label="غياب"):
     if not isinstance(selected_absent, (list, tuple)):
         selected_absent = [selected_absent] if selected_absent else []
     
@@ -593,17 +593,17 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     except Exception as e:
         failed.append((f"الفصل {class_name}", f"خطأ في الحفظ المحلي: {str(e)}"))
     
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+    if rows:  # فقط إذا كان هناك صفوف
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
+        # رسالة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
@@ -2004,57 +2004,73 @@ elif st.session_state.logged_in:
                         class_students,
                         label_visibility="collapsed"
                     )
+                    
+                    # **التعديل: نسأل عن نوع الغياب فقط إذا كان هناك غائبين**
+                    show_absence_type = False
+                    if selected:  # فقط إذا كان هناك طلاب غائبين
+                        show_absence_type = True
+                    
+                    if show_absence_type:
+                        st.markdown("### 📝 اختر نوع الغياب")
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            excuse = st.checkbox("غياب بعذر", key="excuse")
+                        with col_b:
+                            no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
 
-                    # اختيار نوع الغياب
-                    st.markdown("### 📝 اختر نوع الغياب")
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        excuse = st.checkbox("غياب بعذر", key="excuse")
-                    with col_b:
-                        no_excuse = st.checkbox("غياب بدون عذر", key="no_excuse")
-
-                    if excuse and no_excuse:
-                        st.warning("⚠️ اختر نوع واحد فقط.")
-
+                        if excuse and no_excuse:
+                            st.warning("⚠️ اختر نوع واحد فقط.")
+                    else:
+                        # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية
+                        excuse = False
+                        no_excuse = False
+                    
                     st.markdown("---")
                     
                     # زر تسجيل الغياب
                     if st.button("💾 حفظ وتسجيل الغياب", key="record_attendance", use_container_width=True):
-                        if excuse and no_excuse:
-                            st.warning("⚠️ اختر نوع واحد فقط.")
-                        elif not (excuse or no_excuse):
-                            st.warning("⚠️ من فضلك اختر نوع الغياب.")
-                        else:
-                            status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
-                            
-                            # تسجيل الغياب
-                            try:
-                                failed, telegram_status, telegram_details, success_count = record_attendance(
-                                    selected, teacher_name, selected_class, status_label
-                                )
-                            except Exception as e:
-                                st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                        if show_absence_type:  # إذا كان هناك غائبين، نحتاج للتحقق
+                            if excuse and no_excuse:
+                                st.warning("⚠️ اختر نوع واحد فقط.")
+                                return
+                            elif not (excuse or no_excuse):
+                                st.warning("⚠️ من فضلك اختر نوع الغياب.")
+                                return
                             else:
-                                if success_count > 0:
-                                    st.success(f"✅ تم تسجيل الغياب بنجاح")
+                                status_label = "غياب بعذر" if excuse else "غياب بدون عذر"
+                        else:
+                            # إذا لم يكن هناك غائبين، نستخدم القيمة الافتراضية
+                            status_label = "غياب"  # قيمة افتراضية
+                        
+                        # تسجيل الغياب
+                        try:
+                            failed, telegram_status, telegram_details, success_count = record_attendance(
+                                selected, teacher_name, selected_class, status_label
+                            )
+                        except Exception as e:
+                            st.error(f"❌ حدث خطأ أثناء تسجيل الغياب: {str(e)}")
+                        else:
+                            if success_count > 0:
+                                st.success(f"✅ تم تسجيل الغياب بنجاح")
+                                
+                                # عرض ملخص
+                                with st.expander("📊 ملخص التسجيل", expanded=True):
+                                    st.markdown(f"""
+                                    **تفاصيل التسجيل:**
+                                    - **المعلم:** {teacher_name}
+                                    - **الفصل:** {selected_class}
+                                    - **عدد الطلاب الكلي:** {len(class_students)}
+                                    - **عدد الغائبين:** {len(selected)}
+                                    - **عدد الحاضرين:** {len(class_students) - len(selected)}
+                                    {f'- **نوع الغياب:** {status_label}' if selected else ''}
+                                    - **التاريخ:** {datetime.now().strftime("%d / %m / %Y")}
                                     
-                                    # عرض ملخص
-                                    with st.expander("📊 ملخص التسجيل", expanded=True):
-                                        st.markdown(f"""
-                                        **تفاصيل التسجيل:**
-                                        - **المعلم:** {teacher_name}
-                                        - **عدد الطلاب الكلي:** {len(class_students)}
-                                        - **عدد الغائبين:** {len(selected)}
-                                        - **عدد الحاضرين:** {len(class_students) - len(selected)}
-                                        - **نوع الغياب:** {status_label}
-                                        - **التاريخ:** {datetime.now().strftime("%d / %m / %Y")}
-                                        
-                                        **الطلاب الغائبون:**
-                                        {', '.join(selected) if selected else "لا أحد"}
-                                        """)
-                                        
-                                        if telegram_status == "✅ تم الإرسال بنجاح":
-                                            st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
+                                    **الطلاب الغائبون:**
+                                    {', '.join(selected) if selected else "لا أحد"}
+                                    """)
+                                    
+                                    if telegram_status == "✅ تم الإرسال بنجاح":
+                                        st.info("📱 تم إرسال إشعار بالغياب إلى التلغرام")
                 else:
                     st.error(f"❌ لا يوجد طلاب مسجلين في {selected_class}")
             
@@ -2921,4 +2937,3 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
-

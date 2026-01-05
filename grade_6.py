@@ -280,10 +280,10 @@ if "disable_connection_alerts" not in st.session_state:
 
 # Helper functions
 def read_sheet():
-    """قراءة البيانات من Google Sheets أو من نسخة محلية مؤقتة"""
+    """قراءة البيانات من Google Sheets"""
     global worksheet
     
-    # 1. أولاً: حاول القراءة من Google Sheets
+    # محاولة القراءة من Google Sheets
     if worksheet is not None:
         try:
             data = worksheet.get_all_records()
@@ -299,21 +299,9 @@ def read_sheet():
             
         except Exception as e:
             logger.error(f"❌ خطأ في قراءة Google Sheets: {str(e)}")
-    
-    # 2. إذا فشل الاتصال: استخدم نسخة محلية من البيانات المخزنة في session_state
-    try:
-        # التحقق من وجود بيانات في session_state
-        if "local_attendance_data" in st.session_state:
-            df = pd.DataFrame(st.session_state["local_attendance_data"])
-            logger.info(f"📱 تم تحميل {len(df)} سجل من الذاكرة المحلية")
-            return df
-        else:
-            # إذا لم توجد بيانات محلية، أنشئ DataFrame فارغ
-            logger.info("📭 لا توجد بيانات في الذاكرة المحلية")
             return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-            
-    except Exception as e:
-        logger.error(f"❌ خطأ في قراءة الذاكرة المحلية: {str(e)}")
+    else:
+        logger.error("❌ لا يوجد اتصال بـ Google Sheets")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
 
 def normalize_date_for_display(src_date_str):
@@ -482,7 +470,7 @@ def get_class_attendance_history(class_name):
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
-        elif "حاضر" in status_str:  # تم التصحيح هنا: تغيير "في" إلى "in"
+        elif "حاضر" in status_str:
             return "حاضر"
         return status_str
     
@@ -545,7 +533,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label=No
             # إذا كان الطالب في قائمة الغائبين وهناك نوع غياب محدد
             status = absent_label
         elif student in selected_absent:
-            # إذا كان الطالب في قائمة الغائبين ولكن لم يتم تحديد نوع الغياب (الحالة الجديدة)
+            # إذا كان الطالب في قائمة الغائبين ولكن لم يتم تحديد نوع الغياب
             status = "غياب"
         else:
             # إذا لم يكن في القائمة، فهو حاضر
@@ -559,7 +547,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label=No
     success_count = 0
     
     # حفظ في Google Sheets إذا كان متصلاً
-    if worksheet and rows:  # فقط إذا كان هناك صفوف للحفظ
+    if worksheet and rows:
         try:
             worksheet.append_rows(rows, value_input_option="USER_ENTERED")
             success_count = len(rows)
@@ -572,42 +560,17 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label=No
             except Exception as ex:
                 failed.append((f"الفصل {class_name}", str(ex)))
     
-    # حفظ البيانات محليًا في session_state دائمًا
-    try:
-        # إنشاء أو تحديث البيانات المحلية
-        if "local_attendance_data" not in st.session_state:
-            st.session_state["local_attendance_data"] = []
-        
-        # إضافة الصفوف الجديدة إلى البيانات المحلية
-        for row in rows:
-            st.session_state["local_attendance_data"].append({
-                "student": row[0],
-                "teacher": row[1],
-                "class": row[2],
-                "status": row[3],
-                "date": row[4]
-            })
-        
-        logger.info(f"💾 تم حفظ {len(rows)} سجل في الذاكرة المحلية")
-        
-        # إذا لم يكن هناك اتصال بـ Google Sheets، نستخدم العدد المحلي
-        if worksheet is None or len(failed) > 0:
-            success_count = len(rows)
-            
-    except Exception as e:
-        failed.append((f"الفصل {class_name}", f"خطأ في الحفظ المحلي: {str(e)}"))
-    
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+    if rows:
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
+        # رسالة معدلة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}"
         
         if selected_absent:
@@ -678,13 +641,15 @@ def get_student_records(student_name):
     # تطبيق إصلاح البيانات
     df_matches = df_matches.apply(fix_mixed_data, axis=1)
     
-    # تنظيف الحالة - جعل "غياب بعذر" تظهر كـ "غياب"
+    # تنظيف الحالة
     def clean_status(status):
         if pd.isna(status):
             return ""
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
+        elif "حاضر" in status_str:
+            return "حاضر"
         return status_str
     
     df_matches["status_clean"] = df_matches["status"].apply(clean_status)
@@ -732,7 +697,7 @@ def get_all_records():
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
-        elif "حاضر" in status_str:  # تم التصحيح هنا: تغيير "في" إلى "in"
+        elif "حاضر" in status_str:
             return "حاضر"
         return status_str
     
@@ -2234,7 +2199,16 @@ elif st.session_state.logged_in:
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
-            
+            # زر تحميل التقرير كملف CSV
+            st.markdown("---")
+            csv = df_student.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 تحميل تقرير الغياب (CSV)",
+                data=csv,
+                file_name=f"تقرير_الغياب_{student_name}_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
         
         # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
         st.markdown("---")

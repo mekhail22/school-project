@@ -482,7 +482,7 @@ def get_class_attendance_history(class_name):
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
-        elif "حاضر" في status_str:
+        elif "حاضر" in status_str:  # تم التصحيح هنا: تغيير "في" إلى "in"
             return "حاضر"
         return status_str
     
@@ -732,6 +732,8 @@ def get_all_records():
         status_str = str(status).strip()
         if "غياب" in status_str:
             return "غياب"
+        elif "حاضر" in status_str:  # تم التصحيح هنا: تغيير "في" إلى "in"
+            return "حاضر"
         return status_str
     
     if "status" in df.columns:

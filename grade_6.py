@@ -593,17 +593,16 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     except Exception as e:
         failed.append((f"الفصل {class_name}", f"خطأ في الحفظ المحلي: {str(e)}"))
     
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+    if rows:
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
@@ -683,7 +682,7 @@ def get_student_records(student_name):
     df_matches["status_clean"] = df_matches["status"].apply(clean_status)
     df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
-    # إعادة ترتيب الصفوق
+    # إعادة ترتيب الصفوف
     if not df_matches.empty and 'date' in df_matches.columns:
         try:
             df_matches = df_matches.sort_values("date", ascending=False)
@@ -704,7 +703,7 @@ def get_student_records(student_name):
     
     return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
 
-# 🆕 **وظائف خاصة بمدير النظام**
+# وظائف خاصة بمدير النظام
 def get_all_records():
     """الحصول على جميع سجلات الغياب"""
     df = read_sheet()
@@ -1881,7 +1880,7 @@ elif st.session_state.logged_in:
         
         st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
         
-        # 🆕 **الزرارين الجديدين للمعلم في الصفحة الرئيسية**
+        # الأزرار الجديدة للمعلم في الصفحة الرئيسية
         if st.session_state.user_role == "teacher":
             # رسالة ترحيب
             welcome_html = f"""
@@ -2122,12 +2121,12 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-                # 🆕 **عرض جميع السجلات للفصل**
+                # عرض جميع السجلات للفصل
                 st.markdown("---")
                 st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
                 
                 if not history_df.empty:
-                    # عرض كل السجلال مع دعم التمرير
+                    # عرض كل السجلات مع دعم التمرير
                     all_history = history_df.copy()
                     all_history = all_history.rename(columns={
                         "student": "الطالب",
@@ -2136,15 +2135,15 @@ elif st.session_state.logged_in:
                         "status_clean": "الحالة"
                     })
                     
-                    # 🔧 **إصلاح: عرض كل السجلات بدون تحديد عدد**
+                    # عرض كل السجلات بدون تحديد عدد
                     st.dataframe(all_history, use_container_width=True, height=400)
                     
                     # إظهار عدد السجلات الفعلي
                     st.info(f"**عدد السجلات المعروضة:** {len(all_history)} سجل")
                 else:
-                    st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
+                    st.info("لا توجد سجلات حضور لهذا الفصل بعد.")
         
-        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
+        # زر العودة للصفحة الرئيسية في الأسفل فقط
         st.markdown("---")
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
@@ -2198,10 +2197,8 @@ elif st.session_state.logged_in:
             # عرض الجدول
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
-            
-            
         
-        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
+        # زر العودة للصفحة الرئيسية في الأسفل
         st.markdown("---")
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
@@ -2209,7 +2206,7 @@ elif st.session_state.logged_in:
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # 🆕 صفحة مدير النظام
+    # صفحة مدير النظام
     elif st.session_state.user_role == "admin" and st.session_state.page == "admin_dashboard":
         st.markdown('<div class="admin-page">', unsafe_allow_html=True)
         
@@ -2306,7 +2303,7 @@ elif st.session_state.logged_in:
                 
                 st.dataframe(recent_records_display, use_container_width=True, hide_index=True)
                 
-                if st.button("📋 عرض كل السجلال", key="view_all_records"):
+                if st.button("📋 عرض كل السجلات", key="view_all_records"):
                     st.markdown("### 📋 جميع سجلات الغياب")
                     all_records_display = all_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
                     all_records_display = all_records_display.rename(columns={

@@ -1202,37 +1202,68 @@ st.markdown("""
         color: white !important;
     }
     
-    /* قسم بيانات المستخدمين البسيط في الأسفل */
+    /* قسم بيانات المستخدمين - بألوان أوضح */
     .users-info {
         margin-top: 40px;
-        padding: 20px;
-        background: #f8fafc;
-        border-radius: 12px;
-        border: 2px solid #e2e8f0;
+        padding: 25px;
+        background: #e6f3ff;
+        border-radius: 15px;
+        border: 3px solid #3b82f6;
         text-align: right;
         direction: rtl;
+        box-shadow: 0 5px 15px rgba(59, 130, 246, 0.2);
     }
     .users-info h4 {
         color: #1e40af;
-        font-size: 18px;
-        margin-bottom: 15px;
-        font-weight: 600;
-        border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 8px;
+        font-size: 20px;
+        margin-bottom: 20px;
+        font-weight: 700;
+        border-bottom: 3px solid #3b82f6;
+        padding-bottom: 10px;
+        text-align: center;
     }
     .users-list {
-        color: #475569;
-        font-size: 14px;
-        line-height: 1.8;
+        color: #1e293b;
+        font-size: 15px;
+        line-height: 2;
+    }
+    .users-list p {
+        margin: 12px 0;
+        padding: 8px;
+        background: white;
+        border-radius: 8px;
+        border-right: 5px solid #3b82f6;
     }
     .users-list span {
         color: #1e40af;
-        font-weight: 600;
-        margin-left: 5px;
+        font-weight: 700;
+        font-size: 16px;
+        margin-left: 8px;
+        background: #dbeafe;
+        padding: 3px 10px;
+        border-radius: 20px;
     }
-    .users-list small {
-        color: #94a3b8;
-        font-size: 12px;
+    .users-list .password {
+        color: #059669;
+        font-weight: 700;
+        background: #d1fae5;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-family: monospace;
+        font-size: 14px;
+    }
+    .users-list .example {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 8px;
+        border-radius: 8px;
+        margin-top: 15px;
+        font-size: 14px;
+        border: 1px solid #fbbf24;
+    }
+    .users-list .example span {
+        background: #fde68a;
+        color: #78350f;
     }
     
     /* باقي التنسيقات */
@@ -1860,18 +1891,27 @@ if st.session_state.page == "login":
         # زر تسجيل الدخول
         login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
         
-        # قسم بسيط يعرض المستخدمين وكلمات المرور في الأسفل
+        # قسم واضح يعرض المستخدمين وكلمات المرور مع أمثلة كاملة
         st.markdown("""
         <div class="users-info">
-            <h4>📋 بيانات الدخول المتاحة:</h4>
+            <h4>📋 بيانات الدخول المتاحة (اختر واحدة)</h4>
             <div class="users-list">
-                <p><span>👑 المدير:</span> admin | <small>admin1234</small></p>
-                <p><span>👨‍🏫 المعلمين:</span> مينا سمير | <small>mina1234</small>  •  فادي حبيب | <small>fady5678</small></p>
-                <p><span>👨‍🎓 طلاب Class B:</span> b1001 إلى b1010</p>
-                <p><span>👨‍🎓 طلاب Class C:</span> c1001 إلى c1010</p>
-                <p><span>👨‍🎓 طلاب Class D:</span> d1001 إلى d1010</p>
-                <p><span>👨‍🎓 طلاب Class E:</span> e1001 إلى e1010</p>
-                <p><small>💡 اسم المستخدم = اسم الطالب الكامل (مثال: محمد علي محمد)</small></p>
+                <p><span>👑 المدير</span> <strong>admin</strong> | <span class="password">admin1234</span></p>
+                
+                <p><span>👨‍🏫 مينا سمير</span> <strong>مينا سمير</strong> | <span class="password">mina1234</span> (Class B, C)</p>
+                <p><span>👨‍🏫 فادي حبيب</span> <strong>فادي حبيب</strong> | <span class="password">fady5678</span> (Class D, E)</p>
+                
+                <p><span>👨‍🎓 Class B</span> <strong>محمد علي محمد</strong> | <span class="password">b1001</span></p>
+                <p><span>👨‍🎓 Class C</span> <strong>أحمد محمد أحمد</strong> | <span class="password">c1001</span></p>
+                <p><span>👨‍🎓 Class D</span> <strong>فؤاد محمد فؤاد</strong> | <span class="password">d1001</span></p>
+                <p><span>👨‍🎓 Class E</span> <strong>نبيل محمد نبيل</strong> | <span class="password">e1001</span></p>
+                
+                <div class="example">
+                    <span>💡 مثال</span> اسم المستخدم: <strong>محمد علي محمد</strong> | كلمة المرور: <strong>b1001</strong>
+                </div>
+                <div class="example">
+                    <span>📌 ملاحظة</span> جميع الطلاب في نفس الفصل لهم نفس النمط (b1001-b1010, c1001-c1010, ...)
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)

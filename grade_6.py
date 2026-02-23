@@ -1202,11 +1202,11 @@ st.markdown("""
         color: white !important;
     }
     
-    /* قسم بيانات المستخدمين - بشكل منظم */
+    /* قسم بيانات المستخدمين - بنفس التنسيق الذي طلبته */
     .users-info {
         margin-top: 40px;
         padding: 20px;
-        background: #f0f7ff;
+        background: #f8fafc;
         border-radius: 15px;
         border: 2px solid #3b82f6;
         text-align: right;
@@ -1907,7 +1907,7 @@ if st.session_state.page == "login":
         # زر تسجيل الدخول
         login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
         
-        # قسم بيانات المستخدمين - منظم وخالي من الأخطاء
+        # قسم بيانات المستخدمين - بالشكل الذي طلبته بالضبط
         st.markdown("""
         <div class="users-info">
             <h4>📋 بيانات الدخول المتاحة</h4>
@@ -1997,7 +1997,7 @@ if st.session_state.page == "login":
                     st.error("❌ اسم المستخدم غير موجود")
             else:
                 st.error("❌ من فضلك أدخل اسم المستخدم وكلمة المرور")
-        
+
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
     show_toolbar()

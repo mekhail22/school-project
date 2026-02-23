@@ -593,17 +593,16 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     except Exception as e:
         failed.append((f"الفصل {class_name}", f"خطأ في الحفظ المحلي: {str(e)}"))
     
-    # رسالة تلغرام بدون جملة "تم حفظ X سجل بنجاح"
+    # رسالة تلغرام
     telegram_status = "لم يتم الإرسال"
     telegram_details = ""
     
-    if rows:  # فقط إذا كان هناك صفوف (وهذا يعني دائماً يوجد صفوف لأننا نسجل جميع الطلاب)
+    if rows:
         absent_students = ", ".join(selected_absent) if selected_absent else "لا أحد"
         
         # حساب عدد الحاضرين
         present_count = len(class_students) - len(selected_absent)
         
-        # رسالة معدلة بدون ذكر عدد السجلات المحفوظة
         message = f"📋 تسجيل الغياب\n📅 التاريخ: {date_display}\n👨‍🏫 المعلم: {teacher_name}\n🏫 الفصل: {class_name}\n❌ عدد الغائبين: {len(selected_absent)}\n✅ عدد الحاضرين: {present_count}\n👥 الطلاب الغائبون: {absent_students}"
         
         if BOT_TOKEN and CHAT_ID:
@@ -683,7 +682,7 @@ def get_student_records(student_name):
     df_matches["status_clean"] = df_matches["status"].apply(clean_status)
     df_matches["date_clean"] = df_matches["date"].apply(lambda x: normalize_date_for_display(x) if pd.notna(x) else "")
     
-    # إعادة ترتيب الصفوق
+    # إعادة ترتيب الصفوف
     if not df_matches.empty and 'date' in df_matches.columns:
         try:
             df_matches = df_matches.sort_values("date", ascending=False)
@@ -704,7 +703,7 @@ def get_student_records(student_name):
     
     return df_matches[["المرة", "الطالب", "المعلم", "الفصل", "التاريخ", "الحالة"]]
 
-# 🆕 **وظائف خاصة بمدير النظام**
+# وظائف خاصة بمدير النظام
 def get_all_records():
     """الحصول على جميع سجلات الغياب"""
     df = read_sheet()
@@ -1202,6 +1201,88 @@ st.markdown("""
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
         color: white !important;
     }
+    
+    /* قسم بيانات المستخدمين - بشكل منظم */
+    .users-info {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f0f7ff;
+        border-radius: 15px;
+        border: 2px solid #3b82f6;
+        text-align: right;
+        direction: rtl;
+    }
+    .users-info h4 {
+        color: #1e40af;
+        font-size: 18px;
+        margin-bottom: 15px;
+        font-weight: 700;
+        text-align: center;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 8px;
+    }
+    .user-row {
+        background: white;
+        margin: 8px 0;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border-right: 4px solid #3b82f6;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .user-role {
+        font-weight: 700;
+        color: #1e40af;
+        min-width: 90px;
+        font-size: 14px;
+    }
+    .user-name {
+        font-weight: 600;
+        color: #1e293b;
+        flex: 1;
+        text-align: right;
+    }
+    .user-password {
+        background: #d1fae5;
+        color: #059669;
+        font-weight: 700;
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-family: monospace;
+        font-size: 14px;
+        min-width: 70px;
+        text-align: center;
+    }
+    .user-class {
+        color: #64748b;
+        font-size: 13px;
+        background: #f1f5f9;
+        padding: 2px 8px;
+        border-radius: 12px;
+    }
+    .example-box {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 15px;
+        font-size: 14px;
+        text-align: right;
+    }
+    .example-box span {
+        background: #fde68a;
+        color: #78350f;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 20px;
+        margin-left: 8px;
+        display: inline-block;
+    }
+    
+    /* باقي التنسيقات */
     .user-type-badge {
         display: inline-block;
         padding: 6px 15px;
@@ -1339,21 +1420,8 @@ st.markdown("""
         font-weight: 700 !important;
         font-size: 28px !important;
     }
-    /* تحسين أزرار الغياب */
-    .attendance-checkbox {
-        background: white !important;
-        border: 3px solid #3b82f6 !important;
-        border-radius: 10px !important;
-        padding: 15px !important;
-        margin: 10px 0 !important;
-    }
-    .attendance-checkbox label {
-        color: #1e293b !important;
-        font-weight: 600 !important;
-        font-size: 18px !important;
-    }
     
-    /* ===== التعديلات لجعل نص الأزرار أبيض ===== */
+    /* التعديلات لجعل نص الأزرار أبيض */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
@@ -1839,6 +1907,65 @@ if st.session_state.page == "login":
         # زر تسجيل الدخول
         login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
         
+        # قسم بيانات المستخدمين - منظم وخالي من الأخطاء
+        st.markdown("""
+        <div class="users-info">
+            <h4>📋 بيانات الدخول المتاحة</h4>
+            
+            <div class="user-row">
+                <span class="user-role">👑 المدير</span>
+                <span class="user-name">admin</span>
+                <span class="user-password">admin1234</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🏫 مينا سمير</span>
+                <span class="user-name">مينا سمير</span>
+                <span class="user-password">mina1234</span>
+                <span class="user-class">(Class B, C)</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🏫 فادي حبيب</span>
+                <span class="user-name">فادي حبيب</span>
+                <span class="user-password">fady5678</span>
+                <span class="user-class">(Class D, E)</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🎓 Class B</span>
+                <span class="user-name">محمد علي محمد</span>
+                <span class="user-password">b1001</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🎓 Class C</span>
+                <span class="user-name">أحمد محمد أحمد</span>
+                <span class="user-password">c1001</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🎓 Class D</span>
+                <span class="user-name">فؤاد محمد فؤاد</span>
+                <span class="user-password">d1001</span>
+            </div>
+            
+            <div class="user-row">
+                <span class="user-role">👨‍🎓 Class E</span>
+                <span class="user-name">نبيل محمد نبيل</span>
+                <span class="user-password">e1001</span>
+            </div>
+            
+            <div class="example-box">
+                <span>💡 مثال</span> اسم المستخدم: <strong>محمد علي محمد</strong> | كلمة المرور: <strong>b1001</strong>
+            </div>
+            
+            <div class="example-box">
+                <span>📌 ملاحظة</span> جميع الطلاب في نفس الفصل لهم نفس النمط (b1001-b1010, c1001-c1010, d1001-d1010, e1001-e1010)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         # معالجة تسجيل الدخول
         if login_button:
             if username and password:
@@ -1881,9 +2008,7 @@ elif st.session_state.logged_in:
         
         st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
         
-        # 🆕 **الزرارين الجديدين للمعلم في الصفحة الرئيسية**
         if st.session_state.user_role == "teacher":
-            # رسالة ترحيب
             welcome_html = f"""
             <div class="welcome-message">
                 <div class="welcome-text">مرحباً بك 👨‍🏫 {st.session_state.user_name}</div>
@@ -1892,7 +2017,6 @@ elif st.session_state.logged_in:
             """
             st.markdown(welcome_html, unsafe_allow_html=True)
             
-            # أزرار المهام الرئيسية
             st.markdown("### 📋 اختر المهمة:")
             col1, col2 = st.columns(2)
             
@@ -1913,7 +2037,6 @@ elif st.session_state.logged_in:
             st.markdown("---")
         
         elif st.session_state.user_role == "student":
-            # رسالة ترحيب للطالب
             welcome_html = f"""
             <div class="welcome-message">
                 <div class="welcome-text">مرحباً بك 👨‍🎓 {st.session_state.user_name}</div>
@@ -2122,12 +2245,12 @@ elif st.session_state.logged_in:
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
-                # 🆕 **عرض جميع السجلات للفصل**
+                # عرض جميع السجلات للفصل
                 st.markdown("---")
                 st.markdown(f"### 📅 سجل الحضور للفصل {selected_class}")
                 
                 if not history_df.empty:
-                    # عرض كل السجلال مع دعم التمرير
+                    # عرض كل السجلات مع دعم التمرير
                     all_history = history_df.copy()
                     all_history = all_history.rename(columns={
                         "student": "الطالب",
@@ -2136,15 +2259,15 @@ elif st.session_state.logged_in:
                         "status_clean": "الحالة"
                     })
                     
-                    # 🔧 **إصلاح: عرض كل السجلات بدون تحديد عدد**
+                    # عرض كل السجلات بدون تحديد عدد
                     st.dataframe(all_history, use_container_width=True, height=400)
                     
                     # إظهار عدد السجلات الفعلي
                     st.info(f"**عدد السجلات المعروضة:** {len(all_history)} سجل")
                 else:
-                    st.info("لا توجد سجلات حضرور لهذا الفصل بعد.")
+                    st.info("لا توجد سجلات حضور لهذا الفصل بعد.")
         
-        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل فقط**
+        # زر العودة للصفحة الرئيسية في الأسفل فقط
         st.markdown("---")
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
@@ -2198,10 +2321,8 @@ elif st.session_state.logged_in:
             # عرض الجدول
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
-            
-            
         
-        # 🆕 **زر العودة للصفحة الرئيسية في الأسفل**
+        # زر العودة للصفحة الرئيسية في الأسفل
         st.markdown("---")
         if st.button("🏠 العودة للصفحة الرئيسية", key="back_to_home_from_student_bottom", use_container_width=True, type="secondary"):
             st.session_state.page = "home"
@@ -2209,7 +2330,7 @@ elif st.session_state.logged_in:
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # 🆕 صفحة مدير النظام
+    # صفحة مدير النظام
     elif st.session_state.user_role == "admin" and st.session_state.page == "admin_dashboard":
         st.markdown('<div class="admin-page">', unsafe_allow_html=True)
         
@@ -2306,7 +2427,7 @@ elif st.session_state.logged_in:
                 
                 st.dataframe(recent_records_display, use_container_width=True, hide_index=True)
                 
-                if st.button("📋 عرض كل السجلال", key="view_all_records"):
+                if st.button("📋 عرض كل السجلات", key="view_all_records"):
                     st.markdown("### 📋 جميع سجلات الغياب")
                     all_records_display = all_records[["student", "teacher", "class", "date_clean", "status_clean"]].copy()
                     all_records_display = all_records_display.rename(columns={
@@ -2920,4 +3041,4 @@ elif st.session_state.logged_in:
 # إذا حاول الوصول مباشرة بدون تسجيل دخول
 else:
     st.session_state.page = "login"
-    st.rerun() 
+    st.rerun()

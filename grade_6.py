@@ -1137,94 +1137,19 @@ st.markdown("""
     }
     .content-padding { height: 90px; }
     .login-container {
-        max-width: 1200px;
+        max-width: 500px;
         margin: 60px auto;
-        padding: 20px;
+        padding: 40px;
         background: white;
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    .login-header {
         text-align: center;
-        margin-bottom: 30px;
     }
     .login-title {
         color: #1e40af;
         font-size: 32px;
-        margin-bottom: 10px;
+        margin-bottom: 30px;
         font-weight: 700;
-    }
-    .login-subtitle {
-        color: #64748b;
-        font-size: 16px;
-    }
-    .login-section {
-        background: #f8fafc;
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 20px;
-        border: 2px solid #e2e8f0;
-    }
-    .login-section h3 {
-        color: #1e40af;
-        margin-bottom: 15px;
-        font-size: 20px;
-        border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 10px;
-    }
-    .login-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Cairo', sans-serif;
-    }
-    .login-table th {
-        background: #1e40af;
-        color: white;
-        padding: 10px;
-        text-align: center;
-        font-size: 14px;
-    }
-    .login-table td {
-        padding: 8px;
-        border: 1px solid #e2e8f0;
-        text-align: center;
-        font-size: 13px;
-    }
-    .login-table tr:nth-child(even) {
-        background: #f1f5f9;
-    }
-    .badge-admin {
-        background: #8b5cf6;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .badge-teacher {
-        background: #10b981;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .badge-student {
-        background: #3b82f6;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .login-input-container {
-        max-width: 500px;
-        margin: 0 auto;
-        padding: 20px;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        border: 2px solid #e2e8f0;
     }
     .input-label {
         display: block;
@@ -1236,11 +1161,11 @@ st.markdown("""
     }
     .login-input {
         width: 100%;
-        padding: 15px;
+        padding: 18px;
         margin: 5px 0 15px 0;
         border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 16px;
+        border-radius: 12px;
+        font-size: 18px;
         font-family: 'Cairo', sans-serif;
         text-align: right;
         transition: all 0.3s ease;
@@ -1252,24 +1177,65 @@ st.markdown("""
         border-color: #3b82f6;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
     }
+    .login-input::placeholder {
+        color: #94a3b8;
+        font-size: 16px;
+    }
     .login-button {
         width: 100%;
-        padding: 15px;
+        padding: 18px;
         background: linear-gradient(135deg, #1e40af, #2563eb);
         color: white !important;
         border: none;
-        border-radius: 10px;
-        font-size: 18px;
+        border-radius: 12px;
+        font-size: 20px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
-        margin-top: 20px;
+        margin-top: 25px;
         font-family: 'Cairo', sans-serif;
     }
     .login-button:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white !important;
     }
+    
+    /* قسم بيانات المستخدمين البسيط في الأسفل */
+    .users-info {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        text-align: right;
+        direction: rtl;
+    }
+    .users-info h4 {
+        color: #1e40af;
+        font-size: 18px;
+        margin-bottom: 15px;
+        font-weight: 600;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 8px;
+    }
+    .users-list {
+        color: #475569;
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    .users-list span {
+        color: #1e40af;
+        font-weight: 600;
+        margin-left: 5px;
+    }
+    .users-list small {
+        color: #94a3b8;
+        font-size: 12px;
+    }
+    
+    /* باقي التنسيقات */
     .user-type-badge {
         display: inline-block;
         padding: 6px 15px;
@@ -1408,7 +1374,7 @@ st.markdown("""
         font-size: 28px !important;
     }
     
-    /* ===== التعديلات لجعل نص الأزرار أبيض ===== */
+    /* التعديلات لجعل نص الأزرار أبيض */
     .stButton > button {
         width: 100% !important;
         height: auto !important;
@@ -1867,200 +1833,80 @@ if st.session_state.page == "login":
     # إخفاء الـ toolbar في صفحة تسجيل الدخول
     st.markdown('<div class="content-padding"></div>', unsafe_allow_html=True)
     
-    # تصميم صفحة تسجيل الدخول مع عرض جميع المستخدمين
+    # تصميم صفحة تسجيل الدخول (نفس التصميم القديم)
     st.markdown("""
     <div class="login-container">
-        <div class="login-header">
-            <div class="login-title">🚪 تسجيل الدخول</div>
-            <div class="login-subtitle">نظام إدارة الغياب المدرسي</div>
-        </div>
+        <div class="login-title">🚪 تسجيل الدخول</div>
+    </div>
     """, unsafe_allow_html=True)
     
-    # عرض جدول المستخدمين وكلمات المرور
-    col1, col2 = st.columns(2)
-    
-    with col1:
+    # حاوية الإدخالات
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown('<div style="height: 20px"></div>', unsafe_allow_html=True)
+        
+        # حقل إدخال اسم المستخدم
+        st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
+        username = st.text_input("اسم المستخدم", 
+                                placeholder="أدخل اسمك",
+                                label_visibility="collapsed")
+        
+        # حقل إدخال كلمة السر
+        st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
+        password = st.text_input("كلمة المرور", type="password", 
+                                placeholder="أدخل كلمة المرور الخاصة بك",
+                                label_visibility="collapsed")
+        
+        # زر تسجيل الدخول
+        login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
+        
+        # قسم بسيط يعرض المستخدمين وكلمات المرور في الأسفل
         st.markdown("""
-        <div class="login-section">
-            <h3>👑 المدير</h3>
-            <table class="login-table">
-                <tr>
-                    <th>الاسم</th>
-                    <th>كلمة المرور</th>
-                    <th>الدور</th>
-                </tr>
-                <tr>
-                    <td>admin</td>
-                    <td><strong>admin1234</strong></td>
-                    <td><span class="badge-admin">مدير النظام</span></td>
-                </tr>
-            </table>
+        <div class="users-info">
+            <h4>📋 بيانات الدخول المتاحة:</h4>
+            <div class="users-list">
+                <p><span>👑 المدير:</span> admin | <small>admin1234</small></p>
+                <p><span>👨‍🏫 المعلمين:</span> مينا سمير | <small>mina1234</small>  •  فادي حبيب | <small>fady5678</small></p>
+                <p><span>👨‍🎓 طلاب Class B:</span> b1001 إلى b1010</p>
+                <p><span>👨‍🎓 طلاب Class C:</span> c1001 إلى c1010</p>
+                <p><span>👨‍🎓 طلاب Class D:</span> d1001 إلى d1010</p>
+                <p><span>👨‍🎓 طلاب Class E:</span> e1001 إلى e1010</p>
+                <p><small>💡 اسم المستخدم = اسم الطالب الكامل (مثال: محمد علي محمد)</small></p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("""
-        <div class="login-section">
-            <h3>👨‍🏫 المعلمين</h3>
-            <table class="login-table">
-                <tr>
-                    <th>الاسم</th>
-                    <th>كلمة المرور</th>
-                    <th>الفصول</th>
-                </tr>
-                <tr>
-                    <td>مينا سمير</td>
-                    <td><strong>mina1234</strong></td>
-                    <td>Class B, Class C</td>
-                </tr>
-                <tr>
-                    <td>فادي حبيب</td>
-                    <td><strong>fady5678</strong></td>
-                    <td>Class D, Class E</td>
-                </tr>
-            </table>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="login-section">
-            <h3>👨‍🎓 طلاب Class B</h3>
-            <table class="login-table">
-                <tr>
-                    <th>الاسم</th>
-                    <th>كلمة المرور</th>
-                </tr>
-                <tr><td>محمد علي محمد</td><td><strong>b1001</strong></td></tr>
-                <tr><td>حسن أحمد حسن</td><td><strong>b1002</strong></td></tr>
-                <tr><td>محمود حسين محمود</td><td><strong>b1003</strong></td></tr>
-                <tr><td>كريم سعيد كريم</td><td><strong>b1004</strong></td></tr>
-                <tr><td>أمين خالد أمين</td><td><strong>b1005</strong></td></tr>
-                <tr><td>ياسين رفعت ياسين</td><td><strong>b1006</strong></td></tr>
-                <tr><td>عمر وليد عمر</td><td><strong>b1007</strong></td></tr>
-                <tr><td>سعيد حامد سعيد</td><td><strong>b1008</strong></td></tr>
-                <tr><td>نبيل جمال نبيل</td><td><strong>b1009</strong></td></tr>
-                <tr><td>جمال هشام جمال</td><td><strong>b1010</strong></td></tr>
-            </table>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # صف جديد للفصول الأخرى
-    st.markdown("""
-    <div class="login-section">
-        <h3>👨‍🎓 طلاب Class C</h3>
-        <table class="login-table">
-            <tr>
-                <th>الاسم</th>
-                <th>كلمة المرور</th>
-            </tr>
-            <tr><td>أحمد محمد أحمد</td><td><strong>c1001</strong></td></tr>
-            <tr><td>محمود سعيد حسين</td><td><strong>c1002</strong></td></tr>
-            <tr><td>علي كمال علي</td><td><strong>c1003</strong></td></tr>
-            <tr><td>يوسف خالد يوسف</td><td><strong>c1004</strong></td></tr>
-            <tr><td>خالد أمين خالد</td><td><strong>c1005</strong></td></tr>
-            <tr><td>سامي رفعت سامي</td><td><strong>c1006</strong></td></tr>
-            <tr><td>طارق وليد طارق</td><td><strong>c1007</strong></td></tr>
-            <tr><td>مصطفى حامد مصطفى</td><td><strong>c1008</strong></td></tr>
-            <tr><td>هشام نبيل هشام</td><td><strong>c1009</strong></td></tr>
-            <tr><td>وليد جمال وليد</td><td><strong>c1010</strong></td></tr>
-        </table>
-    </div>
-    
-    <div class="login-section">
-        <h3>👨‍🎓 طلاب Class D</h3>
-        <table class="login-table">
-            <tr>
-                <th>الاسم</th>
-                <th>كلمة المرور</th>
-            </tr>
-            <tr><td>فؤاد محمد فؤاد</td><td><strong>d1001</strong></td></tr>
-            <tr><td>رشاد أحمد رشاد</td><td><strong>d1002</strong></td></tr>
-            <tr><td>صابر حسين صابر</td><td><strong>d1003</strong></td></tr>
-            <tr><td>عادل سعيد عادل</td><td><strong>d1004</strong></td></tr>
-            <tr><td>فكري خالد فكري</td><td><strong>d1005</strong></td></tr>
-            <tr><td>رأفت رفعت رأفت</td><td><strong>d1006</strong></td></tr>
-            <tr><td>حسام وليد حسام</td><td><strong>d1007</strong></td></tr>
-            <tr><td>عاطف حامد عاطف</td><td><strong>d1008</strong></td></tr>
-            <tr><td>مجدي جمال مجدي</td><td><strong>d1009</strong></td></tr>
-            <tr><td>سليمان هشام سليمان</td><td><strong>d1010</strong></td></tr>
-        </table>
-    </div>
-    
-    <div class="login-section">
-        <h3>👨‍🎓 طلاب Class E</h3>
-        <table class="login-table">
-            <tr>
-                <th>الاسم</th>
-                <th>كلمة المرور</th>
-            </tr>
-            <tr><td>نبيل محمد نبيل</td><td><strong>e1001</strong></td></tr>
-            <tr><td>رامي أحمد رامي</td><td><strong>e1002</strong></td></tr>
-            <tr><td>عماد حسين عماد</td><td><strong>e1003</strong></td></tr>
-            <tr><td>صلاح سعيد صلاح</td><td><strong>e1004</strong></td></tr>
-            <tr><td>مجد خالد مجد</td><td><strong>e1005</strong></td></tr>
-            <tr><td>رافت رفعت رافت</td><td><strong>e1006</strong></td></tr>
-            <tr><td>بسام وليد بسام</td><td><strong>e1007</strong></td></tr>
-            <tr><td>كمال حامد كمال</td><td><strong>e1008</strong></td></tr>
-            <tr><td>فاروق جمال فاروق</td><td><strong>e1009</strong></td></tr>
-            <tr><td>أنور هشام أنور</td><td><strong>e1010</strong></td></tr>
-        </table>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
-    # حاوية الإدخالات
-    st.markdown('<div class="login-input-container">', unsafe_allow_html=True)
-    
-    # حقل إدخال اسم المستخدم
-    st.markdown('<div class="input-label">اسم المستخدم</div>', unsafe_allow_html=True)
-    username = st.text_input("اسم المستخدم", 
-                            placeholder="أدخل اسمك",
-                            label_visibility="collapsed")
-    
-    # حقل إدخال كلمة السر
-    st.markdown('<div class="input-label">كلمة المرور</div>', unsafe_allow_html=True)
-    password = st.text_input("كلمة المرور", type="password", 
-                            placeholder="أدخل كلمة المرور الخاصة بك",
-                            label_visibility="collapsed")
-    
-    # زر تسجيل الدخول
-    login_button = st.button("✅ تسجيل الدخول", use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # إغلاق login-input-container
-    st.markdown('</div>', unsafe_allow_html=True)  # إغلاق login-container
-    
-    # معالجة تسجيل الدخول
-    if login_button:
-        if username and password:
-            if username in USERS:
-                if USERS[username]["password"] == password:
-                    st.session_state.logged_in = True
-                    st.session_state.user_name = username
-                    st.session_state.user_role = USERS[username]["role"]
-                    
-                    # توجيه المستخدم حسب دوره
-                    if USERS[username]["role"] == "admin":
-                        st.session_state.page = "admin_dashboard"
-                        st.session_state.admin_tab = "dashboard"
-                    elif USERS[username]["role"] == "teacher":
-                        st.session_state.page = "home"
-                        st.session_state.teacher_name = USERS[username]["display_name"]
-                        st.session_state.teacher_classes = USERS[username]["classes"]
-                        st.session_state.teacher_mode = None
-                        st.session_state.selected_class = None
-                    else:  # student
-                        st.session_state.page = "home"
-                        st.session_state.student_name = USERS[username]["student_name"]
-                    
-                    st.success(f"✅ مرحباً {username}!")
-                    st.rerun()
+        # معالجة تسجيل الدخول
+        if login_button:
+            if username and password:
+                if username in USERS:
+                    if USERS[username]["password"] == password:
+                        st.session_state.logged_in = True
+                        st.session_state.user_name = username
+                        st.session_state.user_role = USERS[username]["role"]
+                        
+                        # توجيه المستخدم حسب دوره
+                        if USERS[username]["role"] == "admin":
+                            st.session_state.page = "admin_dashboard"
+                            st.session_state.admin_tab = "dashboard"
+                        elif USERS[username]["role"] == "teacher":
+                            st.session_state.page = "home"
+                            st.session_state.teacher_name = USERS[username]["display_name"]
+                            st.session_state.teacher_classes = USERS[username]["classes"]
+                            st.session_state.teacher_mode = None
+                            st.session_state.selected_class = None
+                        else:  # student
+                            st.session_state.page = "home"
+                            st.session_state.student_name = USERS[username]["student_name"]
+                        
+                        st.success(f"✅ مرحباً {username}!")
+                        st.rerun()
+                    else:
+                        st.error("❌ كلمة المرور غير صحيحة")
                 else:
-                    st.error("❌ كلمة المرور غير صحيحة")
+                    st.error("❌ اسم المستخدم غير موجود")
             else:
-                st.error("❌ اسم المستخدم غير موجود")
-        else:
-            st.error("❌ من فضلك أدخل اسم المستخدم وكلمة المرور")
+                st.error("❌ من فضلك أدخل اسم المستخدم وكلمة المرور")
         
 # إذا كان المستخدم مسجلاً دخوله، عرض الصفحات الأخرى
 elif st.session_state.logged_in:
@@ -2072,7 +1918,7 @@ elif st.session_state.logged_in:
         
         st.markdown('<div class="home-title">🏠 الصفحة الرئيسية</div>', unsafe_allow_html=True)
         
-        # الأزرار الجديدة للمعلم في الصفحة الرئيسية
+        # الأزرار للمعلم في الصفحة الرئيسية
         if st.session_state.user_role == "teacher":
             # رسالة ترحيب
             welcome_html = f"""

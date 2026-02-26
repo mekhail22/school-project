@@ -11,11 +11,6 @@ import hashlib
 import random
 import string
 from pathlib import Path
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import timedelta
-import calendar
-import numpy as np
 import io
 import csv
 from contextlib import contextmanager
@@ -26,8 +21,6 @@ from enum import Enum
 # Google Sheets / Auth
 import gspread
 from google.oauth2.service_account import Credentials
-from google.auth.transport.requests import Request
-from google.oauth2 import service_account
 
 # Optional date parser
 try:
@@ -1467,69 +1460,6 @@ def remove_teacher(teacher_name):
     logger.info(f"✅ تم حذف المعلم {teacher_name} من النظام")
     return True, f"تم حذف المعلم {teacher_name} من النظام"
 
-# ------------------ دوال التصور والرسوم البيانية ------------------
-def plot_attendance_pie_chart(present_count, absent_count):
-    """رسم مخطط دائري للحضور والغياب"""
-    fig = go.Figure(data=[go.Pie(
-        labels=['حاضر', 'غائب'],
-        values=[present_count, absent_count],
-        hole=.3,
-        marker_colors=['#10b981', '#ef4444']
-    )])
-    fig.update_layout(
-        title='نسبة الحضور والغياب',
-        font=dict(family='Cairo', size=14)
-    )
-    return fig
-
-def plot_attendance_bar_chart(class_stats):
-    """رسم مخطط أعمدة لإحصائيات الفصول"""
-    classes = [stat['class'] for stat in class_stats]
-    present = [stat.get('present_count', 0) for stat in class_stats]
-    absent = [stat.get('absent_count', 0) for stat in class_stats]
-    
-    fig = go.Figure(data=[
-        go.Bar(name='حاضر', x=classes, y=present, marker_color='#10b981'),
-        go.Bar(name='غائب', x=classes, y=absent, marker_color='#ef4444')
-    ])
-    fig.update_layout(
-        barmode='group',
-        title='إحصائيات الحضور والغياب حسب الفصل',
-        font=dict(family='Cairo', size=14),
-        xaxis_title='الفصل',
-        yaxis_title='عدد السجلات'
-    )
-    return fig
-
-def plot_monthly_trend(monthly_stats):
-    """رسم اتجاه شهري للحضور والغياب"""
-    months = list(monthly_stats.keys())
-    present = [monthly_stats[m]['present'] for m in months]
-    absent = [monthly_stats[m]['absent'] for m in months]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=months, y=present,
-        mode='lines+markers',
-        name='حاضر',
-        line=dict(color='#10b981', width=3),
-        marker=dict(size=8)
-    ))
-    fig.add_trace(go.Scatter(
-        x=months, y=absent,
-        mode='lines+markers',
-        name='غائب',
-        line=dict(color='#ef4444', width=3),
-        marker=dict(size=8)
-    ))
-    fig.update_layout(
-        title='الاتجاه الشهري للحضور والغياب',
-        font=dict(family='Cairo', size=14),
-        xaxis_title='الشهر',
-        yaxis_title='عدد السجلات'
-    )
-    return fig
-
 # ------------------ دوال المساعدة للصور ------------------
 def get_image_base64(image_path):
     """تحويل الصورة إلى Base64"""
@@ -2698,13 +2628,6 @@ elif st.session_state.logged_in:
                     st.markdown("### ❌ الغياب بدون عذر")
                     st.metric("عدد مرات الغياب بدون عذر", stats["absent_unexcused"])
                 
-                # رسم مخطط دائري
-                if stats["total_records"] > 0:
-                    st.markdown("---")
-                    st.markdown("### 📊 نسبة الحضور والغياب")
-                    fig = plot_attendance_pie_chart(stats["present_count"], stats["absent_count"])
-                    st.plotly_chart(fig, use_container_width=True)
-                
                 st.markdown("---")
                 
                 # عرض إحصائيات كل طالب
@@ -2833,11 +2756,6 @@ elif st.session_state.logged_in:
                 else:
                     st.metric("نسبة الحضور", "0%")
             
-            # رسم مخطط دائري
-            if total_count > 0:
-                fig = plot_attendance_pie_chart(present_count, absent_count)
-                st.plotly_chart(fig, use_container_width=True)
-            
             # عرض الجدول
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
@@ -2926,26 +2844,6 @@ elif st.session_state.logged_in:
                 st.metric("نسبة الحضور", f"{stats['attendance_rate']:.1f}%")
             with col8:
                 st.metric("آخر تحديث", stats["last_update"])
-            
-            # رسم المخططات
-            if stats["total_records"] > 0:
-                st.markdown("---")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("### 📊 نسبة الحضور والغياب")
-                    fig = plot_attendance_pie_chart(stats["present_count"], stats["absent_count"])
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                with col2:
-                    st.markdown("### 📊 إحصائيات الفصول")
-                    fig = plot_attendance_bar_chart(stats["class_stats"])
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                if stats["monthly_stats"]:
-                    st.markdown("---")
-                    st.markdown("### 📈 الاتجاه الشهري")
-                    fig = plot_monthly_trend(stats["monthly_stats"])
-                    st.plotly_chart(fig, use_container_width=True)
             
             st.markdown('</div>', unsafe_allow_html=True)
             

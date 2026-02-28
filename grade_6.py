@@ -622,12 +622,9 @@ def save_to_local(rows):
         return 0
 
 def export_to_csv(df, filename=None):
-    """تصدير البيانات إلى CSV"""
-    if filename is None:
-        filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    csv = df.to_csv(index=False).encode('utf-8-sig')
-    return csv, filename
+    """تصدير البيانات إلى CSV (محذوفة - لن تستخدم)"""
+    # هذه الدالة محذوفة ولن تستخدم
+    pass
 
 def import_from_csv(csv_file):
     """استيراد البيانات من CSV"""
@@ -2650,15 +2647,6 @@ elif st.session_state.logged_in:
                     
                     st.dataframe(student_stats_df, use_container_width=True, hide_index=True)
                     
-                    # زر تصدير الإحصائيات
-                    csv, filename = export_to_csv(student_stats_df, f"احصائيات_{selected_class}.csv")
-                    st.download_button(
-                        label="📥 تحميل الإحصائيات (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
                 else:
                     st.info("لا توجد سجلات لهذا الفصل بعد.")
                 
@@ -2679,15 +2667,6 @@ elif st.session_state.logged_in:
                     st.dataframe(all_history, use_container_width=True, height=400)
                     st.info(f"**عدد السجلات المعروضة:** {len(all_history)} سجل")
                     
-                    # زر تصدير السجلات
-                    csv, filename = export_to_csv(all_history, f"سجل_{selected_class}.csv")
-                    st.download_button(
-                        label="📥 تحميل السجل (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
                 else:
                     st.info("لا توجد سجلات حضور لهذا الفصل بعد.")
         
@@ -2759,16 +2738,6 @@ elif st.session_state.logged_in:
             st.markdown("### 📋 تفاصيل السجلات:")
             st.dataframe(df_student, use_container_width=True, hide_index=True)
             
-            # زر تصدير البيانات
-            csv, filename = export_to_csv(df_student, f"تقرير_{student_name}.csv")
-            st.download_button(
-                label="📥 تحميل تقريري (CSV)",
-                data=csv,
-                file_name=filename,
-                mime="text/csv",
-                use_container_width=True
-            )
-        
         # زر العودة للصفحة الرئيسية في الأسفل
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -2886,15 +2855,6 @@ elif st.session_state.logged_in:
                     all_display = all_display.rename(columns={k: v for k, v in column_map.items() if k in all_display.columns})
                     st.dataframe(all_display, use_container_width=True, hide_index=True)
                     
-                    # زر تصدير جميع السجلات
-                    csv, filename = export_to_csv(all_display, f"جميع_السجلات_{datetime.now().strftime('%Y%m%d')}.csv")
-                    st.download_button(
-                        label="📥 تحميل جميع السجلات (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
             else:
                 st.info("لا توجد سجلات غياب في النظام بعد.")
             
@@ -2946,15 +2906,6 @@ elif st.session_state.logged_in:
                     # عرض عدد الطلاب
                     st.info(f"**إجمالي عدد الطلاب:** {len(ALL_STUDENTS)}")
                     
-                    # زر تصدير البيانات
-                    csv, filename = export_to_csv(students_df, f"قائمة_الطلاب_{datetime.now().strftime('%Y%m%d')}.csv")
-                    st.download_button(
-                        label="📥 تحميل قائمة الطلاب (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
                 else:
                     st.info("لا يوجد طلاب في النظام.")
             
@@ -3178,15 +3129,6 @@ elif st.session_state.logged_in:
                     st.dataframe(teachers_df, use_container_width=True, hide_index=True)
                     st.info(f"**إجمالي عدد المعلمين:** {len(TEACHERS)}")
                     
-                    # زر تصدير البيانات
-                    csv, filename = export_to_csv(teachers_df, f"قائمة_المعلمين_{datetime.now().strftime('%Y%m%d')}.csv")
-                    st.download_button(
-                        label="📥 تحميل قائمة المعلمين (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
                 else:
                     st.info("لا يوجد معلمين في النظام.")
             
@@ -3370,15 +3312,6 @@ elif st.session_state.logged_in:
                     st.dataframe(class_df, use_container_width=True, hide_index=True)
                     st.info(f"**إجمالي عدد الفصول:** {len(CLASSES)}")
                     
-                    # زر تصدير البيانات
-                    csv, filename = export_to_csv(class_df, f"قائمة_الفصول_{datetime.now().strftime('%Y%m%d')}.csv")
-                    st.download_button(
-                        label="📥 تحميل قائمة الفصول (CSV)",
-                        data=csv,
-                        file_name=filename,
-                        mime="text/csv",
-                        use_container_width=True
-                    )
                 else:
                     st.info("لا يوجد فصول في النظام.")
             

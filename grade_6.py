@@ -347,6 +347,7 @@ worksheet = None
 connection_status = "غير متصل"
 connection_details = ""
 connection_error = None
+GOOGLE_SHEETS_CONNECTED = False
 
 # محاولة الاتصال بـ Google Sheets
 if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
@@ -365,6 +366,7 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
             # اختبار الاتصال
             try:
                 current_data = worksheet.get_all_records()
+                GOOGLE_SHEETS_CONNECTED = True
                 connection_status = "✅ متصل بـ Google Sheets"
                 connection_details = f"تم تحميل {len(current_data)} سجل"
                 
@@ -380,28 +382,52 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
             except Exception as e:
                 connection_status = f"⚠️ متصل ولكن خطأ في القراءة: {str(e)}"
                 connection_error = str(e)
+                GOOGLE_SHEETS_CONNECTED = False
                 logger.warning(f"⚠️ خطأ في قراءة Google Sheets: {str(e)}")
                 
         except gspread.exceptions.SpreadsheetNotFound:
             connection_status = f"❌ لم يتم العثور على Google Sheet باسم: {SHEET_NAME}"
             connection_error = f"الملف {SHEET_NAME} غير موجود"
+            GOOGLE_SHEETS_CONNECTED = False
             logger.error(f"❌ لم يتم العثور على Google Sheet: {SHEET_NAME}")
         except Exception as e:
             connection_status = f"❌ خطأ في فتح الـ Sheet: {str(e)}"
             connection_error = str(e)
+            GOOGLE_SHEETS_CONNECTED = False
             logger.error(f"❌ خطأ في فتح Google Sheet: {str(e)}")
             
     except Exception as e:
         connection_status = f"❌ فشل في المصادقة: {str(e)}"
         connection_error = str(e)
+        GOOGLE_SHEETS_CONNECTED = False
         logger.error(f"❌ فشل في مصادقة Google Sheets: {str(e)}")
 else:
-    connection_status = "⚠️ SERVICE_ACCOUNT غير متوفر - سيتم استخدام التخزين المحلي"
-    logger.warning("⚠️ SERVICE_ACCOUNT غير متوفر - سيتم استخدام التخزين المحلي")
+    connection_status = "❌ SERVICE_ACCOUNT غير متوفر - لا يمكن الاتصال بـ Google Sheets"
+    GOOGLE_SHEETS_CONNECTED = False
+    logger.error("❌ SERVICE_ACCOUNT غير متوفر - لا يمكن الاتصال بـ Google Sheets")
 
-# إخفاء رسائل الاتصال بالكامل
-if "disable_connection_alerts" not in st.session_state:
-    st.session_state.disable_connection_alerts = True
+# التحقق من الاتصال وعرض رسالة خطأ إذا كان غير متصل
+if not GOOGLE_SHEETS_CONNECTED:
+    st.error("""
+    ## ⚠️ Google Sheets غير متصل
+    
+    **لا يمكن استخدام التطبيق حالياً لأنه يحتاج إلى الاتصال بـ Google Sheets.**
+    
+    ### الأسباب المحتملة:
+    1. ملف SERVICE_ACCOUNT غير موجود أو غير صحيح
+    2. Google Sheet المطلوب غير موجود
+    3. مشكلة في صلاحيات الوصول
+    
+    ### الحل:
+    - تأكد من إعداد ملفات الـ Secrets بشكل صحيح في Streamlit Cloud
+    - تأكد من وجود Google Sheet باسم "school_attendance"
+    - تأكد من مشاركة الـ Sheet مع البريد الإلكتروني في SERVICE_ACCOUNT
+    
+    **يرجى التواصل مع مدير النظام لحل هذه المشكلة.**
+    """)
+    
+    # إيقاف التطبيق إذا كان Google Sheets غير متصل
+    st.stop()
 
 # ------------------ دوال مساعدة للتاريخ ------------------
 def parse_date(date_str):
@@ -533,45 +559,37 @@ def is_admin(username):
 
 # ------------------ دوال قراءة وكتابة البيانات ------------------
 def read_sheet():
-    """قراءة البيانات من Google Sheets أو من نسخة محلية مؤقتة"""
+    """قراءة البيانات من Google Sheets"""
     global worksheet
     
-    # 1. أولاً: حاول القراءة من Google Sheets
-    if worksheet is not None:
-        try:
-            data = worksheet.get_all_records()
-            df = pd.DataFrame(data)
-            
-            # التأكد من وجود الأعمدة الأساسية
-            for col in ["student", "teacher", "class", "status", "date"]:
-                if col not in df.columns:
-                    df[col] = ""
-            
-            logger.info(f"✅ تم تحميل {len(df)} سجل من Google Sheets")
-            return df
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في قراءة Google Sheets: {str(e)}")
+    if worksheet is None:
+        st.error("⚠️ Google Sheets غير متصل - لا يمكن قراءة البيانات")
+        return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
     
-    # 2. إذا فشل الاتصال: استخدم نسخة محلية من البيانات المخزنة في session_state
     try:
-        # التحقق من وجود بيانات في session_state
-        if "local_attendance_data" in st.session_state:
-            df = pd.DataFrame(st.session_state["local_attendance_data"])
-            logger.info(f"📱 تم تحميل {len(df)} سجل من الذاكرة المحلية")
-            return df
-        else:
-            # إذا لم توجد بيانات محلية، أنشئ DataFrame فارغ
-            logger.info("📭 لا توجد بيانات في الذاكرة المحلية")
-            return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
-            
+        data = worksheet.get_all_records()
+        df = pd.DataFrame(data)
+        
+        # التأكد من وجود الأعمدة الأساسية
+        for col in ["student", "teacher", "class", "status", "date"]:
+            if col not in df.columns:
+                df[col] = ""
+        
+        logger.info(f"✅ تم تحميل {len(df)} سجل من Google Sheets")
+        return df
+        
     except Exception as e:
-        logger.error(f"❌ خطأ في قراءة الذاكرة المحلية: {str(e)}")
+        st.error(f"❌ خطأ في قراءة Google Sheets: {str(e)}")
+        logger.error(f"❌ خطأ في قراءة Google Sheets: {str(e)}")
         return pd.DataFrame(columns=["student", "teacher", "class", "status", "date"])
 
 def save_to_sheet(rows):
     """حفظ البيانات في Google Sheets"""
     global worksheet
+    
+    if worksheet is None:
+        st.error("⚠️ Google Sheets غير متصل - لا يمكن حفظ البيانات")
+        return 0, [("Google Sheets", "غير متصل")]
     
     if not rows:
         return 0, []
@@ -579,52 +597,35 @@ def save_to_sheet(rows):
     success_count = 0
     failed = []
     
-    if worksheet:
+    try:
+        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+        success_count = len(rows)
+        logger.info(f"✅ تم حفظ {success_count} سجل في Google Sheets")
+    except Exception as e:
+        st.error(f"❌ خطأ في الحفظ في Google Sheets: {str(e)}")
+        logger.error(f"❌ خطأ في الحفظ في Google Sheets: {str(e)}")
+        failed.append(("Google Sheets", str(e)))
+        
+        # محاولة حفظ كل صف على حدة
         try:
-            worksheet.append_rows(rows, value_input_option="USER_ENTERED")
-            success_count = len(rows)
-            logger.info(f"✅ تم حفظ {success_count} سجل في Google Sheets")
-        except Exception as e:
-            logger.error(f"❌ خطأ في الحفظ في Google Sheets: {str(e)}")
-            failed.append(("Google Sheets", str(e)))
-            
-            # محاولة حفظ كل صف على حدة
-            try:
-                for r in rows:
-                    worksheet.append_row(r, value_input_option="USER_ENTERED")
-                    success_count += 1
-                logger.info(f"✅ تم حفظ {success_count} سجل في Google Sheets (طريقة بديلة)")
-            except Exception as ex:
-                logger.error(f"❌ فشل الحفظ في Google Sheets: {str(ex)}")
-                failed.append(("Google Sheets (بديل)", str(ex)))
+            for r in rows:
+                worksheet.append_row(r, value_input_option="USER_ENTERED")
+                success_count += 1
+            logger.info(f"✅ تم حفظ {success_count} سجل في Google Sheets (طريقة بديلة)")
+        except Exception as ex:
+            st.error(f"❌ فشل الحفظ في Google Sheets: {str(ex)}")
+            logger.error(f"❌ فشل الحفظ في Google Sheets: {str(ex)}")
+            failed.append(("Google Sheets (بديل)", str(ex)))
     
     return success_count, failed
 
-def save_to_local(rows):
-    """حفظ البيانات محلياً في session_state"""
-    try:
-        if "local_attendance_data" not in st.session_state:
-            st.session_state["local_attendance_data"] = []
-        
-        for row in rows:
-            st.session_state["local_attendance_data"].append({
-                "student": row[0],
-                "teacher": row[1],
-                "class": row[2],
-                "status": row[3],
-                "date": row[4]
-            })
-        
-        logger.info(f"💾 تم حفظ {len(rows)} سجل في الذاكرة المحلية")
-        return len(rows)
-    except Exception as e:
-        logger.error(f"❌ خطأ في الحفظ المحلي: {str(e)}")
-        return 0
-
 def export_to_csv(df, filename=None):
-    """تصدير البيانات إلى CSV (محذوفة - لن تستخدم)"""
-    # هذه الدالة محذوفة ولن تستخدم
-    pass
+    """تصدير البيانات إلى CSV"""
+    if filename is None:
+        filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    csv = df.to_csv(index=False).encode('utf-8-sig')
+    return csv, filename
 
 def import_from_csv(csv_file):
     """استيراد البيانات من CSV"""
@@ -1093,9 +1094,6 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
     # حفظ في Google Sheets
     sheet_success, sheet_failed = save_to_sheet(rows)
     
-    # حفظ محلياً
-    local_success = save_to_local(rows)
-    
     # إرسال إشعار Telegram
     telegram_sent = False
     telegram_response = None
@@ -1106,7 +1104,7 @@ def record_attendance(selected_absent, teacher_name, class_name, absent_label):
         )
     
     # إعداد النتائج
-    total_success = max(sheet_success, local_success)
+    total_success = sheet_success
     failed = sheet_failed
     
     telegram_status = "✅ تم الإرسال" if telegram_sent else "❌ فشل الإرسال"
@@ -2204,7 +2202,6 @@ session_defaults = {
     "student_subtab": "list",
     "teacher_subtab": "list",
     "class_subtab": "list",
-    "local_attendance_data": []
 }
 
 for key, value in session_defaults.items():
@@ -3496,28 +3493,6 @@ elif st.session_state.logged_in:
                 st.metric("إجمالي السجلات", stats["total_records"])
             with col3:
                 st.metric("آخر تحديث", stats["last_update"])
-            
-            # زر مسح البيانات المحلية
-            st.markdown("#### 🗑️ إدارة البيانات")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🗑️ مسح البيانات المحلية", use_container_width=True):
-                    if "local_attendance_data" in st.session_state:
-                        st.session_state.local_attendance_data = []
-                        st.success("✅ تم مسح البيانات المحلية")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.info("لا توجد بيانات محلية")
-            
-            with col2:
-                if st.button("🔄 إعادة تعيين الجلسة", use_container_width=True):
-                    for key in list(st.session_state.keys()):
-                        if key not in ["logged_in", "user_role", "user_name", "page"]:
-                            del st.session_state[key]
-                    st.success("✅ تم إعادة تعيين الجلسة")
-                    time.sleep(1)
-                    st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
         

@@ -1,0 +1,10 @@
+streamlit>=1.28.0
+pandas>=2.0.0
+python-dateutil>=2.8.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+reportlab>=4.0.0
+gspread>=5.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+requests>=2.31.0

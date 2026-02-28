@@ -80,20 +80,16 @@ class User:
 
 @dataclass
 class Student(User):
-    student_name: str
-    class_name: ClassLevel
+    student_name: str = ""
+    class_name: ClassLevel = ClassLevel.B
     parent_phone: Optional[str] = None
     address: Optional[str] = None
-    # نضيف last_login هنا أيضاً مع قيمة افتراضية None
-    last_login: Optional[datetime] = None
 
 @dataclass
 class Teacher(User):
-    classes: List[ClassLevel]
+    classes: List[ClassLevel] = field(default_factory=list)
     specialization: Optional[str] = None
     phone: Optional[str] = None
-    # نضيف last_login هنا أيضاً مع قيمة افتراضية None
-    last_login: Optional[datetime] = None
 
 @dataclass
 class AttendanceRecord:
@@ -1261,7 +1257,7 @@ def remove_student_from_class(student_name):
 
 def add_class(class_name, teacher_name, students_list=None):
     """إضافة فصل جديد"""
-    global CLASSES, TEACHER_CLASSES, STUDENT_TO_CLASS, ALL_STUDENTS
+    global CLASSES, TEACHER_CLASSES, STUDENT_TO_CLASS, ALL_STUDENTS, USERS
     
     if class_name in CLASSES:
         return False, "الفصل موجود بالفعل"

@@ -15,7 +15,7 @@ import io
 import csv
 from contextlib import contextmanager
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 # Google Sheets / Auth
@@ -77,20 +77,24 @@ class User:
     display_name: str
     created_at: datetime
     last_login: Optional[datetime] = None
-    
+
 @dataclass
 class Student(User):
     student_name: str
     class_name: ClassLevel
     parent_phone: Optional[str] = None
     address: Optional[str] = None
-    
+    # نضيف last_login هنا أيضاً مع قيمة افتراضية None
+    last_login: Optional[datetime] = None
+
 @dataclass
 class Teacher(User):
     classes: List[ClassLevel]
     specialization: Optional[str] = None
     phone: Optional[str] = None
-    
+    # نضيف last_login هنا أيضاً مع قيمة افتراضية None
+    last_login: Optional[datetime] = None
+
 @dataclass
 class AttendanceRecord:
     student: str
@@ -99,7 +103,7 @@ class AttendanceRecord:
     status: str
     date: str
     notes: Optional[str] = None
-    recorded_at: datetime = None
+    recorded_at: Optional[datetime] = None
 
 # ------------------ App settings ------------------
 CLASSES = {
@@ -282,11 +286,11 @@ def load_secrets():
         secrets = st.secrets
         
         # Telegram
-        BOT_TOKEN = getattr(secrets.telegram, 'bot_token', None)
-        CHAT_ID = getattr(secrets.telegram, 'chat_id', None)
+        BOT_TOKEN = getattr(secrets, 'BOT_TOKEN', None)
+        CHAT_ID = getattr(secrets, 'CHAT_ID', None)
         
         # App settings
-        SHEET_NAME = getattr(secrets.sheets, 'name', 'school_attendance')
+        SHEET_NAME = getattr(secrets, 'SHEET_NAME', 'school_attendance')
         
         # Service Account
         SERVICE_ACCOUNT = None
@@ -298,7 +302,6 @@ def load_secrets():
                 logger.info("✅ تم تحميل SERVICE_ACCOUNT_JSON بنجاح")
             except Exception as e:
                 logger.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
         
         # الطريقة 2: SERVICE_ACCOUNT كقسم
         if not SERVICE_ACCOUNT and hasattr(secrets, 'SERVICE_ACCOUNT'):
@@ -318,7 +321,6 @@ def load_secrets():
                 logger.info("✅ تم تحميل SERVICE_ACCOUNT بنجاح")
             except Exception as e:
                 logger.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
-                st.error(f"❌ خطأ في تحميل SERVICE_ACCOUNT: {e}")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -329,7 +331,6 @@ def load_secrets():
         
     except Exception as e:
         logger.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
-        st.error(f"❌ خطأ في تحميل الإعدادات: {str(e)}")
         return {
             'BOT_TOKEN': None,
             'CHAT_ID': None,
@@ -2171,6 +2172,8 @@ st.markdown("""
 def show_toolbar():
     """عرض الشريط العلوي"""
     arabic_date = get_arabic_date()
+    user_role_display = "مدير النظام" if st.session_state.user_role == "admin" else ("معلم" if st.session_state.user_role == "teacher" else "طالب")
+    
     st.markdown(f"""
     <div class="top-toolbar">
         <div class="logo-container">
@@ -2181,7 +2184,7 @@ def show_toolbar():
             </div>
         </div>
         <div class="user-status">
-            {st.session_state.user_name} | {st.session_state.user_role}
+            {st.session_state.user_name} | {user_role_display}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2265,13 +2268,13 @@ if st.session_state.page == "login":
                             st.session_state.admin_tab = "dashboard"
                         elif USERS[username]["role"] == "teacher":
                             st.session_state.page = "home"
-                            st.session_state.teacher_name = USERS[username]["display_name"]
-                            st.session_state.teacher_classes = USERS[username]["classes"]
+                            st.session_state.teacher_name = USERS[username].get("display_name", username)
+                            st.session_state.teacher_classes = USERS[username].get("classes", [])
                             st.session_state.teacher_mode = None
                             st.session_state.selected_class = None
                         else:  # student
                             st.session_state.page = "home"
-                            st.session_state.student_name = USERS[username]["student_name"]
+                            st.session_state.student_name = USERS[username].get("student_name", username)
                         
                         st.success(f"✅ مرحباً {USERS[username].get('display_name', username)}!")
                         time.sleep(1)

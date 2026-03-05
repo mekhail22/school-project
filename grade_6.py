@@ -172,21 +172,82 @@ def load_secrets():
         secrets = st.secrets
         
         # Telegram
-        BOT_TOKEN = getattr(secrets, 'telegram', {}).get('bot_token', None) if hasattr(secrets, 'telegram') else None
-        CHAT_ID = getattr(secrets, 'telegram', {}).get('chat_id', None) if hasattr(secrets, 'telegram') else None
+        BOT_TOKEN = None
+        CHAT_ID = None
+        
+        # محاولة قراءة Telegram بعدة طرق
+        if hasattr(secrets, 'telegram'):
+            if hasattr(secrets.telegram, 'bot_token'):
+                BOT_TOKEN = secrets.telegram.bot_token
+            elif hasattr(secrets.telegram, 'get'):
+                BOT_TOKEN = secrets.telegram.get('bot_token')
+                
+            if hasattr(secrets.telegram, 'chat_id'):
+                CHAT_ID = secrets.telegram.chat_id
+            elif hasattr(secrets.telegram, 'get'):
+                CHAT_ID = secrets.telegram.get('chat_id')
         
         # App settings
-        SHEET_NAME = getattr(secrets, 'sheets', {}).get('name', 'school_attendance') if hasattr(secrets, 'sheets') else 'school_attendance'
+        SHEET_NAME = 'school_attendance'
+        if hasattr(secrets, 'sheets'):
+            if hasattr(secrets.sheets, 'name'):
+                SHEET_NAME = secrets.sheets.name
+            elif hasattr(secrets.sheets, 'get'):
+                SHEET_NAME = secrets.sheets.get('name', 'school_attendance')
         
-        # Service Account
+        # Service Account - محاولة قراءة بعدة طرق
         SERVICE_ACCOUNT = None
         
-        # الطريقة 1: SERVICE_ACCOUNT_JSON
+        # الطريقة 1: SERVICE_ACCOUNT_JSON كسلسلة JSON كاملة
         if hasattr(secrets, 'SERVICE_ACCOUNT_JSON'):
             try:
                 SERVICE_ACCOUNT = json.loads(secrets.SERVICE_ACCOUNT_JSON)
+                logger.info("✅ تم تحميل SERVICE_ACCOUNT من SERVICE_ACCOUNT_JSON")
             except Exception as e:
                 logger.error(f"خطأ في تحميل SERVICE_ACCOUNT_JSON: {e}")
+        
+        # الطريقة 2: SERVICE_ACCOUNT كـ section منفصل
+        if SERVICE_ACCOUNT is None and hasattr(secrets, 'SERVICE_ACCOUNT'):
+            try:
+                sa = secrets.SERVICE_ACCOUNT
+                SERVICE_ACCOUNT = {
+                    'type': sa.type if hasattr(sa, 'type') else sa.get('type', ''),
+                    'project_id': sa.project_id if hasattr(sa, 'project_id') else sa.get('project_id', ''),
+                    'private_key_id': sa.private_key_id if hasattr(sa, 'private_key_id') else sa.get('private_key_id', ''),
+                    'private_key': sa.private_key if hasattr(sa, 'private_key') else sa.get('private_key', ''),
+                    'client_email': sa.client_email if hasattr(sa, 'client_email') else sa.get('client_email', ''),
+                    'client_id': sa.client_id if hasattr(sa, 'client_id') else sa.get('client_id', ''),
+                    'auth_uri': sa.auth_uri if hasattr(sa, 'auth_uri') else sa.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth'),
+                    'token_uri': sa.token_uri if hasattr(sa, 'token_uri') else sa.get('token_uri', 'https://oauth2.googleapis.com/token'),
+                    'auth_provider_x509_cert_url': sa.auth_provider_x509_cert_url if hasattr(sa, 'auth_provider_x509_cert_url') else sa.get('auth_provider_x509_cert_url', 'https://www.googleapis.com/oauth2/v1/certs'),
+                    'client_x509_cert_url': sa.client_x509_cert_url if hasattr(sa, 'client_x509_cert_url') else sa.get('client_x509_cert_url', '')
+                }
+                logger.info("✅ تم تحميل SERVICE_ACCOUNT من SERVICE_ACCOUNT section")
+            except Exception as e:
+                logger.error(f"خطأ في تحميل SERVICE_ACCOUNT section: {e}")
+        
+        # الطريقة 3: محاولة قراءة كل مفتاح على حدة (للتوافق مع الإصدارات القديمة)
+        if SERVICE_ACCOUNT is None:
+            try:
+                required_keys = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+                sa_dict = {}
+                all_found = True
+                
+                for key in required_keys:
+                    upper_key = key.upper()
+                    if hasattr(secrets, upper_key):
+                        sa_dict[key] = getattr(secrets, upper_key)
+                    elif hasattr(secrets, key):
+                        sa_dict[key] = getattr(secrets, key)
+                    else:
+                        all_found = False
+                        break
+                
+                if all_found:
+                    SERVICE_ACCOUNT = sa_dict
+                    logger.info("✅ تم تحميل SERVICE_ACCOUNT من مفاتيح منفصلة")
+            except Exception as e:
+                logger.error(f"خطأ في تحميل SERVICE_ACCOUNT من مفاتيح منفصلة: {e}")
         
         return {
             'BOT_TOKEN': BOT_TOKEN,
@@ -254,7 +315,7 @@ if SERVICE_ACCOUNT and SERVICE_ACCOUNT.get('private_key'):
     except Exception as e:
         connection_status = f"❌ فشل في المصادقة: {str(e)}"
 else:
-    connection_status = "❌ SERVICE_ACCOUNT غير موجود"
+    connection_status = "❌ SERVICE_ACCOUNT غير موجود أو private_key مفقود"
 
 # Helper functions
 def read_sheet():

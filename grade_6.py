@@ -2921,3 +2921,17 @@ elif st.session_state.logged_in:
 else:
     st.session_state.page = "login"
     st.rerun()
+
+
+# -----------------------------
+# بيانات تسجيل الدخول للتجربة (تظهر أسفل صفحة تسجيل الدخول)
+# -----------------------------
+import streamlit as st
+
+st.write("---")
+st.caption("بيانات تسجيل الدخول للتجربة")
+
+st.write("Admin → username: admin | password: admin1234")
+st.write("Teacher → username: مينا سمير | password: mina1234")
+st.write("Teacher → username: فادي حبيب | password: fady5678")
+st.write("Student مثال → username: أحمد محمد أحمد | password: c1001")
